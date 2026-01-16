@@ -14,3 +14,6 @@ export_presets.cfg
 data_*/
 mono_crash.*.json
 /.idea
+.sconsign.dblite
+compile_commands.json
+demo/.editorconfig
