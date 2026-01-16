@@ -1,19 +1,42 @@
-# Godot 4+ specific ignores
+# --- C++ Compilation ---
+# Object files
+*.o
+*.os
+*.obj
+*.a
+*.lib
+
+# SCons cache
+.sconsign.dblite
+
+# Clang/CLion Compilation Database
+compile_commands.json
+
+# --- Godot 4 ---
+# Godot 4 cache folder
 .godot/
 
-# Godot-specific ignores
-.import/
-export.cfg
-export_presets.cfg
+# Import cache (Godot < 4, but good to keep)
+*.import
 
-# Imported translations (automatically generated from CSV files)
-*.translation
+# --- GDExtension Binaries ---
+*.so
+*.dll
+*.dylib
+*.wasm
+*.exp
+*.pdb
+*.ilk
 
-# Mono-specific ignores
-.mono/
-data_*/
-mono_crash.*.json
-/.idea
-.sconsign.dblite
-compile_commands.json
-demo/.editorconfig
+# MacOS Framework bundles
+*.framework/
+
+# --- IDEs & Editors ---
+.idea/
+.vscode/
+*.swp
+*.swo
+.DS_Store
+
+# --- Specific Project Paths ---
+demo/bin/
