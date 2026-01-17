@@ -7,19 +7,19 @@ using namespace godot;
 namespace ts {
 
 void TerrainServer::_bind_methods() {
-    // TODO Binding methods can be done here
+	// TODO Binding methods can be done here
 }
 
 TerrainServer::TerrainServer() {
-    UtilityFunctions::print("TerrainServer: initialized");
+	UtilityFunctions::print("TerrainServer: initialized");
 }
 
 TerrainServer::~TerrainServer() {
-    UtilityFunctions::print("TerrainServer: destroyed");
+	UtilityFunctions::print("TerrainServer: destroyed");
 }
 
 void TerrainServer::_process(double delta) {
-    // TODO Implement per-frame logic here
+	// TODO Implement per-frame logic here
 }
 
-}
+} //namespace ts

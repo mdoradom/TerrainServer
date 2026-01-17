@@ -5,16 +5,17 @@
 namespace ts {
 
 class TerrainServer : public godot::Node3D {
-    GDCLASS(TerrainServer, godot::Node3D);
+	GDCLASS(TerrainServer, godot::Node3D);
 
-    private:
-    protected:
-        static void _bind_methods();
-    public:
-        TerrainServer();
-        ~TerrainServer();
+private:
+protected:
+	static void _bind_methods();
 
-        void _process(double delta) override;
+public:
+	TerrainServer();
+	~TerrainServer();
+
+	void _process(double delta) override;
 };
 
-}
+} //namespace ts
