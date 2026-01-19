@@ -11,13 +11,26 @@ using namespace godot;
 namespace ts {
 
 void Terrain3D::_bind_methods() {
-	// TODO Binding methods can be done here
-	ClassDB::bind_method(D_METHOD("get_configuration"), &Terrain3D::get_configuration);
+	// --- Configuration (Resource) ---
 	ClassDB::bind_method(D_METHOD("set_configuration", "config"), &Terrain3D::set_configuration);
+	ClassDB::bind_method(D_METHOD("get_configuration"), &Terrain3D::get_configuration);
+	ClassDB::bind_method(D_METHOD("_update_generator"), &Terrain3D::_update_generator);
+
+	ADD_GROUP("Data Source", "");
 	ADD_PROPERTY(PropertyInfo(Variant::OBJECT, "configuration", PROPERTY_HINT_RESOURCE_TYPE, "TerrainConfiguration"), "set_configuration", "get_configuration");
 
-	//
-	ClassDB::bind_method(D_METHOD("_update_generator"), &Terrain3D::_update_generator);
+	// --- Debug / Visuals (Node Parameters) ---
+	ClassDB::bind_method(D_METHOD("set_mesh_resolution", "resolution"), &Terrain3D::set_mesh_resolution);
+	ClassDB::bind_method(D_METHOD("get_mesh_resolution"), &Terrain3D::get_mesh_resolution);
+
+	ClassDB::bind_method(D_METHOD("set_material", "material"), &Terrain3D::set_material);
+	ClassDB::bind_method(D_METHOD("get_material"), &Terrain3D::get_material);
+
+	ADD_GROUP("Debug Visuals", "");
+	// Range from 2 to 256 vertex
+	ADD_PROPERTY(PropertyInfo(Variant::INT, "mesh_resolution", PROPERTY_HINT_RANGE, "2,256,1"), "set_mesh_resolution", "get_mesh_resolution");
+	// Slot for material override
+	ADD_PROPERTY(PropertyInfo(Variant::OBJECT, "material", PROPERTY_HINT_RESOURCE_TYPE, "Material"), "set_material", "get_material");
 }
 
 void Terrain3D::_update_generator() {
@@ -40,7 +53,7 @@ void Terrain3D::_generate_debug_mesh() {
 		_debug_mesh_instance->set_owner(get_owner());
 	}
 
-	int size = 64;
+	int size =_mesh_resolution;
 	float vertex_spacing = 1.0f;
 
 	Ref<SurfaceTool> st;
@@ -133,6 +146,39 @@ void Terrain3D::set_configuration(const Ref<TerrainConfiguration> &p_config) {
 	}
 
 	_update_generator();
+}
+
+int Terrain3D::get_mesh_resolution() const {
+	return _mesh_resolution;
+}
+
+void Terrain3D::set_mesh_resolution(int p_resolution) {
+	if (p_resolution < 2) {
+		p_resolution = 2;
+	}
+
+	if (p_resolution == _mesh_resolution) {
+		return;
+	}
+
+	_mesh_resolution = p_resolution;
+	_generate_debug_mesh();
+}
+
+Ref<Material> Terrain3D::get_material() const {
+	return _material_override;
+}
+
+void Terrain3D::set_material(const Ref<Material> &p_material) {
+	if (_material_override == p_material) {
+		return;
+	}
+
+	_material_override = p_material;
+
+	if (_debug_mesh_instance != nullptr) {
+		_debug_mesh_instance->set_material_override(_material_override);
+	}
 }
 
 } //namespace ts

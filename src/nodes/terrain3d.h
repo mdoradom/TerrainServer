@@ -3,6 +3,7 @@
 #include "core/terrain_configuration.h"
 #include "core/terrain_generator.h"
 #include "godot_cpp/classes/mesh_instance3d.hpp"
+#include "godot_cpp/classes/material.hpp"
 
 #include <godot_cpp/classes/node3d.hpp>
 
@@ -19,6 +20,9 @@ private:
 
 	MeshInstance3D* _debug_mesh_instance = nullptr;
 
+	int _mesh_resolution = 64;
+	Ref<Material> _material_override;
+
 	void _generate_debug_mesh();
 
 protected:
@@ -31,8 +35,15 @@ public:
 
 	void _process(double delta) override;
 
+	// Getter and Setter
 	Ref<TerrainConfiguration> get_configuration() const;
 	void set_configuration(const Ref<TerrainConfiguration> &p_config);
+
+	int get_mesh_resolution() const;
+	void set_mesh_resolution(int p_resolution);
+
+	Ref<Material> get_material() const;
+	void set_material(const Ref<Material> &p_material);
 };
 
 } //namespace ts
