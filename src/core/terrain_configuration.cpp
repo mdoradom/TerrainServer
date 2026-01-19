@@ -40,12 +40,12 @@ void TerrainConfiguration::set_seed(int p_seed) {
 	_seed = p_seed;
 	emit_changed();
 }
+double TerrainConfiguration::get_noise_scale() const {
+	return _noise_scale;
+}
 void TerrainConfiguration::set_noise_scale(double p_noise_scale) {
 	_noise_scale = p_noise_scale;
 	emit_changed();
-}
-double TerrainConfiguration::get_noise_scale() const {
-	return _noise_scale;
 }
 
 } //namespace ts
