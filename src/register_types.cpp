@@ -1,6 +1,7 @@
 #include "register_types.h"
 
 #include "core/terrain_configuration.h"
+#include "core/terrain_generator.h"
 #include "nodes/terrain_server.h"
 
 #include <gdextension_interface.h>
@@ -16,6 +17,7 @@ void initialize_terrain_server_module(ModuleInitializationLevel p_level) {
 
 	GDREGISTER_CLASS(ts::TerrainServer);
 	GDREGISTER_CLASS(ts::TerrainConfiguration);
+	GDREGISTER_CLASS(ts::TerrainGenerator);
 }
 
 void uninitialize_terrain_server_module(ModuleInitializationLevel p_level) {
