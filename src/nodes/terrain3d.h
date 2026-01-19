@@ -10,8 +10,8 @@ using namespace godot;
 
 namespace ts {
 
-class TerrainServer : public godot::Node3D {
-	GDCLASS(TerrainServer, godot::Node3D);
+class Terrain3D : public godot::Node3D {
+	GDCLASS(Terrain3D, godot::Node3D);
 
 private:
 	Ref<TerrainConfiguration> _config;
@@ -26,8 +26,8 @@ protected:
 	void _update_generator();
 
 public:
-	TerrainServer();
-	~TerrainServer();
+	Terrain3D();
+	~Terrain3D();
 
 	void _process(double delta) override;
 

@@ -1,4 +1,4 @@
-#include "terrain_server.h"
+#include "terrain3d.h"
 
 #include "godot_cpp/classes/engine.hpp"
 #include "godot_cpp/classes/surface_tool.hpp"
@@ -10,17 +10,17 @@ using namespace godot;
 
 namespace ts {
 
-void TerrainServer::_bind_methods() {
+void Terrain3D::_bind_methods() {
 	// TODO Binding methods can be done here
-	ClassDB::bind_method(D_METHOD("get_configuration"), &TerrainServer::get_configuration);
-	ClassDB::bind_method(D_METHOD("set_configuration", "config"), &TerrainServer::set_configuration);
+	ClassDB::bind_method(D_METHOD("get_configuration"), &Terrain3D::get_configuration);
+	ClassDB::bind_method(D_METHOD("set_configuration", "config"), &Terrain3D::set_configuration);
 	ADD_PROPERTY(PropertyInfo(Variant::OBJECT, "configuration", PROPERTY_HINT_RESOURCE_TYPE, "TerrainConfiguration"), "set_configuration", "get_configuration");
 
 	//
-	ClassDB::bind_method(D_METHOD("_update_generator"), &TerrainServer::_update_generator);
+	ClassDB::bind_method(D_METHOD("_update_generator"), &Terrain3D::_update_generator);
 }
 
-void TerrainServer::_update_generator() {
+void Terrain3D::_update_generator() {
 	if (_config.is_valid() and _generator.is_valid()) {
 		_generator->setup(_config);
 		_generate_debug_mesh();
@@ -28,7 +28,7 @@ void TerrainServer::_update_generator() {
 	}
 }
 
-void TerrainServer::_generate_debug_mesh() {
+void Terrain3D::_generate_debug_mesh() {
 	if (!_generator.is_valid()) {
 		return;
 	}
@@ -92,17 +92,17 @@ void TerrainServer::_generate_debug_mesh() {
 	_debug_mesh_instance->set_mesh(st->commit());
 }
 
-TerrainServer::TerrainServer() {
+Terrain3D::Terrain3D() {
 	_generator.instantiate();
 	UtilityFunctions::print("TerrainServer: initialized");
 }
 
-TerrainServer::~TerrainServer() {
+Terrain3D::~Terrain3D() {
 	_debug_mesh_instance = nullptr;
 	UtilityFunctions::print("TerrainServer: destroyed");
 }
 
-void TerrainServer::_process(double delta) {
+void Terrain3D::_process(double delta) {
 	if (Engine::get_singleton()->is_editor_hint()) {
 		return;
 	}
@@ -110,10 +110,10 @@ void TerrainServer::_process(double delta) {
 	UtilityFunctions::print("Height at (0,0): ", _generator->get_height(0.0f, 0.0f));
 }
 
-Ref<TerrainConfiguration> TerrainServer::get_configuration() const {
+Ref<TerrainConfiguration> Terrain3D::get_configuration() const {
 	return _config;
 }
-void TerrainServer::set_configuration(const Ref<TerrainConfiguration> &p_config) {
+void Terrain3D::set_configuration(const Ref<TerrainConfiguration> &p_config) {
 	// If the same config, do nothing
 	if (_config == p_config) {
 		return;

@@ -2,7 +2,7 @@
 
 #include "core/terrain_configuration.h"
 #include "core/terrain_generator.h"
-#include "nodes/terrain_server.h"
+#include "nodes/terrain3d.h"
 
 #include <gdextension_interface.h>
 #include <godot_cpp/core/defs.hpp>
@@ -15,7 +15,7 @@ void initialize_terrain_server_module(ModuleInitializationLevel p_level) {
 		return;
 	}
 
-	GDREGISTER_CLASS(ts::TerrainServer);
+	GDREGISTER_CLASS(ts::Terrain3D);
 	GDREGISTER_CLASS(ts::TerrainConfiguration);
 	GDREGISTER_CLASS(ts::TerrainGenerator);
 }
