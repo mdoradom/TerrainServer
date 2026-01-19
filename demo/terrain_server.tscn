@@ -2,5 +2,9 @@
 
 [sub_resource type="TerrainConfiguration" id="TerrainConfiguration_pt7ik"]
 
+[sub_resource type="StandardMaterial3D" id="StandardMaterial3D_pt7ik"]
+albedo_color = Color(0.14509805, 0.68235296, 0.3137255, 1)
+
 [node name="Terrain3D" type="Terrain3D" unique_id=1487956453]
 configuration = SubResource("TerrainConfiguration_pt7ik")
+material = SubResource("StandardMaterial3D_pt7ik")
