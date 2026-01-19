@@ -2,5 +2,5 @@
 
 [sub_resource type="TerrainConfiguration" id="TerrainConfiguration_pt7ik"]
 
-[node name="TerrainServer" type="TerrainServer" unique_id=2128497733]
+[node name="TerrainServer" type="TerrainServer" unique_id=2134546415]
 configuration = SubResource("TerrainConfiguration_pt7ik")
