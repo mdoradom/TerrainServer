@@ -1,6 +1,7 @@
 #pragma once
 
 #include "core/terrain_configuration.h"
+#include "core/terrain_generator.h"
 #include <godot_cpp/classes/node3d.hpp>
 
 using namespace godot;
@@ -11,10 +12,12 @@ class TerrainServer : public godot::Node3D {
 	GDCLASS(TerrainServer, godot::Node3D);
 
 private:
-	Ref<TerrainConfiguration> _confi;
+	Ref<TerrainConfiguration> _config;
+	Ref<TerrainGenerator> _generator;
 
 protected:
 	static void _bind_methods();
+	void _update_generator();
 
 public:
 	TerrainServer();
