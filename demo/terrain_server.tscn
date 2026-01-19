@@ -1,0 +1,9 @@
+[gd_scene format=3 uid="uid://wynwhvbc4af1"]
+
+[sub_resource type="TerrainConfiguration" id="TerrainConfiguration_pt7ik"]
+height_scale = 481.78000000000003
+seed = 4
+noise_scale = 0.225
+
+[node name="TerrainServer" type="TerrainServer" unique_id=2128497733]
+configuration = SubResource("TerrainConfiguration_pt7ik")
