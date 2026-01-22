@@ -46,10 +46,8 @@ jobs:
       - name: Upload Artifacts
         uses: actions/upload-artifact@v4
         with:
-          name: binaries-${{ matrix.platform }}
+          name: binaries-${{ matrix.platform }}-${{ matrix.arch }}
           path: |
-            demo/bin/**/*.so
-            demo/bin/**/*.dll
-            demo/bin/**/*.dylib
-            bin/**/*.so
-            bin/**/*.dll
+            demo/addons/terrain_server/bin/**/*.so
+            demo/addons/terrain_server/bin/**/*.dll
+            demo/addons/terrain_server/bin/**/*.dylib
