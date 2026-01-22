@@ -1,0 +1,110 @@
+name: Publish Release
+
+on:
+  push:
+    tags:
+      - 'v*' # eg. v1.0, v0.2-alpha
+  workflow_dispatch:
+
+env:
+  PLUGIN_NAME: terrain_server
+  SCONS_CACHE: ${{ github.workspace }}/.scons_cache
+
+permissions:
+  contents: write
+
+jobs:
+  build-release:
+    name: 📦 Build ${{ matrix.platform }}
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: ubuntu-latest
+            platform: linux
+            arch: x86_64
+          - os: windows-latest
+            platform: windows
+            arch: x86_64
+          - os: macos-latest
+            platform: macos
+            arch: universal
+
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+        with:
+          submodules: recursive
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.x'
+
+      - name: Install SCons
+        run: pip install scons
+
+      - name: Cache SCons
+        uses: actions/cache@v4
+        with:
+          path: ${{ env.SCONS_CACHE }}
+          key: ${{ matrix.platform }}-${{ matrix.arch }}-release-${{ hashFiles('godot-cpp/**') }}
+          restore-keys: |
+            ${{ matrix.platform }}-${{ matrix.arch }}-release-
+
+      - name: Build (Template Release)
+        env:
+          SCONS_CACHE: ${{ env.SCONS_CACHE }}
+        run: |
+          scons platform=${{ matrix.platform }} target=template_release arch=${{ matrix.arch }} -j2
+
+      - name: Upload Artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: binaries-${{ matrix.platform }}
+          path: |
+            demo/addons/${{ env.PLUGIN_NAME }}/bin/**/*.so
+            demo/addons/${{ env.PLUGIN_NAME }}/bin/**/*.dll
+            demo/addons/${{ env.PLUGIN_NAME }}/bin/**/*.dylib
+
+  package-and-publish:
+    name: 🎁 Package & Release
+    needs: build-release
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Download Linux
+        uses: actions/download-artifact@v4
+        with:
+          name: binaries-linux
+          path: demo/addons/${{ env.PLUGIN_NAME }}/bin
+
+      - name: Download Windows
+        uses: actions/download-artifact@v4
+        with:
+          name: binaries-windows
+          path: demo/addons/${{ env.PLUGIN_NAME }}/bin
+
+      - name: Download MacOS
+        uses: actions/download-artifact@v4
+        with:
+          name: binaries-macos
+          path: demo/addons/${{ env.PLUGIN_NAME }}/bin
+
+      - name: Zip Plugin
+        run: |
+          cd demo
+          # Crea un zip con la carpeta 'addons' entera (Scripts + Iconos + Binarios compilados)
+          zip -r ../${{ env.PLUGIN_NAME }}-${{ github.ref_name }}.zip addons/
+
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          files: ${{ env.PLUGIN_NAME }}-${{ github.ref_name }}.zip
+          generate_release_notes: true
+          draft: false
+          prerelease: false
