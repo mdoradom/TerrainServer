@@ -1,15 +1,28 @@
-name: GDExtension Build
+name: Build
 
 on:
   push:
-    branches: [ main ]
+    branches:
+      - main
+      - 'release/**'
+    paths-ignore:
+      - 'docs/**'
+      - '**.md'
+      - '**.txt'
+      - '.gitignore'
+      - 'SConstruct'
   pull_request:
-    branches: [ main ]
-  workflow_dispatch:
+    paths-ignore:
+      - 'docs/**'
+      - '**.md'
+      - '**.txt'
+
+env:
+  SCONS_CACHE: ${{ github.workspace }}/.scons_cache
 
 jobs:
-  build:
-    name: Build ${{ matrix.platform }} (${{ matrix.arch }})
+  build-debug:
+    name: 🚧 Build ${{ matrix.platform }} (Debug)
     runs-on: ${{ matrix.os }}
     strategy:
       fail-fast: false
@@ -21,9 +34,9 @@ jobs:
           - os: windows-latest
             platform: windows
             arch: x86_64
-          # - os: macos-latest
-          #   platform: macos
-          #   arch: universal
+          - os: macos-latest
+            platform: macos
+            arch: universal
 
     steps:
       - name: Checkout Code
@@ -39,15 +52,16 @@ jobs:
       - name: Install SCons
         run: pip install scons
 
-      - name: Build GDExtension
-        run: |
-          scons platform=${{ matrix.platform }} target=template_debug arch=${{ matrix.arch }}
-
-      - name: Upload Artifacts
-        uses: actions/upload-artifact@v4
+      - name: Cache SCons
+        uses: actions/cache@v4
         with:
-          name: binaries-${{ matrix.platform }}-${{ matrix.arch }}
-          path: |
-            demo/addons/terrain_server/bin/**/*.so
-            demo/addons/terrain_server/bin/**/*.dll
-            demo/addons/terrain_server/bin/**/*.dylib
+          path: ${{ env.SCONS_CACHE }}
+          key: ${{ matrix.platform }}-${{ matrix.arch }}-debug-${{ hashFiles('godot-cpp/**') }}
+          restore-keys: |
+            ${{ matrix.platform }}-${{ matrix.arch }}-debug-
+
+      - name: Build (Template Debug)
+        env:
+          SCONS_CACHE: ${{ env.SCONS_CACHE }}
+        run: |
+          scons platform=${{ matrix.platform }} target=template_debug arch=${{ matrix.arch }} -j2
