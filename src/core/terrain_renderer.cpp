@@ -2,6 +2,7 @@
 
 #include <godot_cpp/classes/surface_tool.hpp>
 #include <godot_cpp/core/class_db.hpp>
+#include <godot_cpp/core/error_macros.hpp>
 #include <godot_cpp/variant/utility_functions.hpp>
 
 using namespace godot;
@@ -52,8 +53,12 @@ void TerrainRenderer::set_material_override(const Ref<Material> &p_material) {
 }
 
 void TerrainRenderer::generate_mesh() {
-	if (!_generator.is_valid() || _parent_node == nullptr) {
-		return;
+	if (!_generator.is_valid()) {
+		ERR_FAIL_MSG("TerrainRenderer: Invalid generator");
+	}
+
+	if (_parent_node == nullptr) {
+		ERR_FAIL_MSG("TerrainRenderer: No parent node set");
 	}
 
 	if (_mesh_instance == nullptr) {
