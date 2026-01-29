@@ -46,7 +46,7 @@ void TerrainRenderer::set_mesh_resolution(int p_resolution) {
 
 void TerrainRenderer::set_material_override(const Ref<Material> &p_material) {
 	_material_override = p_material;
-	if (_mesh_instance == nullptr && _material_override.is_valid()) {
+	if (_mesh_instance != nullptr && _material_override.is_valid()) {
 		_mesh_instance->set_material_override(_material_override);
 	}
 }
