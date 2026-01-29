@@ -18,12 +18,12 @@ private:
 	Ref<TerrainConfiguration> _config;
 	Ref<TerrainGenerator> _generator;
 
-	MeshInstance3D* _debug_mesh_instance = nullptr;
+	MeshInstance3D* _mesh_instance = nullptr;
 
 	int _mesh_resolution = 64;
 	Ref<Material> _material_override;
 
-	void _generate_debug_mesh();
+	void _generate_mesh();
 
 protected:
 	static void _bind_methods();
