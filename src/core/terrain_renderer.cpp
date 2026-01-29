@@ -11,10 +11,10 @@ namespace ts {
 void TerrainRenderer::_bind_methods() {
 	ClassDB::bind_method(D_METHOD("set_mesh_resolution", "resolution"), &TerrainRenderer::set_mesh_resolution);
 	ClassDB::bind_method(D_METHOD("set_material_override", "material"), &TerrainRenderer::set_material_override);
-	ClassDB::bind_method(D_METHOD("generate_debug_mesh"), &TerrainRenderer::generate_debug_mesh);
+	ClassDB::bind_method(D_METHOD("generate_mesh"), &TerrainRenderer::generate_mesh);
 }
 
-TerrainRenderer::TerrainRenderer() : _debug_mesh_instance(nullptr), _parent_node(nullptr), _mesh_resolution(32) {
+TerrainRenderer::TerrainRenderer() : _mesh_instance(nullptr), _parent_node(nullptr), _mesh_resolution(32) {
 }
 
 TerrainRenderer::~TerrainRenderer() {
@@ -23,12 +23,16 @@ TerrainRenderer::~TerrainRenderer() {
 
 void TerrainRenderer::initialize(Node3D *p_parent) {
 	_parent_node = p_parent;
+
+	if (_mesh_instance == nullptr) {
+		_mesh_instance = Object::cast_to<MeshInstance3D>(_parent_node->get_node_or_null("TerrainMesh"));
+	}
 }
 
 void TerrainRenderer::cleanup() {
-	if (_debug_mesh_instance != nullptr) {
-		_debug_mesh_instance->queue_free();
-		_debug_mesh_instance = nullptr;
+	if (_mesh_instance != nullptr) {
+		_mesh_instance->queue_free();
+		_mesh_instance = nullptr;
 	}
 }
 
@@ -42,21 +46,25 @@ void TerrainRenderer::set_mesh_resolution(int p_resolution) {
 
 void TerrainRenderer::set_material_override(const Ref<Material> &p_material) {
 	_material_override = p_material;
-	if (_debug_mesh_instance != nullptr && _material_override.is_valid()) {
-		_debug_mesh_instance->set_material_override(_material_override);
+	if (_mesh_instance == nullptr && _material_override.is_valid()) {
+		_mesh_instance->set_material_override(_material_override);
 	}
 }
 
-void TerrainRenderer::generate_debug_mesh() {
+void TerrainRenderer::generate_mesh() {
 	if (!_generator.is_valid() || _parent_node == nullptr) {
 		return;
 	}
 
-	if (_debug_mesh_instance == nullptr) {
-		_debug_mesh_instance = memnew(MeshInstance3D);
-		_parent_node->add_child(_debug_mesh_instance);
-		_debug_mesh_instance->set_name("DebugTerrainMesh");
-		_debug_mesh_instance->set_owner(_parent_node->get_owner());
+	if (_mesh_instance == nullptr) {
+		_mesh_instance = Object::cast_to<MeshInstance3D>(_parent_node->get_node_or_null("TerrainMesh"));
+	}
+
+	if (_mesh_instance == nullptr) {
+		_mesh_instance = memnew(MeshInstance3D);
+		_parent_node->add_child(_mesh_instance);
+		_mesh_instance->set_name("TerrainMesh");
+		_mesh_instance->set_owner(_parent_node->get_owner());
 	}
 
 	int size = _mesh_resolution;
@@ -107,15 +115,15 @@ void TerrainRenderer::generate_debug_mesh() {
 	}
 	st->generate_normals();
 
-	_debug_mesh_instance->set_mesh(st->commit());
+	_mesh_instance->set_mesh(st->commit());
 
 	if (_material_override.is_valid()) {
-		_debug_mesh_instance->set_material_override(_material_override);
+		_mesh_instance->set_material_override(_material_override);
 	}
 }
 
 void TerrainRenderer::update_mesh() {
-	generate_debug_mesh();
+	generate_mesh();
 }
 
 } //namespace ts

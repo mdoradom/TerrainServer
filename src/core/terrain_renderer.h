@@ -12,7 +12,7 @@ class TerrainRenderer : public godot::RefCounted {
 	GDCLASS(TerrainRenderer, godot::RefCounted);
 
 private:
-	godot::MeshInstance3D *_debug_mesh_instance;
+	godot::MeshInstance3D *_mesh_instance;
 	godot::Ref<godot::Material> _material_override;
 	godot::Ref<TerrainGenerator> _generator;
 	godot::Node3D *_parent_node;
@@ -32,7 +32,7 @@ public:
 	void set_mesh_resolution(int p_resolution);
 	void set_material_override(const godot::Ref<godot::Material> &p_material);
 
-	void generate_debug_mesh();
+	void generate_mesh();
 	void update_mesh();
 };
 
