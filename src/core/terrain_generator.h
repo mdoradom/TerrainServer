@@ -82,6 +82,18 @@ public:
 	 * @return A reference to the generated ArrayMesh.
 	 */
 	godot::Ref<godot::ArrayMesh> generate_mesh(int resolution, float size) const;
+
+	/**
+	 * @brief Creates mesh data for a terrain grid with specified parameters.
+	 *
+	 * Helper method that generates the vertex and triangle data for a terrain mesh.
+	 * Used internally by generate_mesh and can be called by TerrainRenderer.
+	 *
+	 * @param resolution Number of quads along each axis.
+	 * @param vertex_spacing Distance between adjacent vertices.
+	 * @return Reference to the generated ArrayMesh.
+	 */
+	godot::Ref<godot::ArrayMesh> create_mesh_data(int resolution, float vertex_spacing) const;
 };
 
 } //namespace ts

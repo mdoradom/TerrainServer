@@ -67,55 +67,9 @@ void TerrainRenderer::generate_mesh() {
 		_mesh_instance->set_owner(_parent_node->get_owner());
 	}
 
-	int size = _mesh_resolution;
 	float vertex_spacing = 1.0f;
-
-	Ref<SurfaceTool> st;
-	st.instantiate();
-	st->begin(Mesh::PRIMITIVE_TRIANGLES);
-
-	for (int z = 0; z < size; z++) {
-		for (int x = 0; x < size; x++) {
-			float x0 = x * vertex_spacing;
-			float z0 = z * vertex_spacing;
-			float x1 = (x + 1) * vertex_spacing;
-			float z1 = (z + 1) * vertex_spacing;
-
-			float y00 = _generator->get_height(x0, z0);
-			float y10 = _generator->get_height(x1, z0);
-			float y01 = _generator->get_height(x0, z1);
-			float y11 = _generator->get_height(x1, z1);
-
-			// Triangle 1
-			st->set_normal(Vector3(0, 1, 0));
-			st->set_uv(Vector2(0, 0));
-			st->add_vertex(Vector3(x0, y00, z0));
-
-			st->set_normal(Vector3(0, 1, 0));
-			st->set_uv(Vector2(1, 0));
-			st->add_vertex(Vector3(x1, y10, z0));
-
-			st->set_normal(Vector3(0, 1, 0));
-			st->set_uv(Vector2(0, 1));
-			st->add_vertex(Vector3(x0, y01, z1));
-
-			// Triangle 2
-			st->set_normal(Vector3(0, 1, 0));
-			st->set_uv(Vector2(1, 0));
-			st->add_vertex(Vector3(x1, y10, z0));
-
-			st->set_normal(Vector3(0, 1, 0));
-			st->set_uv(Vector2(1, 1));
-			st->add_vertex(Vector3(x1, y11, z1));
-
-			st->set_normal(Vector3(0, 1, 0));
-			st->set_uv(Vector2(0, 1));
-			st->add_vertex(Vector3(x0, y01, z1));
-		}
-	}
-	st->generate_normals();
-
-	_mesh_instance->set_mesh(st->commit());
+	Ref<ArrayMesh> mesh = _generator->create_mesh_data(_mesh_resolution, vertex_spacing);
+	_mesh_instance->set_mesh(mesh);
 
 	if (_material_override.is_valid()) {
 		_mesh_instance->set_material_override(_material_override);
