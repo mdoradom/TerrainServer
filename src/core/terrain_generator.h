@@ -4,6 +4,7 @@
 
 #include <godot_cpp/classes/fast_noise_lite.hpp>
 #include <godot_cpp/classes/ref_counted.hpp>
+#include <godot_cpp/classes/array_mesh.hpp>
 
 namespace ts {
 
@@ -24,6 +25,7 @@ public:
 	void setup(const godot::Ref<TerrainConfiguration> &p_config);
 
 	float get_height(float x, float y) const;
+	godot::Ref<godot::ArrayMesh> generate_mesh(int resolution, float size) const;
 };
 
 } //namespace ts
