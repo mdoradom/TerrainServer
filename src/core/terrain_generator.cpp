@@ -36,9 +36,7 @@ float TerrainGenerator::get_height(float x, float y) const {
 	return noise_value * _height_scale;
 }
 
-Ref<ArrayMesh> TerrainGenerator::generate_mesh(int resolution, float size) const {
-	float vertex_spacing = size / resolution;
-
+Ref<ArrayMesh> TerrainGenerator::create_mesh_data(int resolution, float vertex_spacing) const {
 	Ref<SurfaceTool> st;
 	st.instantiate();
 	st->begin(Mesh::PRIMITIVE_TRIANGLES);
@@ -86,6 +84,11 @@ Ref<ArrayMesh> TerrainGenerator::generate_mesh(int resolution, float size) const
 	st->generate_normals();
 
 	return st->commit();
+}
+
+Ref<ArrayMesh> TerrainGenerator::generate_mesh(int resolution, float size) const {
+	float vertex_spacing = size / resolution;
+	return create_mesh_data(resolution, vertex_spacing);
 }
 
 } //namespace ts
