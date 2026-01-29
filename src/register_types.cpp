@@ -18,6 +18,7 @@ void initialize_terrain_server_module(ModuleInitializationLevel p_level) {
 	GDREGISTER_CLASS(ts::Terrain3D);
 	GDREGISTER_CLASS(ts::TerrainConfiguration);
 	GDREGISTER_CLASS(ts::TerrainGenerator);
+	GDREGISTER_CLASS(ts::TerrainRenderer);
 }
 
 void uninitialize_terrain_server_module(ModuleInitializationLevel p_level) {
