@@ -27,8 +27,7 @@ void TerrainGenerator::setup(const godot::Ref<TerrainConfiguration> &p_config) {
 		return;
 	}
 
-	_noise->set_seed(p_config->get_seed());
-	_noise->set_frequency(p_config->get_noise_scale());
+	_noise = p_config->get_noise();
 	_height_scale = p_config->get_height_scale();
 }
 
