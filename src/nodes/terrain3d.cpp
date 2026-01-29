@@ -23,7 +23,13 @@ void Terrain3D::_update_generator() {
 	if (_config.is_valid() && _generator.is_valid()) {
 		_generator->setup(_config);
 		_renderer->set_generator(_generator);
-		_renderer->update_mesh();
+		_renderer->set_mesh_resolution(_config->get_mesh_resolution());
+		_renderer->set_material_override(_config->get_material_override());
+
+		// Regenerate the mesh if we're already in the scene tree
+		if (is_inside_tree()) {
+			_renderer->update_mesh();
+		}
 		UtilityFunctions::print("Terrain3D: Generator configuration updated.");
 	}
 }
