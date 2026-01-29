@@ -2,9 +2,9 @@
 
 #include "terrain_configuration.h"
 
+#include <godot_cpp/classes/array_mesh.hpp>
 #include <godot_cpp/classes/fast_noise_lite.hpp>
 #include <godot_cpp/classes/ref_counted.hpp>
-#include <godot_cpp/classes/array_mesh.hpp>
 
 namespace ts {
 

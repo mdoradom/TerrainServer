@@ -1,6 +1,6 @@
 #include "terrain_generator.h"
-#include <godot_cpp/core/class_db.hpp>
 #include <godot_cpp/classes/surface_tool.hpp>
+#include <godot_cpp/core/class_db.hpp>
 
 using namespace godot;
 
@@ -37,55 +37,55 @@ float TerrainGenerator::get_height(float x, float y) const {
 }
 
 Ref<ArrayMesh> TerrainGenerator::generate_mesh(int resolution, float size) const {
-    float vertex_spacing = size / resolution;
+	float vertex_spacing = size / resolution;
 
-    Ref<SurfaceTool> st;
-    st.instantiate();
-    st->begin(Mesh::PRIMITIVE_TRIANGLES);
+	Ref<SurfaceTool> st;
+	st.instantiate();
+	st->begin(Mesh::PRIMITIVE_TRIANGLES);
 
-    for (int z = 0; z < resolution; z++) {
-        for (int x = 0; x < resolution; x++) {
-            // Get the four corners of the quad
-            float x0 = x * vertex_spacing;
-            float z0 = z * vertex_spacing;
-            float x1 = (x + 1) * vertex_spacing;
-            float z1 = (z + 1) * vertex_spacing;
+	for (int z = 0; z < resolution; z++) {
+		for (int x = 0; x < resolution; x++) {
+			// Get the four corners of the quad
+			float x0 = x * vertex_spacing;
+			float z0 = z * vertex_spacing;
+			float x1 = (x + 1) * vertex_spacing;
+			float z1 = (z + 1) * vertex_spacing;
 
-            float y00 = get_height(x0, z0);
-            float y10 = get_height(x1, z0);
-            float y01 = get_height(x0, z1);
-            float y11 = get_height(x1, z1);
+			float y00 = get_height(x0, z0);
+			float y10 = get_height(x1, z0);
+			float y01 = get_height(x0, z1);
+			float y11 = get_height(x1, z1);
 
-            // Triangle 1 (0,0 -> 1,0 -> 0,1)
-            st->set_normal(Vector3(0, 1, 0));
-            st->set_uv(Vector2(0, 0));
-            st->add_vertex(Vector3(x0, y00, z0));
+			// Triangle 1 (0,0 -> 1,0 -> 0,1)
+			st->set_normal(Vector3(0, 1, 0));
+			st->set_uv(Vector2(0, 0));
+			st->add_vertex(Vector3(x0, y00, z0));
 
-            st->set_normal(Vector3(0, 1, 0));
-            st->set_uv(Vector2(1, 0));
-            st->add_vertex(Vector3(x1, y10, z0));
+			st->set_normal(Vector3(0, 1, 0));
+			st->set_uv(Vector2(1, 0));
+			st->add_vertex(Vector3(x1, y10, z0));
 
-            st->set_normal(Vector3(0, 1, 0));
-            st->set_uv(Vector2(0, 1));
-            st->add_vertex(Vector3(x0, y01, z1));
+			st->set_normal(Vector3(0, 1, 0));
+			st->set_uv(Vector2(0, 1));
+			st->add_vertex(Vector3(x0, y01, z1));
 
-            // Triangle 2 (1,0 -> 1,1 -> 0,1)
-            st->set_normal(Vector3(0, 1, 0));
-            st->set_uv(Vector2(1, 0));
-            st->add_vertex(Vector3(x1, y10, z0));
+			// Triangle 2 (1,0 -> 1,1 -> 0,1)
+			st->set_normal(Vector3(0, 1, 0));
+			st->set_uv(Vector2(1, 0));
+			st->add_vertex(Vector3(x1, y10, z0));
 
-            st->set_normal(Vector3(0, 1, 0));
-            st->set_uv(Vector2(1, 1));
-            st->add_vertex(Vector3(x1, y11, z1));
+			st->set_normal(Vector3(0, 1, 0));
+			st->set_uv(Vector2(1, 1));
+			st->add_vertex(Vector3(x1, y11, z1));
 
-            st->set_normal(Vector3(0, 1, 0));
-            st->set_uv(Vector2(0, 1));
-            st->add_vertex(Vector3(x0, y01, z1));
-        }
-    }
-    st->generate_normals();
+			st->set_normal(Vector3(0, 1, 0));
+			st->set_uv(Vector2(0, 1));
+			st->add_vertex(Vector3(x0, y01, z1));
+		}
+	}
+	st->generate_normals();
 
-    return st->commit();
+	return st->commit();
 }
 
 } //namespace ts
