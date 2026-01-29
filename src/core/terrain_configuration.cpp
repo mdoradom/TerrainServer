@@ -45,8 +45,10 @@ double TerrainConfiguration::get_height_scale() const {
 }
 
 void TerrainConfiguration::set_height_scale(double p_scale) {
-	_height_scale = p_scale;
-	emit_changed();
+	if (_height_scale != p_scale) {
+		_height_scale = p_scale;
+		emit_changed();
+	}
 }
 
 int TerrainConfiguration::get_mesh_resolution() const {
@@ -54,8 +56,10 @@ int TerrainConfiguration::get_mesh_resolution() const {
 }
 
 void TerrainConfiguration::set_mesh_resolution(int p_resolution) {
-	_mesh_resolution = p_resolution;
-	emit_changed();
+	if (_mesh_resolution != p_resolution) {
+		_mesh_resolution = p_resolution;
+		emit_changed();
+	}
 }
 
 Ref<Material> TerrainConfiguration::get_material_override() const {
@@ -63,8 +67,10 @@ Ref<Material> TerrainConfiguration::get_material_override() const {
 }
 
 void TerrainConfiguration::set_material_override(const Ref<Material> &p_material) {
-	_material_override = p_material;
-	emit_changed();
+	if (_material_override != p_material) {
+		_material_override = p_material;
+		emit_changed();
+	}
 }
 
 Ref<FastNoiseLite> TerrainConfiguration::get_noise() const {
@@ -72,17 +78,19 @@ Ref<FastNoiseLite> TerrainConfiguration::get_noise() const {
 }
 
 void TerrainConfiguration::set_noise(const Ref<FastNoiseLite> &p_noise) {
-	if (_noise.is_valid()) {
-		_noise->disconnect("changed", Callable(this, "emit_changed"));
+	if (_noise != p_noise) {
+		if (_noise.is_valid()) {
+			_noise->disconnect("changed", Callable(this, "emit_changed"));
+		}
+
+		_noise = p_noise;
+
+		if (_noise.is_valid()) {
+			_noise->connect("changed", Callable(this, "emit_changed"));
+		}
+
+		emit_changed();
 	}
-
-	_noise = p_noise;
-
-	if (_noise.is_valid()) {
-		_noise->connect("changed", Callable(this, "emit_changed"));
-	}
-
-	emit_changed();
 }
 
 } //namespace ts
