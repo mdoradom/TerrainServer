@@ -41,6 +41,14 @@ Terrain3D::Terrain3D() {
 }
 
 Terrain3D::~Terrain3D() {
+	if (_config.is_valid()) {
+		_config->disconnect("changed", Callable(this, "_update_generator"));
+	}
+
+	if (_renderer.is_valid()) {
+		_renderer->cleanup();
+	}
+
 	UtilityFunctions::print("Terrain3D: Destroyed");
 }
 
