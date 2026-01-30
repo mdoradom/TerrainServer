@@ -39,7 +39,7 @@ public:
 	/**
 	 * @brief Constructs a new TerrainGenerator with default settings.
 	 *
-	 * Initializes the noise generator with Perlin noise and FBM fractal settings,
+	 * Initializes with null noise (must be configured via setup() with a TerrainConfiguration)
 	 * and sets the default height scale to 1.0.
 	 */
 	TerrainGenerator();
@@ -63,11 +63,12 @@ public:
 	 * @brief Calculates the terrain height at a specific 2D position.
 	 *
 	 * Uses the configured noise function to generate a height value, scaled by the
-	 * height scale parameter. This method can be called frequently for dynamic terrain queries.
+	 * height scale parameter. If no noise is configured, returns 0.0.
+	 * This method can be called frequently for dynamic terrain queries.
 	 *
 	 * @param x The X coordinate in world space.
 	 * @param y The Y coordinate in world space (corresponds to Z in 3D space).
-	 * @return The calculated height value at the given position.
+	 * @return The calculated height value at the given position, or 0.0 if no noise is set.
 	 */
 	float get_height(float x, float y) const;
 

@@ -23,19 +23,10 @@ void TerrainConfiguration::_bind_methods() {
 	ADD_PROPERTY(PropertyInfo(Variant::OBJECT, "noise", PROPERTY_HINT_RESOURCE_TYPE, "FastNoiseLite"), "set_noise", "get_noise");
 }
 
-TerrainConfiguration::TerrainConfiguration() : _height_scale(100.0), _mesh_resolution(32) {
-	_noise.instantiate();
-	_noise->set_noise_type(FastNoiseLite::TYPE_PERLIN);
-	_noise->set_fractal_type(FastNoiseLite::FRACTAL_FBM);
-	_noise->set_seed(0);
-	_noise->set_frequency(0.01);
-
-	// Connect to noise changed signal to propagate changes
-	_noise->connect("changed", Callable(this, "emit_changed"));
-}
+TerrainConfiguration::TerrainConfiguration() : _height_scale(100.0), _mesh_resolution(32) {}
 
 TerrainConfiguration::~TerrainConfiguration() {
-	if (_noise.is_valid()) {
+	if (_noise.is_valid() && _noise->is_connected("changed", Callable(this, "emit_changed"))) {
 		_noise->disconnect("changed", Callable(this, "emit_changed"));
 	}
 }

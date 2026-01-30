@@ -12,13 +12,7 @@ void TerrainGenerator::_bind_methods() {
 	ClassDB::bind_method(D_METHOD("generate_mesh", "resolution", "size"), &TerrainGenerator::generate_mesh);
 }
 
-TerrainGenerator::TerrainGenerator() {
-	_noise.instantiate();
-	_noise->set_noise_type(FastNoiseLite::TYPE_PERLIN);
-	_noise->set_fractal_type(FastNoiseLite::FRACTAL_FBM);
-
-	_height_scale = 1.0f;
-}
+TerrainGenerator::TerrainGenerator() : _height_scale(1.0f) {}
 
 TerrainGenerator::~TerrainGenerator() {}
 
@@ -32,6 +26,9 @@ void TerrainGenerator::setup(const godot::Ref<TerrainConfiguration> &p_config) {
 }
 
 float TerrainGenerator::get_height(float x, float y) const {
+	if (!_noise.is_valid()) {
+		return 0.0f;
+	}
 	float noise_value = _noise->get_noise_2d(x, y);
 	return noise_value * _height_scale;
 }

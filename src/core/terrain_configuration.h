@@ -48,8 +48,8 @@ public:
 	/**
 	 * @brief Constructs a new TerrainConfiguration with default values.
 	 *
-	 * Initializes height scale to 10.0, mesh resolution to 32, and creates a default
-	 * FastNoiseLite noise generator with Perlin noise and FBM fractal settings.
+	 * Initializes height scale to 100.0, mesh resolution to 32.
+	 * The noise property is null by default and must be set manually in the editor.
 	 */
 	TerrainConfiguration();
 
