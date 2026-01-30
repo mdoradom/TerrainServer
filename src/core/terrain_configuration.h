@@ -51,7 +51,7 @@ public:
 	/**
 	 * @brief Constructs a new TerrainConfiguration with default values.
 	 *
-	 * Initializes height scale to 100.0, mesh resolution to 32.
+	 * Initializes height scale to 100.0, mesh resolution to 32, and terrain size to 256.0.
 	 * The noise property is null by default and must be set manually in the editor.
 	 */
 	TerrainConfiguration();

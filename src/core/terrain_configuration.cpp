@@ -27,7 +27,7 @@ void TerrainConfiguration::_bind_methods() {
 	ADD_PROPERTY(PropertyInfo(Variant::FLOAT, "terrain_size", PROPERTY_HINT_RANGE, "1.0,10000.0"), "set_terrain_size", "get_terrain_size");
 }
 
-TerrainConfiguration::TerrainConfiguration() : _height_scale(100.0), _mesh_resolution(32), _terrain_size(1024.0f) {}
+TerrainConfiguration::TerrainConfiguration() : _height_scale(100.0), _mesh_resolution(32), _terrain_size(256.0f) {}
 
 TerrainConfiguration::~TerrainConfiguration() {
 	if (_noise.is_valid() && _noise->is_connected("changed", Callable(this, "emit_changed"))) {
