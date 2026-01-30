@@ -88,31 +88,36 @@ jobs:
       - name: Create Release Package
         run: |
           mkdir -p release/addons/${{ env.PLUGIN_NAME }}/bin
-
+      
           # Copy binaries from all platforms
           find artifacts -type f \( -name "*.so" -o -name "*.dll" \) -exec cp {} release/addons/${{ env.PLUGIN_NAME }}/bin/ \;
+          
+          # Copy macOS frameworks (directories) with cp -r
           find artifacts -type d -name "*.framework" -exec cp -r {} release/addons/${{ env.PLUGIN_NAME }}/bin/ \;
-
-          # Create .gdextension with only release entries
+      
+          # Create .gdextension with both debug and release entries
           cat > release/addons/${{ env.PLUGIN_NAME }}/${{ env.PLUGIN_NAME }}.gdextension << 'EOF'
           [configuration]
           entry_symbol = "terrain_server_library_init"
           compatibility_minimum = "4.2"
-
+      
           [libraries]
-          linux.release.x86_64 = "res://addons/${{ env.PLUGIN_NAME }}/bin/lib${{ env.PLUGIN_NAME }}.linux.template_release.x86_64.so"
-          windows.release.x86_64 = "res://addons/${{ env.PLUGIN_NAME }}/bin/lib${{ env.PLUGIN_NAME }}.windows.template_release.x86_64.dll"
-          macos.release = "res://addons/${{ env.PLUGIN_NAME }}/bin/lib${{ env.PLUGIN_NAME }}.macos.template_release.framework"
+          linux.debug.x86_64 = "res://addons/terrain_server/bin/libterrain_server.linux.template_release.x86_64.so"
+          linux.release.x86_64 = "res://addons/terrain_server/bin/libterrain_server.linux.template_release.x86_64.so"
+          windows.debug.x86_64 = "res://addons/terrain_server/bin/libterrain_server.windows.template_release.x86_64.dll"
+          windows.release.x86_64 = "res://addons/terrain_server/bin/libterrain_server.windows.template_release.x86_64.dll"
+          macos.debug = "res://addons/terrain_server/bin/libterrain_server.macos.template_release.framework"
+          macos.release = "res://addons/terrain_server/bin/libterrain_server.macos.template_release.framework"
           EOF
-
+      
           # Copy and update plugin.cfg with new version
           cp demo/addons/${{ env.PLUGIN_NAME }}/plugin.cfg release/addons/${{ env.PLUGIN_NAME }}/plugin.cfg
           sed -i 's/^version=.*/version="${{ steps.version.outputs.VERSION }}"/' release/addons/${{ env.PLUGIN_NAME }}/plugin.cfg
-
+      
           # Copy and update README.md with new version
           cp demo/addons/${{ env.PLUGIN_NAME }}/README.md release/README.md
           sed -i 's/Terrain Server vX/Terrain Server v${{ steps.version.outputs.VERSION }}/' release/README.md
-          sed -i 's/\${{ env.PLUGIN_NAME }}-v\${{ steps.version.outputs.VERSION }}/${{ env.PLUGIN_NAME }}-v${{ steps.version.outputs.VERSION }}/' release/README.md
+          sed -i 's/${{ env.PLUGIN_NAME }}-v[0-9.]\+/${{ env.PLUGIN_NAME }}-v${{ steps.version.outputs.VERSION }}/' release/README.md
 
       - name: Create ZIP
         run: |
