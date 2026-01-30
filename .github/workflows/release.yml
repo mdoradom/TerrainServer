@@ -129,7 +129,7 @@ jobs:
             ## Terrain Server v${{ steps.version.outputs.VERSION }}
 
             ### Installation
-            Extract `${{ env.PLUGIN_NAME }}-v${{ steps.version.outputs.VERSION }}.zip` to project root, restart Godot, enable in **Project > Project Settings > Plugins**.
+            Extract `${{ env.PLUGIN_NAME }}-v${{ steps.version.outputs.VERSION }}.zip` to your project's root (for example into `addons/${{ env.PLUGIN_NAME }}`), then restart Godot. Refer to the project README for detailed setup and usage instructions.
 
             ### Platform Support
             - ✅ Linux x86_64
