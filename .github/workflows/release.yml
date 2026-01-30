@@ -3,7 +3,7 @@ name: Publish Release
 on:
   push:
     tags:
-      - 'v*' # eg. v1.0, v0.2-alpha
+      - 'v*'
   workflow_dispatch:
 
 env:
@@ -32,7 +32,7 @@ jobs:
             arch: universal
 
     steps:
-      - name: Checkout Code
+      - name: Checkout
         uses: actions/checkout@v4
         with:
           submodules: recursive
@@ -53,20 +53,18 @@ jobs:
           restore-keys: |
             ${{ matrix.platform }}-${{ matrix.arch }}-release-
 
-      - name: Build (Template Release)
+      - name: Build Release Binary
         env:
           SCONS_CACHE: ${{ env.SCONS_CACHE }}
         run: |
           scons platform=${{ matrix.platform }} target=template_release arch=${{ matrix.arch }} -j2
 
-      - name: Upload Artifacts
+      - name: Upload Binaries
         uses: actions/upload-artifact@v4
         with:
-          name: binaries-${{ matrix.platform }}
-          path: |
-            demo/addons/${{ env.PLUGIN_NAME }}/bin/**/*.so
-            demo/addons/${{ env.PLUGIN_NAME }}/bin/**/*.dll
-            demo/addons/${{ env.PLUGIN_NAME }}/bin/**/*.dylib
+          name: binaries-${{ matrix.platform }}-${{ matrix.arch }}
+          path: demo/addons/${{ env.PLUGIN_NAME }}/bin/*
+          retention-days: 1
 
   package-and-publish:
     name: 🎁 Package & Release
@@ -74,37 +72,74 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-      - name: Checkout Code
+      - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Download Linux
+      - name: Download All Binaries
         uses: actions/download-artifact@v4
         with:
-          name: binaries-linux
-          path: demo/addons/${{ env.PLUGIN_NAME }}/bin
+          path: artifacts
+          pattern: binaries-*
 
-      - name: Download Windows
-        uses: actions/download-artifact@v4
-        with:
-          name: binaries-windows
-          path: demo/addons/${{ env.PLUGIN_NAME }}/bin
+      - name: Extract Version
+        id: version
+        run: echo "VERSION=${GITHUB_REF#refs/tags/v}" >> $GITHUB_OUTPUT
 
-      - name: Download MacOS
-        uses: actions/download-artifact@v4
-        with:
-          name: binaries-macos
-          path: demo/addons/${{ env.PLUGIN_NAME }}/bin
-
-      - name: Zip Plugin
+      - name: Create Release Package
         run: |
-          cd demo
-          # Crea un zip con la carpeta 'addons' entera (Scripts + Iconos + Binarios compilados)
-          zip -r ../${{ env.PLUGIN_NAME }}-${{ github.ref_name }}.zip addons/
+          mkdir -p release/addons/${{ env.PLUGIN_NAME }}/bin
+
+          # Copy binaries from all platforms
+          find artifacts -type f \( -name "*.so" -o -name "*.dll" \) -exec cp {} release/addons/${{ env.PLUGIN_NAME }}/bin/ \;
+          find artifacts -type d -name "*.framework" -exec cp -r {} release/addons/${{ env.PLUGIN_NAME }}/bin/ \;
+
+          # Create .gdextension with only release entries
+          cat > release/addons/${{ env.PLUGIN_NAME }}/${{ env.PLUGIN_NAME }}.gdextension << 'EOF'
+          [configuration]
+          entry_symbol = "terrain_server_library_init"
+          compatibility_minimum = "4.2"
+
+          [libraries]
+          linux.release.x86_64 = "res://addons/${{ env.PLUGIN_NAME }}/bin/lib${{ env.PLUGIN_NAME }}.linux.template_release.x86_64.so"
+          windows.release.x86_64 = "res://addons/${{ env.PLUGIN_NAME }}/bin/lib${{ env.PLUGIN_NAME }}.windows.template_release.x86_64.dll"
+          macos.release = "res://addons/${{ env.PLUGIN_NAME }}/bin/lib${{ env.PLUGIN_NAME }}.macos.template_release.framework"
+          EOF
+
+          # Copy and update plugin.cfg with new version
+          cp demo/addons/${{ env.PLUGIN_NAME }}/plugin.cfg release/addons/${{ env.PLUGIN_NAME }}/plugin.cfg
+          sed -i 's/^version=.*/version="${{ steps.version.outputs.VERSION }}"/' release/addons/${{ env.PLUGIN_NAME }}/plugin.cfg
+
+          # Copy and update README.md with new version
+          cp demo/addons/${{ env.PLUGIN_NAME }}/README.md release/README.md
+          sed -i 's/Terrain Server vX/Terrain Server v${{ steps.version.outputs.VERSION }}/' release/README.md
+          sed -i 's/\${{ env.PLUGIN_NAME }}-v\${{ steps.version.outputs.VERSION }}/${{ env.PLUGIN_NAME }}-v${{ steps.version.outputs.VERSION }}/' release/README.md
+
+      - name: Create ZIP
+        run: |
+          cd release
+          zip -r ../${{ env.PLUGIN_NAME }}-v${{ steps.version.outputs.VERSION }}.zip .
+          cd ..
+          ls -lh ${{ env.PLUGIN_NAME }}-v${{ steps.version.outputs.VERSION }}.zip
 
       - name: Create GitHub Release
         uses: softprops/action-gh-release@v2
         with:
-          files: ${{ env.PLUGIN_NAME }}-${{ github.ref_name }}.zip
-          generate_release_notes: true
+          files: ${{ env.PLUGIN_NAME }}-v${{ steps.version.outputs.VERSION }}.zip
+          body: |
+            ## Terrain Server v${{ steps.version.outputs.VERSION }}
+
+            ### Installation
+            Extract `${{ env.PLUGIN_NAME }}-v${{ steps.version.outputs.VERSION }}.zip` to your project's root (for example into `addons/${{ env.PLUGIN_NAME }}`), then restart Godot. Refer to the project README for detailed setup and usage instructions.
+
+            ### Platform Support
+            - ✅ Linux x86_64
+            - ✅ Windows x86_64
+            - ✅ macOS (Universal)
+
+            ### Requirements
+            - Godot 4.2+
+
           draft: false
           prerelease: false
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
