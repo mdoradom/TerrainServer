@@ -127,8 +127,7 @@ public:
 	 * @brief Generates a new terrain mesh based on current settings.
 	 *
 	 * Creates or updates the MeshInstance3D node with a new mesh generated from
-	 * the terrain generator. The mesh is created using SurfaceTool with proper
-	 * normals, UVs, and triangle topology.
+	 * the terrain generator.
 	 *
 	 * If no mesh instance exists, creates one named "TerrainMesh" as a child
 	 * of the parent node. Applies the material override if one is set.
