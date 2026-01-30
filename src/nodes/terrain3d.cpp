@@ -1,7 +1,6 @@
 #include "terrain3d.h"
 
 #include "godot_cpp/classes/engine.hpp"
-#include "godot_cpp/classes/surface_tool.hpp"
 
 #include <godot_cpp/core/class_db.hpp>
 #include <godot_cpp/variant/utility_functions.hpp>
@@ -11,136 +10,75 @@ using namespace godot;
 namespace ts {
 
 void Terrain3D::_bind_methods() {
-	// --- Configuration (Resource) ---
 	ClassDB::bind_method(D_METHOD("set_configuration", "config"), &Terrain3D::set_configuration);
 	ClassDB::bind_method(D_METHOD("get_configuration"), &Terrain3D::get_configuration);
+	ClassDB::bind_method(D_METHOD("get_generator"), &Terrain3D::get_generator);
+	ClassDB::bind_method(D_METHOD("get_renderer"), &Terrain3D::get_renderer);
 	ClassDB::bind_method(D_METHOD("_update_generator"), &Terrain3D::_update_generator);
 
-	ADD_GROUP("Data Source", "");
 	ADD_PROPERTY(PropertyInfo(Variant::OBJECT, "configuration", PROPERTY_HINT_RESOURCE_TYPE, "TerrainConfiguration"), "set_configuration", "get_configuration");
-
-	// --- Debug / Visuals (Node Parameters) ---
-	ClassDB::bind_method(D_METHOD("set_mesh_resolution", "resolution"), &Terrain3D::set_mesh_resolution);
-	ClassDB::bind_method(D_METHOD("get_mesh_resolution"), &Terrain3D::get_mesh_resolution);
-
-	ClassDB::bind_method(D_METHOD("set_material", "material"), &Terrain3D::set_material);
-	ClassDB::bind_method(D_METHOD("get_material"), &Terrain3D::get_material);
-
-	ADD_GROUP("Debug Visuals", "");
-	// Range from 2 to 256 vertex
-	ADD_PROPERTY(PropertyInfo(Variant::INT, "mesh_resolution", PROPERTY_HINT_RANGE, "2,256,1"), "set_mesh_resolution", "get_mesh_resolution");
-	// Slot for material override
-	ADD_PROPERTY(PropertyInfo(Variant::OBJECT, "material", PROPERTY_HINT_RESOURCE_TYPE, "Material"), "set_material", "get_material");
 }
 
 void Terrain3D::_update_generator() {
-	if (_config.is_valid() && _generator.is_valid()) {
+	if (_config.is_valid() && _generator.is_valid() && _renderer.is_valid()) {
 		_generator->setup(_config);
-		_generate_debug_mesh();
-		UtilityFunctions::print("TerrainServer:: Generator configuration updated.");
-	}
-}
+		_renderer->set_generator(_generator);
+		_renderer->set_mesh_resolution(_config->get_mesh_resolution());
+		_renderer->set_terrain_size(_config->get_terrain_size());
+		_renderer->set_material_override(_config->get_material_override());
 
-void Terrain3D::_generate_debug_mesh() {
-	if (!_generator.is_valid()) {
-		return;
-	}
-
-	if (_debug_mesh_instance == nullptr) {
-		_debug_mesh_instance = memnew(MeshInstance3D);
-		add_child(_debug_mesh_instance);
-		_debug_mesh_instance->set_name("DebugTerrainMesh");
-		_debug_mesh_instance->set_owner(get_owner());
-	}
-
-	int size =_mesh_resolution;
-	float vertex_spacing = 1.0f;
-
-	Ref<SurfaceTool> st;
-	st.instantiate();
-	st->begin(Mesh::PRIMITIVE_TRIANGLES);
-
-	for (int z = 0; z < size; z++) {
-		for (int x = 0; x < size; x++) {
-			// Get the four corners of the quad
-			float x0 = x * vertex_spacing;
-			float z0 = z * vertex_spacing;
-			float x1 = (x + 1) * vertex_spacing;
-			float z1 = (z + 1) * vertex_spacing;
-
-			float y00 = _generator->get_height(x0, z0);
-			float y10 = _generator->get_height(x1, z0);
-			float y01 = _generator->get_height(x0, z1);
-			float y11 = _generator->get_height(x1, z1);
-
-			// Triangle 1 (0,0 -> 1,0 -> 0,1)
-			st->set_normal(Vector3(0, 1, 0));
-			st->set_uv(Vector2(0, 0));
-			st->add_vertex(Vector3(x0, y00, z0));
-
-			st->set_normal(Vector3(0, 1, 0));
-			st->set_uv(Vector2(1, 0));
-			st->add_vertex(Vector3(x1, y10, z0));
-
-			st->set_normal(Vector3(0, 1, 0));
-			st->set_uv(Vector2(0, 1));
-			st->add_vertex(Vector3(x0, y01, z1));
-
-			// Triangle 2 (1,0 -> 1,1 -> 0,1)
-			st->set_normal(Vector3(0, 1, 0));
-			st->set_uv(Vector2(1, 0));
-			st->add_vertex(Vector3(x1, y10, z0));
-
-			st->set_normal(Vector3(0, 1, 0));
-			st->set_uv(Vector2(1, 1));
-			st->add_vertex(Vector3(x1, y11, z1));
-
-			st->set_normal(Vector3(0, 1, 0));
-			st->set_uv(Vector2(0, 1));
-			st->add_vertex(Vector3(x0, y01, z1));
+		// Regenerate the mesh if we're already in the scene tree
+		if (is_inside_tree()) {
+			_renderer->update_mesh();
 		}
+		UtilityFunctions::print("Terrain3D: Generator configuration updated.");
 	}
-	st->generate_normals();
-
-	_debug_mesh_instance->set_mesh(st->commit());
 }
 
 Terrain3D::Terrain3D() {
 	_generator.instantiate();
-	UtilityFunctions::print("TerrainServer: initialized");
+	_renderer.instantiate();
+	UtilityFunctions::print("Terrain3D: Initialized");
 }
 
 Terrain3D::~Terrain3D() {
-	_debug_mesh_instance = nullptr;
-	UtilityFunctions::print("TerrainServer: destroyed");
+	if (_config.is_valid() && _config->is_connected("changed", Callable(this, "_update_generator"))) {
+		_config->disconnect("changed", Callable(this, "_update_generator"));
+	}
+
+	if (_renderer.is_valid()) {
+		_renderer->cleanup();
+	}
+
+	UtilityFunctions::print("Terrain3D: Destroyed");
+}
+
+void Terrain3D::_ready() {
+	_renderer->initialize(this);
+	_update_generator();
 }
 
 void Terrain3D::_process(double delta) {
 	if (Engine::get_singleton()->is_editor_hint()) {
 		return;
 	}
-
-	UtilityFunctions::print("Height at (0,0): ", _generator->get_height(0.0f, 0.0f));
 }
 
 Ref<TerrainConfiguration> Terrain3D::get_configuration() const {
 	return _config;
 }
+
 void Terrain3D::set_configuration(const Ref<TerrainConfiguration> &p_config) {
-	// If the same config, do nothing
 	if (_config == p_config) {
 		return;
 	}
 
-	// Disconnect from previous config signals
 	if (_config.is_valid()) {
 		_config->disconnect("changed", Callable(this, "_update_generator"));
 	}
 
-	// Set new config
 	_config = p_config;
 
-	// Connect to new config signals
 	if (_config.is_valid()) {
 		_config->connect("changed", Callable(this, "_update_generator"));
 	}
@@ -148,37 +86,12 @@ void Terrain3D::set_configuration(const Ref<TerrainConfiguration> &p_config) {
 	_update_generator();
 }
 
-int Terrain3D::get_mesh_resolution() const {
-	return _mesh_resolution;
+Ref<TerrainGenerator> Terrain3D::get_generator() const {
+	return _generator;
 }
 
-void Terrain3D::set_mesh_resolution(int p_resolution) {
-	if (p_resolution < 2) {
-		p_resolution = 2;
-	}
-
-	if (p_resolution == _mesh_resolution) {
-		return;
-	}
-
-	_mesh_resolution = p_resolution;
-	_generate_debug_mesh();
-}
-
-Ref<Material> Terrain3D::get_material() const {
-	return _material_override;
-}
-
-void Terrain3D::set_material(const Ref<Material> &p_material) {
-	if (_material_override == p_material) {
-		return;
-	}
-
-	_material_override = p_material;
-
-	if (_debug_mesh_instance != nullptr) {
-		_debug_mesh_instance->set_material_override(_material_override);
-	}
+Ref<TerrainRenderer> Terrain3D::get_renderer() const {
+	return _renderer;
 }
 
 } //namespace ts
