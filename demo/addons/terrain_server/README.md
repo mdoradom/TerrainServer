@@ -3,7 +3,7 @@
 Procedural terrain generation system for Godot
 
 ## Installation
-1. Download \`${{ env.PLUGIN_NAME }}-v${{ steps.version.outputs.VERSION }}.zip\`
+1. Download the latest release archive (for example, \`terrain_server-v1.2.3.zip\`) from the GitHub Releases page
 2. Extract to your project root (creates \`res://addons/terrain_server/\`)
 3. Restart Godot
 4. Enable in **Project > Project Settings > Plugins**
