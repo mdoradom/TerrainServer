@@ -42,7 +42,7 @@ Terrain3D::Terrain3D() {
 }
 
 Terrain3D::~Terrain3D() {
-	if (_config.is_valid()) {
+	if (_config.is_valid() && _config->is_connected("changed", Callable(this, "_update_generator"))) {
 		_config->disconnect("changed", Callable(this, "_update_generator"));
 	}
 
