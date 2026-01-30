@@ -31,10 +31,16 @@ void TerrainRenderer::initialize(Node3D *p_parent) {
 }
 
 void TerrainRenderer::cleanup() {
-	if (_mesh_instance != nullptr) {
-		_mesh_instance->queue_free();
-		_mesh_instance = nullptr;
-	}
+    if (_mesh_instance != nullptr) {
+        if (_mesh_instance->is_inside_tree()) {
+            if (!_mesh_instance->is_queued_for_deletion()) {
+                _mesh_instance->queue_free();
+            }
+        } else {
+            memdelete(_mesh_instance);
+        }
+        _mesh_instance = nullptr;
+    }
 }
 
 void TerrainRenderer::set_generator(const Ref<TerrainGenerator> &p_generator) {
