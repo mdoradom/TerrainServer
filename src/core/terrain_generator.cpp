@@ -16,13 +16,18 @@ TerrainGenerator::TerrainGenerator() : _height_scale(1.0f) {}
 
 TerrainGenerator::~TerrainGenerator() {}
 
-void TerrainGenerator::setup(const godot::Ref<TerrainConfiguration> &p_config) {
-	if (!p_config.is_valid()) {
-		return;
-	}
+void TerrainGenerator::setup(const Ref<TerrainConfiguration> &p_config) {
+    if (!p_config.is_valid()) {
+        ERR_PRINT("TerrainGenerator: Invalid configuration provided");
+        return;
+    }
 
-	_noise = p_config->get_noise();
-	_height_scale = p_config->get_height_scale();
+    _noise = p_config->get_noise();
+    _height_scale = p_config->get_height_scale();
+
+    if (!_noise.is_valid()) {
+        WARN_PRINT("TerrainGenerator: No noise configured - terrain will be flat");
+    }
 }
 
 float TerrainGenerator::get_height(float x, float y) const {
