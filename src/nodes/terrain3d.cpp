@@ -24,6 +24,7 @@ void Terrain3D::_update_generator() {
 		_generator->setup(_config);
 		_renderer->set_generator(_generator);
 		_renderer->set_mesh_resolution(_config->get_mesh_resolution());
+		_renderer->set_terrain_size(_config->get_terrain_size());
 		_renderer->set_material_override(_config->get_material_override());
 
 		// Regenerate the mesh if we're already in the scene tree

@@ -40,6 +40,9 @@ private:
 	/** @brief Number of vertices along each axis of the terrain grid */
 	int _mesh_resolution;
 
+	/** @brief Physical size of the terrain in world units */
+	float _terrain_size;
+
 protected:
 	/**
 	 * @brief Binds methods to Godot's ClassDB system.
@@ -100,6 +103,15 @@ public:
 	 * @param p_resolution The number of vertices along each axis of the terrain grid.
 	 */
 	void set_mesh_resolution(int p_resolution);
+
+	/**
+	 * @brief Sets the physical size of the terrain in world units.
+	 *
+	 * Changes the terrain dimensions. The mesh must be regenerated after changing this value.
+	 *
+	 * @param p_size The terrain size in world units.
+	 */
+	void set_terrain_size(float p_size);
 
 	/**
 	 * @brief Sets a material override for the terrain mesh.

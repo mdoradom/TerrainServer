@@ -11,11 +11,12 @@ namespace ts {
 
 void TerrainRenderer::_bind_methods() {
 	ClassDB::bind_method(D_METHOD("set_mesh_resolution", "resolution"), &TerrainRenderer::set_mesh_resolution);
+	ClassDB::bind_method(D_METHOD("set_terrain_size", "size"), &TerrainRenderer::set_terrain_size);
 	ClassDB::bind_method(D_METHOD("set_material_override", "material"), &TerrainRenderer::set_material_override);
 	ClassDB::bind_method(D_METHOD("generate_mesh"), &TerrainRenderer::generate_mesh);
 }
 
-TerrainRenderer::TerrainRenderer() : _mesh_instance(nullptr), _parent_node(nullptr), _mesh_resolution(32) {
+TerrainRenderer::TerrainRenderer() : _mesh_instance(nullptr), _parent_node(nullptr), _mesh_resolution(32), _terrain_size(1024.0f) {
 }
 
 TerrainRenderer::~TerrainRenderer() {
@@ -45,6 +46,10 @@ void TerrainRenderer::set_mesh_resolution(int p_resolution) {
 	_mesh_resolution = p_resolution;
 }
 
+void TerrainRenderer::set_terrain_size(float p_size) {
+	_terrain_size = p_size;
+}
+
 void TerrainRenderer::set_material_override(const Ref<Material> &p_material) {
 	_material_override = p_material;
 	if (_mesh_instance != nullptr && _material_override.is_valid()) {
@@ -72,7 +77,7 @@ void TerrainRenderer::generate_mesh() {
 		_mesh_instance->set_owner(_parent_node->get_owner());
 	}
 
-	float vertex_spacing = 1.0f;
+	float vertex_spacing = _terrain_size / _mesh_resolution;
 	Ref<ArrayMesh> mesh = _generator->create_mesh_data(_mesh_resolution, vertex_spacing);
 	_mesh_instance->set_mesh(mesh);
 

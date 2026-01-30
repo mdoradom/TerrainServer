@@ -30,6 +30,9 @@ private:
 	/** @brief Number of vertices along each axis of the terrain mesh grid */
 	int _mesh_resolution;
 
+	/** @brief Physical size of the terrain in world units */
+	float _terrain_size;
+
 	/** @brief Optional material to apply to the terrain mesh, overriding default materials */
 	godot::Ref<godot::Material> _material_override;
 
@@ -125,6 +128,23 @@ public:
 	 * @param p_noise Reference to a FastNoiseLite resource.
 	 */
 	void set_noise(const godot::Ref<godot::FastNoiseLite> &p_noise);
+
+	/**
+	 * @brief Gets the physical size of the terrain in world units.
+	 *
+	 * @return The terrain size value.
+	 */
+	float get_terrain_size() const;
+
+	/**
+	 * @brief Sets the physical size of the terrain in world units.
+	 *
+	 * Changes the physical dimensions of the terrain. Emits the "changed" signal
+	 * to trigger terrain updates.
+	 *
+	 * @param p_size The new terrain size in world units.
+	 */
+	void set_terrain_size(float p_size);
 };
 
 } //namespace ts
