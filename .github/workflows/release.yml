@@ -94,15 +94,15 @@ jobs:
           find artifacts -type d -name "*.framework" -exec cp -r {} release/addons/${{ env.PLUGIN_NAME }}/bin/ \;
 
           # Create .gdextension with only release entries
-          cat > release/addons/${{ env.PLUGIN_NAME }}/terrain_server.gdextension << 'EOF'
+          cat > release/addons/${{ env.PLUGIN_NAME }}/${{ env.PLUGIN_NAME }}.gdextension << 'EOF'
           [configuration]
           entry_symbol = "terrain_server_library_init"
           compatibility_minimum = "4.2"
 
           [libraries]
-          linux.release.x86_64 = "res://addons/terrain_server/bin/libterrain_server.linux.template_release.x86_64.so"
-          windows.release.x86_64 = "res://addons/terrain_server/bin/libterrain_server.windows.template_release.x86_64.dll"
-          macos.release = "res://addons/terrain_server/bin/libterrain_server.macos.template_release.framework"
+          linux.release.x86_64 = "res://addons/${{ env.PLUGIN_NAME }}/bin/lib${{ env.PLUGIN_NAME }}.linux.template_release.x86_64.so"
+          windows.release.x86_64 = "res://addons/${{ env.PLUGIN_NAME }}/bin/lib${{ env.PLUGIN_NAME }}.windows.template_release.x86_64.dll"
+          macos.release = "res://addons/${{ env.PLUGIN_NAME }}/bin/lib${{ env.PLUGIN_NAME }}.macos.template_release.framework"
           EOF
 
           # Copy and update plugin.cfg with new version
