@@ -20,7 +20,7 @@ void Terrain3D::_bind_methods() {
 }
 
 void Terrain3D::_update_generator() {
-	if (_config.is_valid() && _generator.is_valid()) {
+	if (_config.is_valid() && _generator.is_valid() && _renderer.is_valid()) {
 		_generator->setup(_config);
 		_renderer->set_generator(_generator);
 		_renderer->set_mesh_resolution(_config->get_mesh_resolution());
