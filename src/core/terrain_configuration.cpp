@@ -21,9 +21,13 @@ void TerrainConfiguration::_bind_methods() {
 	ClassDB::bind_method(D_METHOD("set_noise", "noise"), &TerrainConfiguration::set_noise);
 	ClassDB::bind_method(D_METHOD("get_noise"), &TerrainConfiguration::get_noise);
 	ADD_PROPERTY(PropertyInfo(Variant::OBJECT, "noise", PROPERTY_HINT_RESOURCE_TYPE, "FastNoiseLite"), "set_noise", "get_noise");
+
+	ClassDB::bind_method(D_METHOD("set_terrain_size", "size"), &TerrainConfiguration::set_terrain_size);
+	ClassDB::bind_method(D_METHOD("get_terrain_size"), &TerrainConfiguration::get_terrain_size);
+	ADD_PROPERTY(PropertyInfo(Variant::FLOAT, "terrain_size", PROPERTY_HINT_RANGE, "1.0,10000.0"), "set_terrain_size", "get_terrain_size");
 }
 
-TerrainConfiguration::TerrainConfiguration() : _height_scale(100.0), _mesh_resolution(32) {}
+TerrainConfiguration::TerrainConfiguration() : _height_scale(100.0), _mesh_resolution(32), _terrain_size(1024.0f) {}
 
 TerrainConfiguration::~TerrainConfiguration() {
 	if (_noise.is_valid() && _noise->is_connected("changed", Callable(this, "emit_changed"))) {
@@ -80,6 +84,17 @@ void TerrainConfiguration::set_noise(const Ref<FastNoiseLite> &p_noise) {
 			_noise->connect("changed", Callable(this, "emit_changed"));
 		}
 
+		emit_changed();
+	}
+}
+
+float TerrainConfiguration::get_terrain_size() const {
+	return _terrain_size;
+}
+
+void TerrainConfiguration::set_terrain_size(float p_size) {
+	if (_terrain_size != p_size) {
+		_terrain_size = p_size;
 		emit_changed();
 	}
 }
