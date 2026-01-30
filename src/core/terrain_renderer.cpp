@@ -69,11 +69,7 @@ void TerrainRenderer::generate_mesh() {
 		ERR_FAIL_MSG("TerrainRenderer: No parent node set");
 	}
 
-	if (_mesh_instance == nullptr) {
-		_mesh_instance = Object::cast_to<MeshInstance3D>(_parent_node->get_node_or_null("TerrainMesh"));
-	}
-
-	if (_mesh_instance == nullptr) {
+	if (_mesh_instance == nullptr || ObjectDB::get_instance(_mesh_instance->get_instance_id()) == nullptr) {
 		_mesh_instance = memnew(MeshInstance3D);
 		_parent_node->add_child(_mesh_instance);
 		_mesh_instance->set_name("TerrainMesh");
