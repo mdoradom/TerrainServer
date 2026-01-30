@@ -45,41 +45,48 @@ Ref<ArrayMesh> TerrainGenerator::create_mesh_data(int resolution, float vertex_s
 
 	for (int z = 0; z < resolution; z++) {
 		for (int x = 0; x < resolution; x++) {
-			// Get the four corners of the quad
+			// Calculate vertex positions
 			float x0 = x * vertex_spacing;
-			float z0 = z * vertex_spacing;
 			float x1 = (x + 1) * vertex_spacing;
+			float z0 = z * vertex_spacing;
 			float z1 = (z + 1) * vertex_spacing;
 
+			// Get heights at each corner
 			float y00 = get_height(x0, z0);
 			float y10 = get_height(x1, z0);
 			float y01 = get_height(x0, z1);
 			float y11 = get_height(x1, z1);
 
+			// Compute UVs based on grid coordinates so the texture spans the entire terrain
+			float u0 = static_cast<float>(x) / static_cast<float>(resolution);
+			float u1 = static_cast<float>(x + 1) / static_cast<float>(resolution);
+			float v0 = static_cast<float>(z) / static_cast<float>(resolution);
+			float v1 = static_cast<float>(z + 1) / static_cast<float>(resolution);
+
 			// Triangle 1 (0,0 -> 1,0 -> 0,1)
 			st->set_normal(Vector3(0, 1, 0));
-			st->set_uv(Vector2(0, 0));
+			st->set_uv(Vector2(u0, v0));
 			st->add_vertex(Vector3(x0, y00, z0));
 
 			st->set_normal(Vector3(0, 1, 0));
-			st->set_uv(Vector2(1, 0));
+			st->set_uv(Vector2(u1, v0));
 			st->add_vertex(Vector3(x1, y10, z0));
 
 			st->set_normal(Vector3(0, 1, 0));
-			st->set_uv(Vector2(0, 1));
+			st->set_uv(Vector2(u0, v1));
 			st->add_vertex(Vector3(x0, y01, z1));
 
 			// Triangle 2 (1,0 -> 1,1 -> 0,1)
 			st->set_normal(Vector3(0, 1, 0));
-			st->set_uv(Vector2(1, 0));
+			st->set_uv(Vector2(u1, v0));
 			st->add_vertex(Vector3(x1, y10, z0));
 
 			st->set_normal(Vector3(0, 1, 0));
-			st->set_uv(Vector2(1, 1));
+			st->set_uv(Vector2(u1, v1));
 			st->add_vertex(Vector3(x1, y11, z1));
 
 			st->set_normal(Vector3(0, 1, 0));
-			st->set_uv(Vector2(0, 1));
+			st->set_uv(Vector2(u0, v1));
 			st->add_vertex(Vector3(x0, y01, z1));
 		}
 	}
