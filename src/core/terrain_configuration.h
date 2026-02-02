@@ -39,6 +39,9 @@ private:
 	/** @brief FastNoiseLite instance used for generating procedural height values */
 	godot::Ref<godot::FastNoiseLite> _noise;
 
+	/** @brief Number of clipmap levels for LOD terrain rendering */
+	int _clipmap_levels;
+
 protected:
 	/**
 	 * @brief Binds methods and properties to Godot's ClassDB system.
@@ -145,6 +148,23 @@ public:
 	 * @param p_size The new terrain size in world units.
 	 */
 	void set_terrain_size(float p_size);
+
+	/**
+	 * @brief Gets the number of clipmap levels for LOD terrain rendering.
+	 *
+	 * @return The number of clipmap levels.
+	 */
+	int get_clipmap_levels() const;
+
+	/**
+	 * @brief Sets the number of clipmap levels for LOD terrain rendering.
+	 *
+	 * Changes the number of clipmap levels used for level-of-detail terrain rendering.
+	 * Emits the "changed" signal to trigger terrain updates.
+	 *
+	 * @param p_levels The new number of clipmap levels.
+	 */
+	void set_clipmap_levels(int p_levels);
 };
 
 } //namespace ts
