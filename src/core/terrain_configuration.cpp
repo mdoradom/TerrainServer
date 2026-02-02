@@ -25,9 +25,13 @@ void TerrainConfiguration::_bind_methods() {
 	ClassDB::bind_method(D_METHOD("set_terrain_size", "size"), &TerrainConfiguration::set_terrain_size);
 	ClassDB::bind_method(D_METHOD("get_terrain_size"), &TerrainConfiguration::get_terrain_size);
 	ADD_PROPERTY(PropertyInfo(Variant::FLOAT, "terrain_size", PROPERTY_HINT_RANGE, "1.0,10000.0"), "set_terrain_size", "get_terrain_size");
+
+	ClassDB::bind_method(D_METHOD("set_clipmap_levels", "levels"), &TerrainConfiguration::set_clipmap_levels);
+	ClassDB::bind_method(D_METHOD("get_clipmap_levels"), &TerrainConfiguration::get_clipmap_levels);
+	ADD_PROPERTY(PropertyInfo(Variant::INT, "clipmap_levels", PROPERTY_HINT_RANGE, "1,10"), "set_clipmap_levels", "get_clipmap_levels");
 }
 
-TerrainConfiguration::TerrainConfiguration() : _height_scale(100.0), _mesh_resolution(32), _terrain_size(256.0f) {}
+TerrainConfiguration::TerrainConfiguration() : _height_scale(100.0), _mesh_resolution(32), _terrain_size(256.0f), _clipmap_levels(6) {}
 
 TerrainConfiguration::~TerrainConfiguration() {
 	if (_noise.is_valid() && _noise->is_connected("changed", Callable(this, "emit_changed"))) {
@@ -95,6 +99,17 @@ float TerrainConfiguration::get_terrain_size() const {
 void TerrainConfiguration::set_terrain_size(float p_size) {
 	if (_terrain_size != p_size) {
 		_terrain_size = p_size;
+		emit_changed();
+	}
+}
+
+int TerrainConfiguration::get_clipmap_levels() const {
+	return _clipmap_levels;
+}
+
+void TerrainConfiguration::set_clipmap_levels(int p_levels) {
+	if (_clipmap_levels != p_levels) {
+		_clipmap_levels = p_levels;
 		emit_changed();
 	}
 }
