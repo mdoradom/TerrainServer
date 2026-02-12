@@ -1,6 +1,8 @@
 #include "terrain3d.h"
+
 #include <godot_cpp/classes/engine.hpp>
-#include <godot_cpp/classes/noise_texture2d.hpp>
+#include <godot_cpp/classes/image.hpp>
+#include <godot_cpp/classes/image_texture.hpp>
 #include <godot_cpp/classes/shader_material.hpp>
 #include <godot_cpp/variant/utility_functions.hpp>
 
@@ -60,16 +62,15 @@ void Terrain3D::_notification(int p_what) {
 }
 
 void Terrain3D::_on_config_changed() {
-	if (!_config.is_valid() || !_renderer.is_valid()) {
-		return;
-	}
+	if (!_config.is_valid() || !_renderer.is_valid()) return;
 
-	_renderer->rebuild_mesh(_config->get_terrain_size(), _config->get_mesh_resolution());
+	int resolution = _config->get_mesh_resolution();
+	_renderer->rebuild_mesh(_config->get_terrain_size(), resolution);
 
 	if (_config->get_noise().is_valid()) {
-		Ref<NoiseTexture2D> tex;
-		tex.instantiate();
-		tex->set_noise(_config->get_noise());
+		Ref<Image> img = _config->get_noise()->get_image(resolution + 1, resolution + 1);
+
+		Ref<ImageTexture> tex = ImageTexture::create_from_image(img);
 		_renderer->update_shader_params(tex, _config->get_height_scale());
 	}
 

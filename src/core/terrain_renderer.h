@@ -17,6 +17,7 @@ private:
 	godot::RID _internal_shader_rid;
 	godot::RID _internal_material_rid;
 	godot::Node3D *_parent_node = nullptr;
+	godot::Ref<godot::Texture2D> _height_map_texture;
 
 protected:
 	static void _bind_methods();
