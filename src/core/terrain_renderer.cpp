@@ -1,22 +1,14 @@
 #include "terrain_renderer.h"
-
-#include <godot_cpp/core/class_db.hpp>
-#include <godot_cpp/core/error_macros.hpp>
-#include <godot_cpp/variant/utility_functions.hpp>
+#include <godot_cpp/classes/plane_mesh.hpp>
+#include <godot_cpp/classes/world3d.hpp>
 
 using namespace godot;
 
 namespace ts {
 
-void TerrainRenderer::_bind_methods() {
-	ClassDB::bind_method(D_METHOD("set_mesh_resolution", "resolution"), &TerrainRenderer::set_mesh_resolution);
-	ClassDB::bind_method(D_METHOD("set_terrain_size", "size"), &TerrainRenderer::set_terrain_size);
-	ClassDB::bind_method(D_METHOD("set_material_override", "material"), &TerrainRenderer::set_material_override);
-	ClassDB::bind_method(D_METHOD("generate_mesh"), &TerrainRenderer::generate_mesh);
-}
+void TerrainRenderer::_bind_methods() {}
 
-TerrainRenderer::TerrainRenderer() : _mesh_instance(nullptr), _parent_node(nullptr), _mesh_resolution(32), _terrain_size(1024.0f) {
-}
+TerrainRenderer::TerrainRenderer() {}
 
 TerrainRenderer::~TerrainRenderer() {
 	cleanup();
@@ -24,69 +16,87 @@ TerrainRenderer::~TerrainRenderer() {
 
 void TerrainRenderer::initialize(Node3D *p_parent) {
 	_parent_node = p_parent;
-
-	if (_mesh_instance == nullptr) {
-		_mesh_instance = Object::cast_to<MeshInstance3D>(_parent_node->get_node_or_null("TerrainMesh"));
-	}
 }
 
 void TerrainRenderer::cleanup() {
-	if (_mesh_instance != nullptr && ObjectDB::get_instance(_mesh_instance->get_instance_id()) != nullptr) {
-		if (_mesh_instance->is_inside_tree()) {
-			_mesh_instance->queue_free();
-		} else {
-			memdelete(_mesh_instance);
+	RenderingServer *rs = RenderingServer::get_singleton();
+	if (_instance_rid.is_valid()) {
+		rs->free_rid(_instance_rid);
+		_instance_rid = RID();
+	}
+	if (_mesh_rid.is_valid()) {
+		rs->free_rid(_mesh_rid);
+		_mesh_rid = RID();
+	}
+	if (_internal_shader_rid.is_valid()) {
+		rs->free_rid(_internal_shader_rid);
+		_internal_shader_rid = RID();
+	}
+	if (_internal_material_rid.is_valid()) {
+		rs->free_rid(_internal_material_rid);
+		_internal_material_rid = RID();
+	}
+}
+
+void TerrainRenderer::rebuild_mesh(float p_size, int p_resolution) {
+	RenderingServer *rs = RenderingServer::get_singleton();
+	cleanup();
+
+	// Create displacement shader for vertex manipulation based on height map
+	// TODO fix this, right now is not working, also we need to add UVs to the mesh
+	_internal_shader_rid = rs->shader_create();
+	rs->shader_set_code(_internal_shader_rid, R"(
+		shader_type spatial;
+		uniform sampler2D height_map;
+		uniform float height_scale;
+		void vertex() {
+			float h = texture(height_map, UV).r;
+			VERTEX.y += h * height_scale;
 		}
-		_mesh_instance = nullptr;
+		void fragment() {
+			ALBEDO = vec3(0.5); // Color gris por defecto
+			ROUGHNESS = 0.8;
+		}
+	)");
+
+	// Create internal material using the shader
+	_internal_material_rid = rs->material_create();
+	rs->material_set_shader(_internal_material_rid, _internal_shader_rid);
+
+	// Create geometry
+	_mesh_rid = rs->mesh_create();
+	Ref<PlaneMesh> pm;
+	pm.instantiate();
+	pm->set_size(Vector2(p_size, p_size));
+	pm->set_subdivide_depth(p_resolution);
+	pm->set_subdivide_width(p_resolution);
+	rs->mesh_add_surface_from_arrays(_mesh_rid, RenderingServer::PRIMITIVE_TRIANGLES, pm->get_mesh_arrays());
+
+	// Create instance and apply material
+	_instance_rid = rs->instance_create();
+	rs->instance_set_base(_instance_rid, _mesh_rid);
+	rs->instance_geometry_set_material_override(_instance_rid, _internal_material_rid);
+
+	if (_parent_node && _parent_node->is_inside_tree()) {
+		rs->instance_set_scenario(_instance_rid, _parent_node->get_world_3d()->get_scenario());
 	}
 }
 
-void TerrainRenderer::set_generator(const Ref<TerrainGenerator> &p_generator) {
-	_generator = p_generator;
+void TerrainRenderer::update_shader_params(const Ref<Texture2D> &p_height_map, float p_scale) {
+	if (!_internal_material_rid.is_valid() || p_height_map.is_null()) {
+		return;
+	}
+	RenderingServer *rs = RenderingServer::get_singleton();
+
+	rs->material_set_param(_internal_material_rid, "height_map", p_height_map->get_rid());
+	rs->material_set_param(_internal_material_rid, "height_scale", p_scale);
 }
 
-void TerrainRenderer::set_mesh_resolution(int p_resolution) {
-	_mesh_resolution = p_resolution;
-}
-
-void TerrainRenderer::set_terrain_size(float p_size) {
-	_terrain_size = p_size;
-}
-
-void TerrainRenderer::set_material_override(const Ref<Material> &p_material) {
-	_material_override = p_material;
-	if (_mesh_instance != nullptr && _material_override.is_valid()) {
-		_mesh_instance->set_material_override(_material_override);
+void TerrainRenderer::update_render_state() {
+	if (!_instance_rid.is_valid() || !_parent_node) {
+		return;
 	}
-}
-
-void TerrainRenderer::generate_mesh() {
-	if (!_generator.is_valid()) {
-		ERR_FAIL_MSG("TerrainRenderer: Invalid generator");
-	}
-
-	if (_parent_node == nullptr) {
-		ERR_FAIL_MSG("TerrainRenderer: No parent node set");
-	}
-
-	if (_mesh_instance == nullptr || ObjectDB::get_instance(_mesh_instance->get_instance_id()) == nullptr) {
-		_mesh_instance = memnew(MeshInstance3D);
-		_parent_node->add_child(_mesh_instance);
-		_mesh_instance->set_name("TerrainMesh");
-		_mesh_instance->set_owner(_parent_node->get_owner());
-	}
-
-	float vertex_spacing = _terrain_size / _mesh_resolution;
-	Ref<ArrayMesh> mesh = _generator->create_mesh_data(_mesh_resolution, vertex_spacing);
-	_mesh_instance->set_mesh(mesh);
-
-	if (_material_override.is_valid()) {
-		_mesh_instance->set_material_override(_material_override);
-	}
-}
-
-void TerrainRenderer::update_mesh() {
-	generate_mesh();
+	RenderingServer::get_singleton()->instance_set_transform(_instance_rid, _parent_node->get_global_transform());
 }
 
 } //namespace ts
