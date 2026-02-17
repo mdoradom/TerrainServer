@@ -68,7 +68,7 @@ void Terrain3D::_on_config_changed() {
 	_renderer->rebuild_mesh(_config->get_terrain_size(), resolution);
 
 	if (_config->get_noise().is_valid()) {
-		Ref<Image> img = _config->get_noise()->get_image(resolution + 1, resolution + 1);
+		Ref<Image> img = _config->get_noise()->get_image(resolution, resolution);
 
 		Ref<ImageTexture> tex = ImageTexture::create_from_image(img);
 		_renderer->update_shader_params(tex, _config->get_height_scale());
