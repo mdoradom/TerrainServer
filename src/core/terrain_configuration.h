@@ -1,7 +1,6 @@
 #pragma once
 
 #include <godot_cpp/classes/fast_noise_lite.hpp>
-#include <godot_cpp/classes/material.hpp>
 #include <godot_cpp/classes/resource.hpp>
 
 namespace ts {
@@ -33,8 +32,6 @@ private:
 	/** @brief Physical size of the terrain in world units */
 	float _terrain_size;
 
-	/** @brief Optional material to apply to the terrain mesh, overriding default materials */
-	godot::Ref<godot::Material> _material_override;
 
 	/** @brief FastNoiseLite instance used for generating procedural height values */
 	godot::Ref<godot::FastNoiseLite> _noise;
@@ -98,22 +95,6 @@ public:
 	 */
 	void set_mesh_resolution(int p_resolution);
 
-	/**
-	 * @brief Gets the current material override.
-	 *
-	 * @return Reference to the Material resource, or null if no override is set.
-	 */
-	godot::Ref<godot::Material> get_material_override() const;
-
-	/**
-	 * @brief Sets a material override for the terrain.
-	 *
-	 * Allows specifying a custom material to be applied to the terrain mesh.
-	 * Emits the "changed" signal to trigger terrain updates.
-	 *
-	 * @param p_material Reference to a Material resource, or null to clear the override.
-	 */
-	void set_material_override(const godot::Ref<godot::Material> &p_material);
 
 	/**
 	 * @brief Gets the noise generator used for terrain height calculations.

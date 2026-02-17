@@ -32,7 +32,6 @@ public:
 	void rebuild_mesh(float p_size, int p_resolution);
 
 	void update_render_state();
-	void set_user_material(const godot::Ref<godot::Material> &p_material);
 	void update_shader_params(const godot::Ref<godot::Texture2D> &p_height_map, float p_scale);
 };
 
