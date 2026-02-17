@@ -14,9 +14,6 @@ void TerrainConfiguration::_bind_methods() {
 	ClassDB::bind_method(D_METHOD("get_mesh_resolution"), &TerrainConfiguration::get_mesh_resolution);
 	ADD_PROPERTY(PropertyInfo(Variant::INT, "mesh_resolution", PROPERTY_HINT_RANGE, "1,512"), "set_mesh_resolution", "get_mesh_resolution");
 
-	ClassDB::bind_method(D_METHOD("set_material_override", "material"), &TerrainConfiguration::set_material_override);
-	ClassDB::bind_method(D_METHOD("get_material_override"), &TerrainConfiguration::get_material_override);
-	ADD_PROPERTY(PropertyInfo(Variant::OBJECT, "material_override", PROPERTY_HINT_RESOURCE_TYPE, "Material"), "set_material_override", "get_material_override");
 
 	ClassDB::bind_method(D_METHOD("set_noise", "noise"), &TerrainConfiguration::set_noise);
 	ClassDB::bind_method(D_METHOD("get_noise"), &TerrainConfiguration::get_noise);
@@ -57,17 +54,6 @@ int TerrainConfiguration::get_mesh_resolution() const {
 void TerrainConfiguration::set_mesh_resolution(int p_resolution) {
 	if (_mesh_resolution != p_resolution) {
 		_mesh_resolution = p_resolution;
-		emit_changed();
-	}
-}
-
-Ref<Material> TerrainConfiguration::get_material_override() const {
-	return _material_override;
-}
-
-void TerrainConfiguration::set_material_override(const Ref<Material> &p_material) {
-	if (_material_override != p_material) {
-		_material_override = p_material;
 		emit_changed();
 	}
 }

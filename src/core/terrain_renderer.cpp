@@ -1,8 +1,6 @@
 #include "terrain_renderer.h"
 
 #include <godot_cpp/classes/array_mesh.hpp>
-#include <godot_cpp/classes/plane_mesh.hpp>
-#include <godot_cpp/classes/standard_material3d.hpp>
 #include <godot_cpp/classes/world3d.hpp>
 #include <godot_cpp/variant/vector2.hpp>
 #include <godot_cpp/variant/vector3.hpp>
@@ -24,6 +22,7 @@ void TerrainRenderer::initialize(Node3D *p_parent) {
 }
 
 void TerrainRenderer::cleanup() {
+
 	RenderingServer *rs = RenderingServer::get_singleton();
 	if (_instance_rid.is_valid()) {
 		rs->free_rid(_instance_rid);
@@ -52,12 +51,12 @@ void TerrainRenderer::rebuild_mesh(float p_size, int p_resolution) {
 	rs->shader_set_code(_internal_shader_rid, R"(
 	    shader_type spatial;
 
-	    uniform sampler2D height_map : repeat_disable;  // Add repeat_disable
+	    uniform sampler2D height_map : repeat_disable;
 	    uniform float height_scale;
 
-	    uniform vec3 albedo_color : source_color = vec3(1.0);
-	    uniform sampler2D albedo_texture : source_color;
-	    uniform float roughness : hint_range(0,1) = 1.0;
+	    // TODO Basic visual parameters (will be replaced by layer system in the biomes implementation)
+	    uniform vec3 albedo_color : source_color = vec3(0.5, 0.7, 0.3);
+	    uniform float roughness : hint_range(0,1) = 0.8;
 
 	    void vertex() {
 	        float h = texture(height_map, UV).r;
@@ -66,7 +65,6 @@ void TerrainRenderer::rebuild_mesh(float p_size, int p_resolution) {
 	        vec2 tex_size = vec2(textureSize(height_map, 0));
 	        vec2 e = vec2(1.0 / tex_size.x, 1.0 / tex_size.y);
 
-	        // Clamp UV coordinates to prevent wrapping
 	        vec2 uv_clamped_l = clamp(UV - vec2(e.x, 0.0), vec2(0.0), vec2(1.0));
 	        vec2 uv_clamped_r = clamp(UV + vec2(e.x, 0.0), vec2(0.0), vec2(1.0));
 	        vec2 uv_clamped_u = clamp(UV - vec2(0.0, e.y), vec2(0.0), vec2(1.0));
@@ -86,8 +84,8 @@ void TerrainRenderer::rebuild_mesh(float p_size, int p_resolution) {
         }
 
         void fragment() {
-            vec4 tex = texture(albedo_texture, UV);
-            ALBEDO = albedo_color * tex.rgb;
+            // TODO: Replace with multi-layer material system
+            ALBEDO = albedo_color;
             ROUGHNESS = roughness;
         }
     )");
@@ -167,24 +165,6 @@ void TerrainRenderer::update_shader_params(const Ref<Texture2D> &p_height_map, f
 	rs->material_set_param(_internal_material_rid, "height_scale", p_scale);
 }
 
-void TerrainRenderer::set_user_material(const Ref<Material> &p_material) {
-	if (!_internal_material_rid.is_valid()) {
-		return;
-	}
-
-	Ref<StandardMaterial3D> std_mat = p_material;
-	if (std_mat.is_valid()) {
-		RenderingServer *rs = RenderingServer::get_singleton();
-
-		rs->material_set_param(_internal_material_rid, "albedo_color", std_mat->get_albedo());
-		rs->material_set_param(_internal_material_rid, "roughness", std_mat->get_roughness());
-
-		Ref<Texture2D> albedo_tex = std_mat->get_texture(StandardMaterial3D::TEXTURE_ALBEDO);
-		if (albedo_tex.is_valid()) {
-			rs->material_set_param(_internal_material_rid, "albedo_texture", albedo_tex->get_rid());
-		}
-	}
-}
 
 void TerrainRenderer::update_render_state() {
 	if (!_instance_rid.is_valid() || !_parent_node) {
