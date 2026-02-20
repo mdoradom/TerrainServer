@@ -1,7 +1,9 @@
 #pragma once
 
 #include "core/terrain_configuration.h"
+#include "core/terrain_generator.h"
 #include "core/terrain_renderer.h"
+
 #include <godot_cpp/classes/node3d.hpp>
 
 namespace ts {
@@ -12,6 +14,7 @@ class Terrain3D : public godot::Node3D {
 private:
 	godot::Ref<TerrainConfiguration> _config;
 	godot::Ref<TerrainRenderer> _renderer;
+	godot::Ref<TerrainGenerator> _generator;
 
 protected:
 	static void _bind_methods();
@@ -22,6 +25,7 @@ public:
 	~Terrain3D();
 
 	void _ready() override;
+	void _process(double delta) override;
 	void _notification(int p_what);
 
 	void set_configuration(const godot::Ref<TerrainConfiguration> &p_config);
