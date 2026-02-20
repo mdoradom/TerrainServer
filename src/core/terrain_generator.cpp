@@ -44,18 +44,20 @@ Ref<ArrayMesh> TerrainGenerator::create_mesh_data(int resolution, float vertex_s
 	st->begin(Mesh::PRIMITIVE_TRIANGLES);
 
 	int vertex_count_per_row = resolution + 1;
+	float offset = (resolution * vertex_spacing) * 0.5f;
 
 	for (int z = 0; z < vertex_count_per_row; z++) {
 		for (int x = 0; x < vertex_count_per_row; x++) {
-			float x_pos = x * vertex_spacing;
-			float z_pos = z * vertex_spacing;
-			float y_pos = get_height(x_pos, z_pos);
+			float x_pos = (x * vertex_spacing) - offset;
+			float z_pos = (z * vertex_spacing) - offset;
 
 			float u = static_cast<float>(x) / static_cast<float>(resolution);
 			float v = static_cast<float>(z) / static_cast<float>(resolution);
 
 			st->set_uv(Vector2(u, v));
-			st->add_vertex(Vector3(x_pos, y_pos, z_pos));
+			st->set_normal(Vector3(0, 1, 0));
+
+			st->add_vertex(Vector3(x_pos, 0.0f, z_pos));
 		}
 	}
 
@@ -67,18 +69,16 @@ Ref<ArrayMesh> TerrainGenerator::create_mesh_data(int resolution, float vertex_s
 			int bottom_right = bottom_left + 1;
 
 			st->add_index(top_left);
-			st->add_index(bottom_left);
 			st->add_index(top_right);
+			st->add_index(bottom_left);
 
 			st->add_index(top_right);
-			st->add_index(bottom_left);
 			st->add_index(bottom_right);
+			st->add_index(bottom_left);
 		}
 	}
 
-	st->generate_normals();
 	st->generate_tangents();
-
 	return st->commit();
 }
 
