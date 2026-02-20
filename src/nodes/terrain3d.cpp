@@ -55,12 +55,6 @@ void Terrain3D::_process(double delta) {
 
 void Terrain3D::_notification(int p_what) {
 	switch (p_what) {
-		case NOTIFICATION_TRANSFORM_CHANGED: {
-			if (_renderer.is_valid()) {
-				_renderer->update_render_state();
-			}
-		} break;
-
 		case NOTIFICATION_EXIT_TREE: {
 			if (_renderer.is_valid()) {
 				_renderer->cleanup();
@@ -95,7 +89,6 @@ void Terrain3D::_on_config_changed() {
 		_renderer->update_shader_params(tex, _config->get_height_scale());
 	}
 
-	_renderer->update_render_state();
 }
 
 void Terrain3D::set_configuration(const Ref<TerrainConfiguration> &p_config) {
