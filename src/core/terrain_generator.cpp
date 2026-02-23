@@ -86,6 +86,44 @@ Ref<ArrayMesh> TerrainGenerator::create_mesh_data(int resolution, float vertex_s
 		}
 	}
 
+	// NOTE resolution must be even for the seam triangles to work correctly (ex. 128, 256, 512, etc.)
+	auto add_seam_triangle = [&](int a, int b, int c) {
+		st->add_index(a); st->add_index(b); st->add_index(c);
+		st->add_index(a); st->add_index(c); st->add_index(b);
+	};
+
+	// Top border
+	for (int x = 0; x < resolution; x += 2) {
+		int A = 0 * vertex_count_per_row + x;
+		int B = 0 * vertex_count_per_row + (x + 1);
+		int C = 0 * vertex_count_per_row + (x + 2);
+		add_seam_triangle(A, B, C);
+	}
+
+	// Right border
+	for (int z = 0; z < resolution; z += 2) {
+		int A = z * vertex_count_per_row + resolution;
+		int B = (z + 1) * vertex_count_per_row + resolution;
+		int C = (z + 2) * vertex_count_per_row + resolution;
+		add_seam_triangle(A, B, C);
+	}
+
+	// Bottom border
+	for (int x = 0; x < resolution; x += 2) {
+		int A = resolution * vertex_count_per_row + (x + 2);
+		int B = resolution * vertex_count_per_row + (x + 1);
+		int C = resolution * vertex_count_per_row + x;
+		add_seam_triangle(A, B, C);
+	}
+
+	// Left border
+	for (int z = 0; z < resolution; z += 2) {
+		int A = (z + 2) * vertex_count_per_row + 0;
+		int B = (z + 1) * vertex_count_per_row + 0;
+		int C = z * vertex_count_per_row + 0;
+		add_seam_triangle(A, B, C);
+	}
+
 	st->generate_tangents();
 	return st->commit();
 }

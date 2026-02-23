@@ -82,7 +82,7 @@ void TerrainRenderer::rebuild_mesh(float p_size, int p_resolution) {
 		}
 
 		void vertex() {
-			vec3 world_pos = (MODEL_MATRIX * vec4(VERTEX, 1.0)).xyz;
+			vec3 world_pos = (MODEL_MATRIX * vec4(VERTEX.x, 0.0, VERTEX.z, 1.0)).xyz;
 			vec2 tex_uv = vec2(world_pos.x, world_pos.z) / 1024.0 + 0.5;
 
 			VERTEX.y = get_h(tex_uv);
@@ -162,7 +162,7 @@ void TerrainRenderer::update_shader_params(const Ref<Texture2D> &p_height_map, f
 void TerrainRenderer::update_camera_position(Vector3 p_camera_pos) {
 	RenderingServer *rs = RenderingServer::get_singleton();
 
-	if (!_config.is_valid()) {
+	if (!_config.is_valid() || _clipmap_levels.empty()) {
 		return;
 	}
 	int resolution = _config->get_mesh_resolution();
@@ -170,17 +170,17 @@ void TerrainRenderer::update_camera_position(Vector3 p_camera_pos) {
 		resolution = 64;
 	}
 
+	float base_cell_size = _clipmap_levels[0].scale / (float)resolution;
+
 	for (size_t i = 0; i < _clipmap_levels.size(); i++) {
 		const auto &level = _clipmap_levels[i];
 
-		float cell_size = level.scale / (float)resolution;
-
-		float snapped_x = floor(p_camera_pos.x / cell_size) * cell_size;
-		float snapped_z = floor(p_camera_pos.z / cell_size) * cell_size;
+		float snapped_x = floor(p_camera_pos.x / base_cell_size) * base_cell_size;
+		float snapped_z = floor(p_camera_pos.z / base_cell_size) * base_cell_size;
 
 		Transform3D xform;
 		xform.basis = xform.basis.scaled(Vector3(level.scale, 1.0, level.scale));
-		xform.origin = Vector3(snapped_x, -0.01f * i, snapped_z);
+		xform.origin = Vector3(snapped_x, 0.0f, snapped_z);
 
 		rs->instance_set_transform(level.instance_rid, xform);
 	}
