@@ -35,6 +35,11 @@ void TerrainRenderer::cleanup() {
 		rs->free_rid(_mesh_rid);
 		_mesh_rid = RID();
 	}
+
+	if (_mesh_ring_rid.is_valid()) {
+		rs->free_rid(_mesh_ring_rid);
+		_mesh_ring_rid = RID();
+	}
 	if (_internal_shader_rid.is_valid()) {
 		rs->free_rid(_internal_shader_rid);
 		_internal_shader_rid = RID();
@@ -108,18 +113,28 @@ void TerrainRenderer::rebuild_mesh(float p_size, int p_resolution) {
 	rs->material_set_shader(_internal_material_rid, _internal_shader_rid);
 
 	float base_spacing = 1.0f / p_resolution;
-	Ref<ArrayMesh> mesh = _generator->create_mesh_data(p_resolution, base_spacing);
 
+	Ref<ArrayMesh> mesh_center = _generator->create_mesh_data(p_resolution, base_spacing, false);
 	_mesh_rid = rs->mesh_create();
-	Array arrays = mesh->surface_get_arrays(0);
-	rs->mesh_add_surface_from_arrays(_mesh_rid, RenderingServer::PRIMITIVE_TRIANGLES, arrays);
+	rs->mesh_add_surface_from_arrays(_mesh_rid, RenderingServer::PRIMITIVE_TRIANGLES, mesh_center->surface_get_arrays(0));
+
+	Ref<ArrayMesh> mesh_ring = _generator->create_mesh_data(p_resolution, base_spacing, true);
+	_mesh_ring_rid = rs->mesh_create();
+	rs->mesh_add_surface_from_arrays(_mesh_ring_rid, RenderingServer::PRIMITIVE_TRIANGLES, mesh_ring->surface_get_arrays(0));
 
 	int num_levels = _config->get_clipmap_levels();
+	if (num_levels <= 0) {
+		num_levels = 6;
+	}
+
 	float base_size = 32.0f;
 
 	for (int i = 0; i < num_levels; i++) {
 		RID instance = rs->instance_create();
-		rs->instance_set_base(instance, _mesh_rid);
+
+		RID mesh_to_use = (i == 0) ? _mesh_rid : _mesh_ring_rid;
+		rs->instance_set_base(instance, mesh_to_use);
+
 		rs->instance_geometry_set_material_override(instance, _internal_material_rid);
 
 		if (_parent_node && _parent_node->is_inside_tree()) {

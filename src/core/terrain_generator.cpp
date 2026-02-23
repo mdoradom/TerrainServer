@@ -38,7 +38,7 @@ float TerrainGenerator::get_height(float x, float y) const {
 	return noise_value * _height_scale;
 }
 
-Ref<ArrayMesh> TerrainGenerator::create_mesh_data(int resolution, float vertex_spacing) const {
+Ref<ArrayMesh> TerrainGenerator::create_mesh_data(int resolution, float vertex_spacing, bool has_hole) const {
 	Ref<SurfaceTool> st;
 	st.instantiate();
 	st->begin(Mesh::PRIMITIVE_TRIANGLES);
@@ -61,8 +61,16 @@ Ref<ArrayMesh> TerrainGenerator::create_mesh_data(int resolution, float vertex_s
 		}
 	}
 
+	int hole_start = resolution / 4;
+	int hole_end = (3 * resolution) / 4;
+
 	for (int z = 0; z < resolution; z++) {
 		for (int x = 0; x < resolution; x++) {
+
+			if (has_hole && x >= hole_start && x < hole_end && z >= hole_start && z < hole_end) {
+				continue;
+			}
+
 			int top_left = z * vertex_count_per_row + x;
 			int top_right = top_left + 1;
 			int bottom_left = (z + 1) * vertex_count_per_row + x;
@@ -83,7 +91,7 @@ Ref<ArrayMesh> TerrainGenerator::create_mesh_data(int resolution, float vertex_s
 }
 
 Ref<ArrayMesh> TerrainGenerator::generate_mesh(int resolution, float size) const {
-	float vertex_spacing = size / resolution;
+	float vertex_spacing = size / static_cast<float>(resolution);
 	return create_mesh_data(resolution, vertex_spacing);
 }
 
