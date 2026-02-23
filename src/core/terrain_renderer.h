@@ -17,6 +17,8 @@ class TerrainRenderer : public godot::RefCounted {
 
 private:
 	godot::RID _mesh_rid;
+	godot::RID _mesh_ring_rid;
+	godot::RID _instance_rid;
 	godot::RID _internal_shader_rid;
 	godot::RID _internal_material_rid;
 	godot::Node3D *_parent_node = nullptr;
@@ -46,6 +48,8 @@ public:
 	void set_configuration(const godot::Ref<TerrainConfiguration> &p_config);
 
 	void rebuild_mesh(float p_size, int p_resolution);
+
+	void update_render_state();
 	void update_shader_params(const godot::Ref<godot::Texture2D> &p_height_map, float p_scale);
 	void update_camera_position(godot::Vector3 p_camera_pos);
 };
