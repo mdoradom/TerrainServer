@@ -14,9 +14,10 @@ tonemap_mode = 2
 glow_enabled = true
 
 [sub_resource type="FastNoiseLite" id="FastNoiseLite_pt7ik"]
+seed = 234
 
 [sub_resource type="TerrainConfiguration" id="TerrainConfiguration_j1qb7"]
-mesh_resolution = 512
+mesh_resolution = 128
 noise = SubResource("FastNoiseLite_pt7ik")
 
 [node name="Node3D" type="Node3D" unique_id=695386943]
