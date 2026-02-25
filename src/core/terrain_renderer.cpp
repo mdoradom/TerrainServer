@@ -1,4 +1,5 @@
 #include "terrain_renderer.h"
+#include "fast_noise_lite_glsl.h"
 
 #include <godot_cpp/classes/array_mesh.hpp>
 #include <godot_cpp/classes/world3d.hpp>
@@ -68,35 +69,58 @@ void TerrainRenderer::rebuild_mesh(float p_size, int p_resolution) {
 	}
 
 	_internal_shader_rid = rs->shader_create();
-	rs->shader_set_code(_internal_shader_rid, R"(
+	String shader_code = String(R"(
 		shader_type spatial;
-		render_mode cull_back;
+		render_mode cull_disabled;
 
-		uniform sampler2D height_map;
 		uniform float height_scale;
+		uniform float terrain_size;
+		uniform float resolution;
 
+		uniform int fnl_seed = 0;
+		uniform float fnl_frequency = 0.01;
+		uniform int fnl_noise_type = 1;
+		uniform int fnl_fractal_type = 1;
+		uniform int fnl_octaves = 3;
+		uniform float fnl_lacunarity = 2.0;
+		uniform float fnl_gain = 0.5;
+	)") + String(FNL_GLSL_CODE) +
+			String(R"(
 		varying vec3 v_normal;
 
-		float get_h(vec2 pos_uv) {
-			return texture(height_map, pos_uv).r * height_scale;
+		fnl_state get_fnl_state() {
+			fnl_state state = fnlCreateState(fnl_seed);
+			state.noise_type = fnl_noise_type;
+			state.fractal_type = fnl_fractal_type;
+			state.octaves = fnl_octaves;
+			state.lacunarity = fnl_lacunarity;
+			state.gain = fnl_gain;
+			state.frequency = fnl_frequency;
+			return state;
+		}
+
+		float get_h(vec2 world_xz, fnl_state state) {
+			return fnlGetNoise2D(state, world_xz.x, world_xz.y) * height_scale;
 		}
 
 		void vertex() {
+			fnl_state state = get_fnl_state();
+
+			float drop = VERTEX.y;
+
 			vec3 world_pos = (MODEL_MATRIX * vec4(VERTEX.x, 0.0, VERTEX.z, 1.0)).xyz;
-			vec2 tex_uv = vec2(world_pos.x, world_pos.z) / 1024.0 + 0.5;
+			vec2 world_xz = vec2(world_pos.x, world_pos.z);
 
-			VERTEX.y = get_h(tex_uv);
+			float h = get_h(world_xz, state);
 
-			float e = 1.0 / 1024.0;
-			float h_l = get_h(tex_uv + vec2(-e, 0.0));
-			float h_r = get_h(tex_uv + vec2(e, 0.0));
-			float h_u = get_h(tex_uv + vec2(0.0, -e));
-			float h_d = get_h(tex_uv + vec2(0.0, e));
+			vec3 final_world = vec3(world_pos.x, h + (drop * height_scale * 0.5), world_pos.z);
+			VERTEX = (inverse(MODEL_MATRIX) * vec4(final_world, 1.0)).xyz;
 
+			float e = 0.1;
 			vec3 n;
-			n.x = h_l - h_r;
-			n.z = h_u - h_d;
-			n.y = 2.0;
+			n.x = get_h(world_xz + vec2(-e, 0.0), state) - get_h(world_xz + vec2(e, 0.0), state);
+			n.z = get_h(world_xz + vec2(0.0, -e), state) - get_h(world_xz + vec2(0.0, e), state);
+			n.y = 2.0 * e;
 			v_normal = normalize(n);
 			NORMAL = v_normal;
 		}
@@ -109,8 +133,12 @@ void TerrainRenderer::rebuild_mesh(float p_size, int p_resolution) {
 		}
 	)");
 
+	rs->shader_set_code(_internal_shader_rid, shader_code);
 	_internal_material_rid = rs->material_create();
 	rs->material_set_shader(_internal_material_rid, _internal_shader_rid);
+
+	rs->material_set_param(_internal_material_rid, "terrain_size", p_size);
+	rs->material_set_param(_internal_material_rid, "resolution", (float)p_resolution);
 
 	float base_spacing = 1.0f / p_resolution;
 
@@ -127,7 +155,7 @@ void TerrainRenderer::rebuild_mesh(float p_size, int p_resolution) {
 		num_levels = 6;
 	}
 
-	float base_size = 32.0f;
+	float base_size = p_size / pow(2.0f, num_levels - 1);
 
 	for (int i = 0; i < num_levels; i++) {
 		RID instance = rs->instance_create();
@@ -170,13 +198,13 @@ void TerrainRenderer::update_camera_position(Vector3 p_camera_pos) {
 		resolution = 64;
 	}
 
-	float base_cell_size = _clipmap_levels[0].scale / (float)resolution;
 
 	for (size_t i = 0; i < _clipmap_levels.size(); i++) {
 		const auto &level = _clipmap_levels[i];
 
-		float snapped_x = floor(p_camera_pos.x / base_cell_size) * base_cell_size;
-		float snapped_z = floor(p_camera_pos.z / base_cell_size) * base_cell_size;
+		float cell_size = level.scale / (float)resolution;
+		float snapped_x = floor(p_camera_pos.x / cell_size) * cell_size;
+		float snapped_z = floor(p_camera_pos.z / cell_size) * cell_size;
 
 		Transform3D xform;
 		xform.basis = xform.basis.scaled(Vector3(level.scale, 1.0, level.scale));

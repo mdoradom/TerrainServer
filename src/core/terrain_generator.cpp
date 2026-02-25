@@ -17,25 +17,18 @@ TerrainGenerator::TerrainGenerator() : _height_scale(1.0f) {}
 TerrainGenerator::~TerrainGenerator() {}
 
 void TerrainGenerator::setup(const Ref<TerrainConfiguration> &p_config) {
-	if (!p_config.is_valid()) {
-		ERR_PRINT("TerrainGenerator: Invalid configuration provided");
-		return;
-	}
-
+	if (!p_config.is_valid()) return;
 	_noise = p_config->get_noise();
 	_height_scale = p_config->get_height_scale();
-
-	if (!_noise.is_valid()) {
-		WARN_PRINT("TerrainGenerator: No noise configured - terrain will be flat");
-	}
 }
 
 float TerrainGenerator::get_height(float x, float y) const {
-	if (!_noise.is_valid()) {
-		return 0.0f;
-	}
-	float noise_value = _noise->get_noise_2d(x, y);
-	return noise_value * _height_scale;
+	if (!_noise.is_valid()) return 0.0f;
+	return _noise->get_noise_2d(x, y) * _height_scale;
+}
+
+Ref<ArrayMesh> TerrainGenerator::generate_mesh(int resolution, float size) const {
+	return create_mesh_data(resolution, size / static_cast<float>(resolution));
 }
 
 Ref<ArrayMesh> TerrainGenerator::create_mesh_data(int resolution, float vertex_spacing, bool has_hole) const {
@@ -43,94 +36,54 @@ Ref<ArrayMesh> TerrainGenerator::create_mesh_data(int resolution, float vertex_s
 	st.instantiate();
 	st->begin(Mesh::PRIMITIVE_TRIANGLES);
 
-	int vertex_count_per_row = resolution + 1;
+	int vertex_count = resolution + 1;
 	float offset = (resolution * vertex_spacing) * 0.5f;
 
-	for (int z = 0; z < vertex_count_per_row; z++) {
-		for (int x = 0; x < vertex_count_per_row; x++) {
+	int hole_start = (resolution / 4) + 2;
+	int hole_end = (3 * resolution / 4) - 2;
+
+	for (int z = 0; z < vertex_count; z++) {
+		for (int x = 0; x < vertex_count; x++) {
 			float x_pos = (x * vertex_spacing) - offset;
 			float z_pos = (z * vertex_spacing) - offset;
 
-			float u = static_cast<float>(x) / static_cast<float>(resolution);
-			float v = static_cast<float>(z) / static_cast<float>(resolution);
+			float drop = 0.0f;
 
-			st->set_uv(Vector2(u, v));
+			if (x == 0 || x == resolution || z == 0 || z == resolution) {
+				drop = -1.0f;
+			}
+
+			if (has_hole) {
+				bool is_inner_x = (x == hole_start || x == hole_end) && (z >= hole_start && z <= hole_end);
+				bool is_inner_z = (z == hole_start || z == hole_end) && (x >= hole_start && x <= hole_end);
+				if (is_inner_x || is_inner_z) {
+					drop = -1.0f;
+				}
+			}
+
+			st->set_uv(Vector2((float)x / resolution, (float)z / resolution));
 			st->set_normal(Vector3(0, 1, 0));
-
-			st->add_vertex(Vector3(x_pos, 0.0f, z_pos));
+			st->add_vertex(Vector3(x_pos, drop, z_pos));
 		}
 	}
-
-	int hole_start = resolution / 4;
-	int hole_end = (3 * resolution) / 4;
 
 	for (int z = 0; z < resolution; z++) {
 		for (int x = 0; x < resolution; x++) {
-
 			if (has_hole && x >= hole_start && x < hole_end && z >= hole_start && z < hole_end) {
 				continue;
 			}
+			int tl = z * vertex_count + x;
+			int tr = tl + 1;
+			int bl = (z + 1) * vertex_count + x;
+			int br = bl + 1;
 
-			int top_left = z * vertex_count_per_row + x;
-			int top_right = top_left + 1;
-			int bottom_left = (z + 1) * vertex_count_per_row + x;
-			int bottom_right = bottom_left + 1;
-
-			st->add_index(top_left);
-			st->add_index(top_right);
-			st->add_index(bottom_left);
-
-			st->add_index(top_right);
-			st->add_index(bottom_right);
-			st->add_index(bottom_left);
+			st->add_index(tl); st->add_index(bl); st->add_index(tr);
+			st->add_index(tr); st->add_index(bl); st->add_index(br);
 		}
-	}
-
-	// NOTE resolution must be even for the seam triangles to work correctly (ex. 128, 256, 512, etc.)
-	auto add_seam_triangle = [&](int a, int b, int c) {
-		st->add_index(a); st->add_index(b); st->add_index(c);
-		st->add_index(a); st->add_index(c); st->add_index(b);
-	};
-
-	// Top border
-	for (int x = 0; x < resolution; x += 2) {
-		int A = 0 * vertex_count_per_row + x;
-		int B = 0 * vertex_count_per_row + (x + 1);
-		int C = 0 * vertex_count_per_row + (x + 2);
-		add_seam_triangle(A, B, C);
-	}
-
-	// Right border
-	for (int z = 0; z < resolution; z += 2) {
-		int A = z * vertex_count_per_row + resolution;
-		int B = (z + 1) * vertex_count_per_row + resolution;
-		int C = (z + 2) * vertex_count_per_row + resolution;
-		add_seam_triangle(A, B, C);
-	}
-
-	// Bottom border
-	for (int x = 0; x < resolution; x += 2) {
-		int A = resolution * vertex_count_per_row + (x + 2);
-		int B = resolution * vertex_count_per_row + (x + 1);
-		int C = resolution * vertex_count_per_row + x;
-		add_seam_triangle(A, B, C);
-	}
-
-	// Left border
-	for (int z = 0; z < resolution; z += 2) {
-		int A = (z + 2) * vertex_count_per_row + 0;
-		int B = (z + 1) * vertex_count_per_row + 0;
-		int C = z * vertex_count_per_row + 0;
-		add_seam_triangle(A, B, C);
 	}
 
 	st->generate_tangents();
 	return st->commit();
-}
-
-Ref<ArrayMesh> TerrainGenerator::generate_mesh(int resolution, float size) const {
-	float vertex_spacing = size / static_cast<float>(resolution);
-	return create_mesh_data(resolution, vertex_spacing);
 }
 
 } //namespace ts
