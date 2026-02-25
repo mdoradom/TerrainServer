@@ -2,8 +2,6 @@
 
 #include <godot_cpp/classes/camera3d.hpp>
 #include <godot_cpp/classes/engine.hpp>
-#include <godot_cpp/classes/image.hpp>
-#include <godot_cpp/classes/image_texture.hpp>
 #include <godot_cpp/classes/viewport.hpp>
 #include <godot_cpp/variant/utility_functions.hpp>
 
@@ -75,7 +73,6 @@ void Terrain3D::_on_config_changed() {
 		return;
 	}
 
-	// Inyectamos las dependencias
 	_generator->setup(_config);
 	_renderer->set_generator(_generator);
 	_renderer->set_configuration(_config);
@@ -83,11 +80,6 @@ void Terrain3D::_on_config_changed() {
 	int resolution = _config->get_mesh_resolution();
 	_renderer->rebuild_mesh(_config->get_terrain_size(), resolution);
 
-	if (_config->get_noise().is_valid()) {
-		Ref<Image> img = _config->get_noise()->get_image(resolution, resolution);
-		Ref<ImageTexture> tex = ImageTexture::create_from_image(img);
-		_renderer->update_shader_params(tex, _config->get_height_scale());
-	}
 
 }
 

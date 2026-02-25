@@ -24,8 +24,11 @@ public:
 
 	void setup(const godot::Ref<TerrainConfiguration> &p_config);
 	float get_height(float x, float y) const;
-	godot::Ref<godot::ArrayMesh> generate_mesh(int resolution, float size) const;
-	godot::Ref<godot::ArrayMesh> create_mesh_data(int resolution, float vertex_spacing, bool has_hole = false) const;
+
+	godot::Ref<godot::ArrayMesh> create_block_mesh(int resolution) const;
+	godot::Ref<godot::ArrayMesh> create_ring_fixup_mesh(int resolution) const;
+	godot::Ref<godot::ArrayMesh> create_trim_mesh(int resolution) const;
+	godot::Ref<godot::ArrayMesh> create_interior_trim_mesh(int resolution) const;
 };
 
 } //namespace ts

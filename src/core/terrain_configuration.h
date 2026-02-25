@@ -1,6 +1,8 @@
 #pragma once
 
 #include <godot_cpp/classes/fast_noise_lite.hpp>
+#include <godot_cpp/classes/image.hpp>
+#include <godot_cpp/classes/image_texture.hpp>
 #include <godot_cpp/classes/resource.hpp>
 
 namespace ts {
@@ -14,8 +16,13 @@ private:
 	float _terrain_size;
 
 	godot::Ref<godot::FastNoiseLite> _noise;
+	godot::Ref<godot::ImageTexture> _noise_texture;
+	int _noise_texture_size;
 
 	int _clipmap_levels;
+	float _morph_range;
+
+	void _generate_noise_texture();
 
 protected:
 	static void _bind_methods();
@@ -43,6 +50,16 @@ public:
 	int get_clipmap_levels() const;
 
 	void set_clipmap_levels(int p_levels);
+
+	float get_morph_range() const;
+
+	void set_morph_range(float p_range);
+
+	godot::Ref<godot::ImageTexture> get_noise_texture() const;
+
+	int get_noise_texture_size() const;
+
+	void set_noise_texture_size(int p_size);
 };
 
 } //namespace ts

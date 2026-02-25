@@ -14,11 +14,14 @@ tonemap_mode = 2
 glow_enabled = true
 
 [sub_resource type="FastNoiseLite" id="FastNoiseLite_pt7ik"]
-seed = 234
+noise_type = 3
 
 [sub_resource type="TerrainConfiguration" id="TerrainConfiguration_j1qb7"]
-mesh_resolution = 128
+height_scale = 25.0
+mesh_resolution = 512
 noise = SubResource("FastNoiseLite_pt7ik")
+clipmap_levels = 3
+morph_range = 1.0
 
 [node name="Node3D" type="Node3D" unique_id=695386943]
 
@@ -33,5 +36,5 @@ shadow_reverse_cull_face = true
 [node name="Camera3D" type="Camera3D" parent="." unique_id=699225141]
 transform = Transform3D(0.9077775, 0.066339724, -0.41417277, 0, 0.9874138, 0.15815806, 0.41945207, -0.14357233, 0.89635205, 0, 50, 0)
 
-[node name="Terrain3D" type="Terrain3D" parent="." unique_id=1748147624]
+[node name="Terrain3D" type="Terrain3D" parent="." unique_id=1216984269]
 configuration = SubResource("TerrainConfiguration_j1qb7")
