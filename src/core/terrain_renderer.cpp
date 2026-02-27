@@ -71,58 +71,51 @@ void TerrainRenderer::rebuild_mesh(float p_size, int p_resolution) {
 		render_mode cull_back;
 
 		uniform float height_scale = 100.0;
-		uniform vec3 camera_position;
-		uniform float morph_range = 0.75;
-		uniform float grid_scale = 1.0;
-		uniform int level_index = 0;
-		uniform sampler2D heightmap : repeat_enable;
+		uniform sampler2D heightmap : filter_linear, repeat_enable;
 		uniform float terrain_size = 1024.0;
+		uniform float resolution = 64.0;
 
 		varying vec3 v_normal;
 
 		float get_height_at(vec2 world_xz) {
-			// Convert world coordinates to UV [0, 1]
 			vec2 uv = world_xz / terrain_size;
-			// Sample the heightmap and scale by height_scale
 			float h = texture(heightmap, uv).r;
-			return (h * 2.0 - 1.0) * height_scale; // Remap from [0,1] to [-1,1]
+			return (h * 2.0 - 1.0) * height_scale;
 		}
 
 		void vertex() {
-			// Position of the vertex in world space
+			// 1. Local x/z morphing
+			vec2 local_xz = VERTEX.xz;
+			float max_abs = max(abs(local_xz.x), abs(local_xz.y));
+
+			// Detect if we are in the outermost 20% of the ring
+			float morph_factor = clamp((max_abs - 0.4) / 0.1, 0.0, 1.0);
+			morph_factor = smoothstep(0.0, 1.0, morph_factor);
+
+			// Calculate where the upper LOD grid is
+			float coarser_step = 2.0 / resolution;
+			vec2 morphed_local_xz = round(local_xz / coarser_step) * coarser_step;
+
+			// Slide the vertex horizontally towards the other grid
+			VERTEX.xz = mix(local_xz, morphed_local_xz, morph_factor);
+
+			// 2. Height in world space
 			vec3 world_pos = (MODEL_MATRIX * vec4(VERTEX, 1.0)).xyz;
 			vec2 world_xz = vec2(world_pos.x, world_pos.z);
 
-			// Get height at current position
-			float h_current = get_height_at(world_xz);
+			// Read the exact height where the morphed vertex now lies
+			float final_height = get_height_at(world_xz);
 
-			// Calculate distance to camera
-			vec2 cam_xz = vec2(camera_position.x, camera_position.z);
-			float dist_to_camera = max(abs(world_xz.x - cam_xz.x), abs(world_xz.y - cam_xz.y));
-
-			// Morphing
-			float morph_start = grid_scale * 0.5 * morph_range;
-			float morph_end = grid_scale * 0.5;
-			float morph_factor = clamp((dist_to_camera - morph_start) / (morph_end - morph_start), 0.0, 1.0);
-
-			// Calculate position on the coarser grid (next clipmap level)
-			float coarser_grid = grid_scale * 2.0;
-			vec2 coarser_pos = floor(world_xz / coarser_grid) * coarser_grid + coarser_grid * 0.5;
-			float h_coarser = get_height_at(coarser_pos);
-
-			// Interpolate between the current height and the coarser level height
-			float final_height = mix(h_current, h_coarser, morph_factor);
-
-			// Apply the final height to the vertex position
+			// Apply and return to local Transform
 			vec3 final_world = vec3(world_pos.x, final_height, world_pos.z);
 			VERTEX = (inverse(MODEL_MATRIX) * vec4(final_world, 1.0)).xyz;
 
-			// Calculate normals using finite differences
-			float epsilon = grid_scale * 0.1;
+			// 3. Analytical normals
+			float e = 1.0;
 			vec3 n;
-			n.x = get_height_at(world_xz + vec2(-epsilon, 0.0)) - get_height_at(world_xz + vec2(epsilon, 0.0));
-			n.z = get_height_at(world_xz + vec2(0.0, -epsilon)) - get_height_at(world_xz + vec2(0.0, epsilon));
-			n.y = 2.0 * epsilon;
+			n.x = get_height_at(world_xz + vec2(-e, 0.0)) - get_height_at(world_xz + vec2(e, 0.0));
+			n.z = get_height_at(world_xz + vec2(0.0, -e)) - get_height_at(world_xz + vec2(0.0, e));
+			n.y = 2.0 * e;
 			v_normal = normalize(n);
 			NORMAL = v_normal;
 		}
@@ -160,17 +153,14 @@ void TerrainRenderer::rebuild_mesh(float p_size, int p_resolution) {
 		rs->material_set_shader(material, _internal_shader_rid);
 
 		rs->material_set_param(material, "height_scale", (float)_config->get_height_scale());
-		rs->material_set_param(material, "morph_range", _config->get_morph_range());
 		rs->material_set_param(material, "terrain_size", _config->get_terrain_size());
+		rs->material_set_param(material, "resolution", (float)p_resolution);
 
 		if (_config->get_noise_texture().is_valid()) {
 			rs->material_set_param(material, "heightmap", _config->get_noise_texture()->get_rid());
 		}
 
 		float level_scale = p_size * powf(2.0f, (float)i);
-
-		rs->material_set_param(material, "grid_scale", level_scale);
-		rs->material_set_param(material, "level_index", i);
 
 		rs->instance_geometry_set_material_override(instance, material);
 
@@ -199,17 +189,15 @@ void TerrainRenderer::update_camera_position(Vector3 p_camera_pos) {
 		resolution = 64;
 	}
 
+	// Shared snapping
+	// We use the finest grid's resolution to snap ALL levels in unison.
+	// This prevents the rings from sliding and misaligning.
+	float base_cell_size = _clipmap_levels[0].scale / (float)resolution;
+	float snapped_x = floorf(p_camera_pos.x / base_cell_size) * base_cell_size;
+	float snapped_z = floorf(p_camera_pos.z / base_cell_size) * base_cell_size;
+
 	for (size_t i = 0; i < _clipmap_levels.size(); i++) {
 		const auto &level = _clipmap_levels[i];
-
-		if (level.material_rid.is_valid()) {
-			rs->material_set_param(level.material_rid, "camera_position", p_camera_pos);
-		}
-
-		float cell_size = level.scale / (float)resolution;
-
-		float snapped_x = floorf(p_camera_pos.x / cell_size) * cell_size;
-		float snapped_z = floorf(p_camera_pos.z / cell_size) * cell_size;
 
 		Transform3D xform;
 		xform.basis = xform.basis.scaled(Vector3(level.scale, 1.0, level.scale));
