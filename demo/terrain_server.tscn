@@ -31,7 +31,6 @@ environment = SubResource("Environment_q4ink")
 [node name="DirectionalLight3D" type="DirectionalLight3D" parent="." unique_id=2035471652]
 transform = Transform3D(-0.64863634, 0.57833713, -0.49476987, 0.13205045, 0.72572887, 0.6751892, 0.7495557, 0.3726176, -0.54710376, -40.472775, 47.252335, 0)
 shadow_enabled = true
-shadow_reverse_cull_face = true
 
 [node name="Camera3D" type="Camera3D" parent="." unique_id=699225141]
 transform = Transform3D(0.9077775, 0.066339724, -0.41417277, 0, 0.9874138, 0.15815806, 0.41945207, -0.14357233, 0.89635205, 0, 50, 0)
