@@ -20,7 +20,6 @@ private:
 	int _noise_texture_size;
 
 	int _clipmap_levels;
-	float _morph_range;
 
 	void _generate_noise_texture();
 
@@ -51,9 +50,6 @@ public:
 
 	void set_clipmap_levels(int p_levels);
 
-	float get_morph_range() const;
-
-	void set_morph_range(float p_range);
 
 	godot::Ref<godot::ImageTexture> get_noise_texture() const;
 

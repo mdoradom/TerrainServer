@@ -26,10 +26,6 @@ void TerrainConfiguration::_bind_methods() {
 	ClassDB::bind_method(D_METHOD("get_clipmap_levels"), &TerrainConfiguration::get_clipmap_levels);
 	ADD_PROPERTY(PropertyInfo(Variant::INT, "clipmap_levels", PROPERTY_HINT_RANGE, "1,10"), "set_clipmap_levels", "get_clipmap_levels");
 
-	ClassDB::bind_method(D_METHOD("set_morph_range", "range"), &TerrainConfiguration::set_morph_range);
-	ClassDB::bind_method(D_METHOD("get_morph_range"), &TerrainConfiguration::get_morph_range);
-	ADD_PROPERTY(PropertyInfo(Variant::FLOAT, "morph_range", PROPERTY_HINT_RANGE, "0.0,1.0"), "set_morph_range", "get_morph_range");
-
 	ClassDB::bind_method(D_METHOD("set_noise_texture_size", "size"), &TerrainConfiguration::set_noise_texture_size);
 	ClassDB::bind_method(D_METHOD("get_noise_texture_size"), &TerrainConfiguration::get_noise_texture_size);
 	ADD_PROPERTY(PropertyInfo(Variant::INT, "noise_texture_size", PROPERTY_HINT_RANGE, "64,4096"), "set_noise_texture_size", "get_noise_texture_size");
@@ -37,7 +33,7 @@ void TerrainConfiguration::_bind_methods() {
 	ClassDB::bind_method(D_METHOD("get_noise_texture"), &TerrainConfiguration::get_noise_texture);
 }
 
-TerrainConfiguration::TerrainConfiguration() : _height_scale(100.0), _mesh_resolution(32), _terrain_size(256.0f), _clipmap_levels(6), _morph_range(0.75f), _noise_texture_size(512) {
+TerrainConfiguration::TerrainConfiguration() : _height_scale(100.0), _mesh_resolution(32), _terrain_size(256.0f), _clipmap_levels(6), _noise_texture_size(512) {
 	_noise_texture.instantiate();
 }
 
@@ -108,17 +104,6 @@ int TerrainConfiguration::get_clipmap_levels() const {
 void TerrainConfiguration::set_clipmap_levels(int p_levels) {
 	if (_clipmap_levels != p_levels) {
 		_clipmap_levels = p_levels;
-		emit_changed();
-	}
-}
-
-float TerrainConfiguration::get_morph_range() const {
-	return _morph_range;
-}
-
-void TerrainConfiguration::set_morph_range(float p_range) {
-	if (_morph_range != p_range) {
-		_morph_range = CLAMP(p_range, 0.0f, 1.0f);
 		emit_changed();
 	}
 }
