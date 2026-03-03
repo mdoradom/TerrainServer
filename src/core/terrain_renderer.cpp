@@ -156,8 +156,10 @@ void TerrainRenderer::rebuild_mesh(float p_size, int p_resolution) {
 		rs->material_set_param(material, "terrain_size", _config->get_terrain_size());
 		rs->material_set_param(material, "resolution", (float)p_resolution);
 
-		if (_config->get_noise_texture().is_valid()) {
+		if (_config->get_noise_texture().is_valid() && _config->get_noise_texture()->get_width() > 0) {
 			rs->material_set_param(material, "heightmap", _config->get_noise_texture()->get_rid());
+		} else {
+			rs->material_set_param(material, "heightmap", RID()); // Set to empty RID to avoid shader errors when texture is missing
 		}
 
 		float level_scale = p_size * powf(2.0f, (float)i);
