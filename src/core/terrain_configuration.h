@@ -31,30 +31,23 @@ public:
 	~TerrainConfiguration();
 
 	double get_height_scale() const;
-
 	void set_height_scale(double p_scale);
 
 	int get_mesh_resolution() const;
-
 	void set_mesh_resolution(int p_resolution);
 
 	godot::Ref<godot::FastNoiseLite> get_noise() const;
-
 	void set_noise(const godot::Ref<godot::FastNoiseLite> &p_noise);
-
-	float get_terrain_size() const;
-
-	void set_terrain_size(float p_size);
-
-	int get_clipmap_levels() const;
-
-	void set_clipmap_levels(int p_levels);
-
 
 	godot::Ref<godot::ImageTexture> get_noise_texture() const;
 
-	int get_noise_texture_size() const;
+	float get_terrain_size() const;
+	void set_terrain_size(float p_size);
 
+	int get_clipmap_levels() const;
+	void set_clipmap_levels(int p_levels);
+
+	int get_noise_texture_size() const;
 	void set_noise_texture_size(int p_size);
 };
 
