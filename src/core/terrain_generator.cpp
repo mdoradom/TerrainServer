@@ -24,21 +24,20 @@ void TerrainGenerator::setup(const Ref<TerrainConfiguration> &p_config) {
 	_height_scale = p_config->get_height_scale();
 }
 
-
 Ref<ArrayMesh> TerrainGenerator::create_block_mesh(int resolution) const {
 	Ref<SurfaceTool> st;
 	st.instantiate();
 	st->begin(Mesh::PRIMITIVE_TRIANGLES);
 
-	int vertex_count = resolution + 1;
-	float offset = 0.5f;
+	const int vertex_count = resolution + 1;
 
 	for (int z = 0; z < vertex_count; z++) {
 		for (int x = 0; x < vertex_count; x++) {
-			float x_pos = ((float)x / resolution) - offset;
-			float z_pos = ((float)z / resolution) - offset;
+			const float offset = 0.5f;
+			float x_pos = (static_cast<float>(x) / resolution) - offset;
+			float z_pos = (static_cast<float>(z) / resolution) - offset;
 
-			st->set_uv(Vector2((float)x / resolution, (float)z / resolution));
+			st->set_uv(Vector2(static_cast<float>(x) / resolution, static_cast<float>(z) / resolution));
 			st->set_normal(Vector3(0, 1, 0));
 			st->add_vertex(Vector3(x_pos, 0.0f, z_pos));
 		}
@@ -69,18 +68,18 @@ Ref<ArrayMesh> TerrainGenerator::create_ring_fixup_mesh(int resolution) const {
 	st.instantiate();
 	st->begin(Mesh::PRIMITIVE_TRIANGLES);
 
-	int vertex_count = resolution + 1;
-	float offset = 0.5f;
+	const int vertex_count = resolution + 1;
 
-	int hole_start = resolution / 4;
-	int hole_end = (3 * resolution) / 4;
+	const int hole_start = resolution / 4;
+	const int hole_end = (3 * resolution) / 4;
 
 	for (int z = 0; z < vertex_count; z++) {
 		for (int x = 0; x < vertex_count; x++) {
-			float x_pos = ((float)x / resolution) - offset;
-			float z_pos = ((float)z / resolution) - offset;
+			const float offset = 0.5f;
+			float x_pos = (static_cast<float>(x) / resolution) - offset;
+			float z_pos = (static_cast<float>(z) / resolution) - offset;
 
-			st->set_uv(Vector2((float)x / resolution, (float)z / resolution));
+			st->set_uv(Vector2(static_cast<float>(x) / resolution, static_cast<float>(z) / resolution));
 			st->set_normal(Vector3(0, 1, 0));
 			st->add_vertex(Vector3(x_pos, 0.0f, z_pos));
 		}

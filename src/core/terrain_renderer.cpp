@@ -43,6 +43,7 @@ void TerrainRenderer::cleanup() {
 		rs->free_rid(_mesh_ring_rid);
 		_mesh_ring_rid = RID();
 	}
+
 	if (_internal_shader_rid.is_valid()) {
 		rs->free_rid(_internal_shader_rid);
 		_internal_shader_rid = RID();
@@ -152,9 +153,9 @@ void TerrainRenderer::rebuild_mesh(float p_size, int p_resolution) {
 		RID material = rs->material_create();
 		rs->material_set_shader(material, _internal_shader_rid);
 
-		rs->material_set_param(material, "height_scale", (float)_config->get_height_scale());
+		rs->material_set_param(material, "height_scale", static_cast<float>(_config->get_height_scale()));
 		rs->material_set_param(material, "terrain_size", _config->get_terrain_size());
-		rs->material_set_param(material, "resolution", (float)p_resolution);
+		rs->material_set_param(material, "resolution", static_cast<float>(p_resolution));
 
 		if (_config->get_noise_texture().is_valid() && _config->get_noise_texture()->get_width() > 0) {
 			rs->material_set_param(material, "heightmap", _config->get_noise_texture()->get_rid());
@@ -162,7 +163,7 @@ void TerrainRenderer::rebuild_mesh(float p_size, int p_resolution) {
 			rs->material_set_param(material, "heightmap", RID()); // Set to empty RID to avoid shader errors when texture is missing
 		}
 
-		float level_scale = p_size * powf(2.0f, (float)i);
+		float level_scale = p_size * powf(2.0f, static_cast<float>(i));
 
 		rs->instance_geometry_set_material_override(instance, material);
 
@@ -194,7 +195,7 @@ void TerrainRenderer::update_camera_position(Vector3 p_camera_pos) {
 	// Shared snapping
 	// We use the finest grid's resolution to snap ALL levels in unison.
 	// This prevents the rings from sliding and misaligning.
-	float base_cell_size = _clipmap_levels[0].scale / (float)resolution;
+	float base_cell_size = _clipmap_levels[0].scale / static_cast<float>(resolution);
 	float snapped_x = floorf(p_camera_pos.x / base_cell_size) * base_cell_size;
 	float snapped_z = floorf(p_camera_pos.z / base_cell_size) * base_cell_size;
 
