@@ -1,6 +1,7 @@
 #include "terrain_renderer.h"
 
 #include <godot_cpp/classes/array_mesh.hpp>
+#include <godot_cpp/classes/file_access.hpp>
 #include <godot_cpp/classes/world3d.hpp>
 #include <godot_cpp/variant/vector2.hpp>
 #include <godot_cpp/variant/vector3.hpp>
@@ -67,68 +68,7 @@ void TerrainRenderer::rebuild_mesh(float p_size, int p_resolution) {
 	}
 
 	_internal_shader_rid = rs->shader_create();
-	String shader_code = String(R"(
-		shader_type spatial;
-		render_mode cull_back;
-
-		uniform float height_scale = 100.0;
-		uniform sampler2D heightmap : filter_linear, repeat_enable;
-		uniform float terrain_size = 1024.0;
-		uniform float resolution = 64.0;
-
-		varying vec3 v_normal;
-
-		float get_height_at(vec2 world_xz) {
-			vec2 uv = world_xz / terrain_size;
-			float h = texture(heightmap, uv).r;
-			return (h * 2.0 - 1.0) * height_scale;
-		}
-
-		void vertex() {
-			// 1. Local x/z morphing
-			vec2 local_xz = VERTEX.xz;
-			float max_abs = max(abs(local_xz.x), abs(local_xz.y));
-
-			// Detect if we are in the outermost 20% of the ring
-			float morph_factor = clamp((max_abs - 0.4) / 0.1, 0.0, 1.0);
-			morph_factor = smoothstep(0.0, 1.0, morph_factor);
-
-			// Calculate where the upper LOD grid is
-			float coarser_step = 2.0 / resolution;
-			vec2 morphed_local_xz = round(local_xz / coarser_step) * coarser_step;
-
-			// Slide the vertex horizontally towards the other grid
-			VERTEX.xz = mix(local_xz, morphed_local_xz, morph_factor);
-
-			// 2. Height in world space
-			vec3 world_pos = (MODEL_MATRIX * vec4(VERTEX, 1.0)).xyz;
-			vec2 world_xz = vec2(world_pos.x, world_pos.z);
-
-			// Read the exact height where the morphed vertex now lies
-			float final_height = get_height_at(world_xz);
-
-			// Apply and return to local Transform
-			vec3 final_world = vec3(world_pos.x, final_height, world_pos.z);
-			VERTEX = (inverse(MODEL_MATRIX) * vec4(final_world, 1.0)).xyz;
-
-			// 3. Analytical normals
-			float e = 1.0;
-			vec3 n;
-			n.x = get_height_at(world_xz + vec2(-e, 0.0)) - get_height_at(world_xz + vec2(e, 0.0));
-			n.z = get_height_at(world_xz + vec2(0.0, -e)) - get_height_at(world_xz + vec2(0.0, e));
-			n.y = 2.0 * e;
-			v_normal = normalize(n);
-			NORMAL = v_normal;
-		}
-
-		void fragment() {
-			// TODO Basic visual parameters (will be replaced by layer system in the biomes implementation). Replace with multi-layer material system
-			ALBEDO = vec3(1.0, 1.0, 1.0);
-			ROUGHNESS = 0.8;
-			NORMAL = mat3(VIEW_MATRIX) * v_normal;
-		}
-	)");
-
+	String shader_code = FileAccess::get_file_as_string("res://addons/terrain_server/shaders/terrain.gdshader");
 	rs->shader_set_code(_internal_shader_rid, shader_code);
 
 	Ref<ArrayMesh> block_mesh = _generator->create_block_mesh(p_resolution);
