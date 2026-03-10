@@ -1,10 +1,10 @@
 shader_type spatial;
 render_mode cull_back;
 
-uniform float height_scale = 100.0;
+uniform float height_scale;
 uniform sampler2D heightmap : filter_linear, repeat_enable;
-uniform float terrain_size = 1024.0;
-uniform float resolution = 64.0;
+uniform float terrain_size;
+uniform float resolution;
 
 varying vec2 v_world_xz;
 
