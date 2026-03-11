@@ -22,6 +22,7 @@ private:
 	int _clipmap_levels;
 
 	void _generate_noise_texture() const;
+	void _on_noise_changed();
 
 protected:
 	static void _bind_methods();

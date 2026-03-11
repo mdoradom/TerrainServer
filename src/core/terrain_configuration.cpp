@@ -31,6 +31,7 @@ void TerrainConfiguration::_bind_methods() {
 	ADD_PROPERTY(PropertyInfo(Variant::INT, "noise_texture_size", PROPERTY_HINT_RANGE, "64,4096"), "set_noise_texture_size", "get_noise_texture_size");
 
 	ClassDB::bind_method(D_METHOD("get_noise_texture"), &TerrainConfiguration::get_noise_texture);
+	ClassDB::bind_method(D_METHOD("_on_noise_changed"), &TerrainConfiguration::_on_noise_changed);
 }
 
 TerrainConfiguration::TerrainConfiguration() : _height_scale(10.0), _mesh_resolution(256), _terrain_size(256.0f), _noise_texture_size(256), _clipmap_levels(6) {
@@ -53,6 +54,11 @@ void TerrainConfiguration::_generate_noise_texture() const {
 	if (noise_image.is_valid()) {
 		_noise_texture->set_image(noise_image);
 	}
+}
+
+void TerrainConfiguration::_on_noise_changed() {
+	_generate_noise_texture();
+	emit_changed();
 }
 
 // ============== Getters and setters ==============
@@ -87,12 +93,13 @@ void TerrainConfiguration::set_noise(const Ref<FastNoiseLite> &p_noise) {
 	if (_noise != p_noise) {
 		if (_noise.is_valid()) {
 			_noise->disconnect("changed", Callable(this, "emit_changed"));
+			_noise->disconnect("changed", Callable(this, "_on_noise_changed"));
 		}
 
 		_noise = p_noise;
 
 		if (_noise.is_valid()) {
-			_noise->connect("changed", Callable(this, "emit_changed"));
+			_noise->connect("changed", Callable(this, "_on_noise_changed"));
 		}
 
 		_generate_noise_texture();
