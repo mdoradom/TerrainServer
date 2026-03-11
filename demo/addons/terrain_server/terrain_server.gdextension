@@ -15,6 +15,5 @@ windows.debug.x86_64 = "res://addons/terrain_server/bin/libterrain_server.window
 windows.release.x86_64 = "res://addons/terrain_server/bin/libterrain_server.windows.template_release.x86_64.dll"
 
 ; Linux
-linux.debug.x86_64 = "res://addons/terrain_server/bin/libterrain_server.linux.template_debug.x86_64.so"
-linux.debug.x86_64.dev = "res://addons/terrain_server/bin/libterrain_server.linux.template_debug.dev.x86_64.so"
+linux.debug.x86_64 = "res://addons/terrain_server/bin/libterrain_server.linux.template_debug.dev.x86_64.so"
 linux.release.x86_64 = "res://addons/terrain_server/bin/libterrain_server.linux.template_release.x86_64.so"
