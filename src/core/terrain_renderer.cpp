@@ -3,7 +3,6 @@
 #include <godot_cpp/classes/array_mesh.hpp>
 #include <godot_cpp/classes/file_access.hpp>
 #include <godot_cpp/classes/world3d.hpp>
-#include <godot_cpp/variant/vector2.hpp>
 #include <godot_cpp/variant/vector3.hpp>
 
 using namespace godot;
@@ -12,7 +11,7 @@ namespace ts {
 
 void TerrainRenderer::_bind_methods() {}
 
-TerrainRenderer::TerrainRenderer() {}
+TerrainRenderer::TerrainRenderer() = default;
 
 TerrainRenderer::~TerrainRenderer() {
 	cleanup();
@@ -29,10 +28,12 @@ void TerrainRenderer::cleanup() {
 		if (level.instance_rid.is_valid()) {
 			rs->free_rid(level.instance_rid);
 		}
+
 		if (level.material_rid.is_valid()) {
 			rs->free_rid(level.material_rid);
 		}
 	}
+
 	_clipmap_levels.clear();
 
 	if (_mesh_rid.is_valid()) {
@@ -51,15 +52,7 @@ void TerrainRenderer::cleanup() {
 	}
 }
 
-void TerrainRenderer::set_generator(const Ref<TerrainGenerator> &p_generator) {
-	_generator = p_generator;
-}
-
-void TerrainRenderer::set_configuration(const Ref<TerrainConfiguration> &p_config) {
-	_config = p_config;
-}
-
-void TerrainRenderer::rebuild_mesh(float p_size, int p_resolution) {
+void TerrainRenderer::rebuild_mesh(const float p_size, const int p_resolution) {
 	RenderingServer *rs = RenderingServer::get_singleton();
 	cleanup();
 
@@ -68,14 +61,14 @@ void TerrainRenderer::rebuild_mesh(float p_size, int p_resolution) {
 	}
 
 	_internal_shader_rid = rs->shader_create();
-	String shader_code = FileAccess::get_file_as_string("res://addons/terrain_server/shaders/terrain.gdshader");
+	const String shader_code = FileAccess::get_file_as_string("res://addons/terrain_server/shaders/terrain.gdshader");
 	rs->shader_set_code(_internal_shader_rid, shader_code);
 
-	Ref<ArrayMesh> block_mesh = _generator->create_block_mesh(p_resolution);
+	const Ref<ArrayMesh> block_mesh = TerrainGenerator::create_block_mesh(p_resolution);
 	_mesh_rid = rs->mesh_create();
 	rs->mesh_add_surface_from_arrays(_mesh_rid, RenderingServer::PRIMITIVE_TRIANGLES, block_mesh->surface_get_arrays(0));
 
-	Ref<ArrayMesh> ring_mesh = _generator->create_ring_fixup_mesh(p_resolution);
+	const Ref<ArrayMesh> ring_mesh = TerrainGenerator::create_ring_fixup_mesh(p_resolution);
 	_mesh_ring_rid = rs->mesh_create();
 	rs->mesh_add_surface_from_arrays(_mesh_ring_rid, RenderingServer::PRIMITIVE_TRIANGLES, ring_mesh->surface_get_arrays(0));
 
@@ -103,7 +96,7 @@ void TerrainRenderer::rebuild_mesh(float p_size, int p_resolution) {
 			rs->material_set_param(material, "heightmap", RID()); // Set to empty RID to avoid shader errors when texture is missing
 		}
 
-		float level_scale = p_size * powf(2.0f, static_cast<float>(i));
+		const float level_scale = p_size * powf(2.0f, static_cast<float>(i));
 
 		rs->instance_geometry_set_material_override(instance, material);
 
@@ -120,7 +113,7 @@ void TerrainRenderer::rebuild_mesh(float p_size, int p_resolution) {
 	}
 }
 
-void TerrainRenderer::update_camera_position(Vector3 p_camera_pos) {
+void TerrainRenderer::update_camera_position(const Vector3 p_camera_pos) {
 	RenderingServer *rs = RenderingServer::get_singleton();
 
 	if (!_config.is_valid() || _clipmap_levels.empty()) {
@@ -135,19 +128,27 @@ void TerrainRenderer::update_camera_position(Vector3 p_camera_pos) {
 	// Shared snapping
 	// We use the finest grid's resolution to snap ALL levels in unison.
 	// This prevents the rings from sliding and misaligning.
-	float base_cell_size = _clipmap_levels[0].scale / static_cast<float>(resolution);
-	float snapped_x = floorf(p_camera_pos.x / base_cell_size) * base_cell_size;
-	float snapped_z = floorf(p_camera_pos.z / base_cell_size) * base_cell_size;
+	const float base_cell_size = _clipmap_levels[0].scale / static_cast<float>(resolution);
+	const float snapped_x = floorf(p_camera_pos.x / base_cell_size) * base_cell_size;
+	const float snapped_z = floorf(p_camera_pos.z / base_cell_size) * base_cell_size;
 
-	for (size_t i = 0; i < _clipmap_levels.size(); i++) {
-		const auto &level = _clipmap_levels[i];
-
+	for (const auto & level : _clipmap_levels) {
 		Transform3D xform;
 		xform.basis = xform.basis.scaled(Vector3(level.scale, 1.0, level.scale));
 		xform.origin = Vector3(snapped_x, 0.0f, snapped_z);
 
 		rs->instance_set_transform(level.instance_rid, xform);
 	}
+}
+
+// ============== Getters and setters ==============
+
+void TerrainRenderer::set_generator(const Ref<TerrainGenerator> &p_generator) {
+	_generator = p_generator;
+}
+
+void TerrainRenderer::set_configuration(const Ref<TerrainConfiguration> &p_config) {
+	_config = p_config;
 }
 
 } //namespace ts

@@ -33,7 +33,7 @@ void TerrainConfiguration::_bind_methods() {
 	ClassDB::bind_method(D_METHOD("get_noise_texture"), &TerrainConfiguration::get_noise_texture);
 }
 
-TerrainConfiguration::TerrainConfiguration() : _height_scale(10.0), _mesh_resolution(256), _terrain_size(256.0f), _clipmap_levels(6), _noise_texture_size(256) {
+TerrainConfiguration::TerrainConfiguration() : _height_scale(10.0), _mesh_resolution(256), _terrain_size(256.0f), _noise_texture_size(256), _clipmap_levels(6) {
 	_noise_texture.instantiate();
 }
 
@@ -43,11 +43,25 @@ TerrainConfiguration::~TerrainConfiguration() {
 	}
 }
 
+void TerrainConfiguration::_generate_noise_texture() const {
+	if (!_noise.is_valid()) {
+		return;
+	}
+
+	const Ref<Image> noise_image = _noise->get_seamless_image(_noise_texture_size, _noise_texture_size);
+
+	if (noise_image.is_valid()) {
+		_noise_texture->set_image(noise_image);
+	}
+}
+
+// ============== Getters and setters ==============
+
 double TerrainConfiguration::get_height_scale() const {
 	return _height_scale;
 }
 
-void TerrainConfiguration::set_height_scale(double p_scale) {
+void TerrainConfiguration::set_height_scale(const double p_scale) {
 	if (_height_scale != p_scale) {
 		_height_scale = p_scale;
 		emit_changed();
@@ -58,7 +72,7 @@ int TerrainConfiguration::get_mesh_resolution() const {
 	return _mesh_resolution;
 }
 
-void TerrainConfiguration::set_mesh_resolution(int p_resolution) {
+void TerrainConfiguration::set_mesh_resolution(const int p_resolution) {
 	if (_mesh_resolution != p_resolution) {
 		_mesh_resolution = p_resolution;
 		emit_changed();
@@ -90,7 +104,7 @@ float TerrainConfiguration::get_terrain_size() const {
 	return _terrain_size;
 }
 
-void TerrainConfiguration::set_terrain_size(float p_size) {
+void TerrainConfiguration::set_terrain_size(const float p_size) {
 	if (_terrain_size != p_size) {
 		_terrain_size = p_size;
 		emit_changed();
@@ -101,22 +115,10 @@ int TerrainConfiguration::get_clipmap_levels() const {
 	return _clipmap_levels;
 }
 
-void TerrainConfiguration::set_clipmap_levels(int p_levels) {
+void TerrainConfiguration::set_clipmap_levels(const int p_levels) {
 	if (_clipmap_levels != p_levels) {
 		_clipmap_levels = p_levels;
 		emit_changed();
-	}
-}
-
-void TerrainConfiguration::_generate_noise_texture() {
-	if (!_noise.is_valid()) {
-		return;
-	}
-
-	Ref<Image> noise_image = _noise->get_seamless_image(_noise_texture_size, _noise_texture_size);
-
-	if (noise_image.is_valid()) {
-		_noise_texture->set_image(noise_image);
 	}
 }
 
@@ -128,7 +130,7 @@ int TerrainConfiguration::get_noise_texture_size() const {
 	return _noise_texture_size;
 }
 
-void TerrainConfiguration::set_noise_texture_size(int p_size) {
+void TerrainConfiguration::set_noise_texture_size(const int p_size) {
 	if (_noise_texture_size != p_size) {
 		_noise_texture_size = CLAMP(p_size, 64, 4096);
 		_generate_noise_texture();

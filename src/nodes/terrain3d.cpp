@@ -41,9 +41,9 @@ void Terrain3D::_ready() {
 
 void Terrain3D::_process(double delta) {
 	if (_renderer.is_valid() && is_inside_tree()) {
-		Viewport *viewport = get_viewport();
+		const Viewport *viewport = get_viewport();
 		if (viewport != nullptr) {
-			Camera3D *camera = viewport->get_camera_3d();
+			const Camera3D *camera = viewport->get_camera_3d();
 			if (camera != nullptr) {
 				_renderer->update_camera_position(camera->get_global_position());
 			}
@@ -51,7 +51,7 @@ void Terrain3D::_process(double delta) {
 	}
 }
 
-void Terrain3D::_notification(int p_what) {
+void Terrain3D::_notification(const int p_what) {
 	switch (p_what) {
 		case NOTIFICATION_EXIT_TREE: {
 			if (_renderer.is_valid()) {
@@ -76,11 +76,7 @@ void Terrain3D::_on_config_changed() {
 	_generator->setup(_config);
 	_renderer->set_generator(_generator);
 	_renderer->set_configuration(_config);
-
-	int resolution = _config->get_mesh_resolution();
-	_renderer->rebuild_mesh(_config->get_terrain_size(), resolution);
-
-
+	_renderer->rebuild_mesh(_config->get_terrain_size(), _config->get_mesh_resolution());
 }
 
 void Terrain3D::set_configuration(const Ref<TerrainConfiguration> &p_config) {
