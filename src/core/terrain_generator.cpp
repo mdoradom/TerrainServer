@@ -88,7 +88,7 @@ Ref<ArrayMesh> TerrainGenerator::create_ring_fixup_mesh(int resolution) {
 
 	for (int z = 0; z < vertex_count; z++) {
 		for (int x = 0; x < vertex_count; x++) {
-			const float offset = 0.5f;
+			constexpr float offset = 0.5f;
 			float x_pos = (static_cast<float>(x) / resolution) - offset;
 			float z_pos = (static_cast<float>(z) / resolution) - offset;
 
