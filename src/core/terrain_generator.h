@@ -24,8 +24,8 @@ public:
 
 	void setup(const godot::Ref<TerrainConfiguration> &p_config);
 
-	godot::Ref<godot::ArrayMesh> create_block_mesh(int resolution) const;
-	godot::Ref<godot::ArrayMesh> create_ring_fixup_mesh(int resolution) const;
+	static godot::Ref<godot::ArrayMesh> create_block_mesh(int resolution);
+	static godot::Ref<godot::ArrayMesh> create_ring_fixup_mesh(int resolution);
 };
 
 } //namespace ts

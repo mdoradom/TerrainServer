@@ -20,6 +20,7 @@ private:
 	godot::RID _internal_shader_rid;
 	godot::Node3D *_parent_node = nullptr;
 
+	// TODO maybe we can get rid of _generator and use the static methods directly?
 	godot::Ref<TerrainGenerator> _generator;
 	godot::Ref<TerrainConfiguration> _config;
 
