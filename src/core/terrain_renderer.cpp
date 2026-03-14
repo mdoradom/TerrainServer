@@ -73,31 +73,34 @@ void TerrainRenderer::rebuild_mesh(const float p_size, const int p_resolution) {
 	rs->mesh_add_surface_from_arrays(_mesh_ring_rid, RenderingServer::PRIMITIVE_TRIANGLES, ring_mesh->surface_get_arrays(0));
 
 	int num_levels = _config->get_clipmap_levels();
-	if (num_levels <= 0) {
-		num_levels = 6;
-	}
+	if (num_levels <= 0) num_levels = 6;
 
 	for (int i = 0; i < num_levels; i++) {
 		RID instance = rs->instance_create();
-
 		RID mesh_to_use = (i == 0) ? _mesh_rid : _mesh_ring_rid;
 		rs->instance_set_base(instance, mesh_to_use);
 
 		RID material = rs->material_create();
 		rs->material_set_shader(material, _internal_shader_rid);
 
+		// Physics parameters
 		rs->material_set_param(material, "height_scale", static_cast<float>(_config->get_height_scale()));
-		rs->material_set_param(material, "terrain_size", _config->get_terrain_size());
 		rs->material_set_param(material, "resolution", static_cast<float>(p_resolution));
 
-		if (_config->get_noise_texture().is_valid() && _config->get_noise_texture()->get_width() > 0) {
-			rs->material_set_param(material, "heightmap", _config->get_noise_texture()->get_rid());
-		} else {
-			rs->material_set_param(material, "heightmap", RID()); // Set to empty RID to avoid shader errors when texture is missing
+		// Noise parameters
+		Ref<FastNoiseLite> noise = _config->get_noise();
+		if (noise.is_valid()) {
+			// TODO present this in a more user-friendly way in the inspector
+			// Right now, we just send the params from the FastNoiseLite resource from the inspector, but we're not using that
+			// texture, cause it's better to generate it on the shader side to avoid readbacks and sync issues.
+			// We should probably hide that texture from the user and just use the params to generate it on the shader side.
+			rs->material_set_param(material, "octaves", noise->get_fractal_octaves());
+			rs->material_set_param(material, "lacunarity", noise->get_fractal_lacunarity());
+			rs->material_set_param(material, "gain", noise->get_fractal_gain());
+			rs->material_set_param(material, "base_frequency", noise->get_frequency());
 		}
 
 		const float level_scale = p_size * powf(2.0f, static_cast<float>(i));
-
 		rs->instance_geometry_set_material_override(instance, material);
 
 		if (_parent_node && _parent_node->is_inside_tree()) {

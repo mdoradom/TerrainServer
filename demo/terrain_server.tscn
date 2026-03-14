@@ -18,7 +18,7 @@ fog_height_density = 0.4077
 
 [sub_resource type="FastNoiseLite" id="FastNoiseLite_7s5li"]
 seed = 9
-frequency = 0.0045
+frequency = 0.0839
 fractal_type = 2
 fractal_octaves = 3
 fractal_lacunarity = 1.51
@@ -29,6 +29,7 @@ metadata/_preview_in_3d_space_ = true
 [sub_resource type="TerrainConfiguration" id="TerrainConfiguration_pegvl"]
 height_scale = 25.0
 noise = SubResource("FastNoiseLite_7s5li")
+terrain_size = 100.0
 
 [node name="Node3D" type="Node3D" unique_id=695386943]
 
