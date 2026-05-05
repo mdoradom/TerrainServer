@@ -94,7 +94,7 @@ void fragment() {
 
 	NORMAL = (VIEW_MATRIX * vec4(world_normal, 0.0)).xyz;
 
-	vec4 tex_color = texture(albedo_texture, UV * 10.0);
+	vec4 tex_color = texture(albedo_texture, v_world_xz * 0.1);
 	ALBEDO = tex_color.rgb; //vec3(0.2, 0.6, 0.2); // Basic green color
 	ROUGHNESS = 0.8;
 }
