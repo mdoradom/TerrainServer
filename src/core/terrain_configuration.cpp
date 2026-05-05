@@ -26,6 +26,10 @@ void TerrainConfiguration::_bind_methods() {
 	ClassDB::bind_method(D_METHOD("get_clipmap_levels"), &TerrainConfiguration::get_clipmap_levels);
 	ADD_PROPERTY(PropertyInfo(Variant::INT, "clipmap_levels", PROPERTY_HINT_RANGE, "1,10"), "set_clipmap_levels", "get_clipmap_levels");
 
+	ClassDB::bind_method(D_METHOD("set_albedo_texture", "texture"), &TerrainConfiguration::set_albedo_texture);
+	ClassDB::bind_method(D_METHOD("get_albedo_texture"), &TerrainConfiguration::get_albedo_texture);
+	ADD_PROPERTY(PropertyInfo(Variant::OBJECT, "albedo_texture", PROPERTY_HINT_RESOURCE_TYPE, "Texture2D"), "set_albedo_texture", "get_albedo_texture");
+
 	ClassDB::bind_method(D_METHOD("set_noise_texture_size", "size"), &TerrainConfiguration::set_noise_texture_size);
 	ClassDB::bind_method(D_METHOD("get_noise_texture_size"), &TerrainConfiguration::get_noise_texture_size);
 	ADD_PROPERTY(PropertyInfo(Variant::INT, "noise_texture_size", PROPERTY_HINT_RANGE, "64,4096"), "set_noise_texture_size", "get_noise_texture_size");
@@ -125,6 +129,26 @@ int TerrainConfiguration::get_clipmap_levels() const {
 void TerrainConfiguration::set_clipmap_levels(const int p_levels) {
 	if (_clipmap_levels != p_levels) {
 		_clipmap_levels = p_levels;
+		emit_changed();
+	}
+}
+
+Ref<Texture2D> TerrainConfiguration::get_albedo_texture() const {
+	return _albedo_texture;
+}
+
+void TerrainConfiguration::set_albedo_texture(const Ref<Texture2D> &p_texture) {
+	if (_albedo_texture != p_texture) {
+		if (_albedo_texture.is_valid()) {
+			_albedo_texture->disconnect("changed", Callable(this, "emit_changed"));
+		}
+
+		_albedo_texture = p_texture;
+
+		if (_albedo_texture.is_valid()) {
+			_albedo_texture->connect("changed", Callable(this, "emit_changed"));
+		}
+
 		emit_changed();
 	}
 }

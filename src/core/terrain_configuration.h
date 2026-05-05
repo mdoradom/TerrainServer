@@ -4,6 +4,7 @@
 #include <godot_cpp/classes/image.hpp>
 #include <godot_cpp/classes/image_texture.hpp>
 #include <godot_cpp/classes/resource.hpp>
+#include <godot_cpp/classes/texture2d.hpp>
 
 namespace ts {
 
@@ -20,6 +21,7 @@ private:
 	int _noise_texture_size;
 
 	int _clipmap_levels;
+	godot::Ref<godot::Texture2D> _albedo_texture;
 
 	void _generate_noise_texture() const;
 	void _on_noise_changed();
@@ -47,6 +49,9 @@ public:
 
 	int get_clipmap_levels() const;
 	void set_clipmap_levels(int p_levels);
+
+	godot::Ref<godot::Texture2D> get_albedo_texture() const;
+	void set_albedo_texture(const godot::Ref<godot::Texture2D> &p_texture);
 
 	int get_noise_texture_size() const;
 	void set_noise_texture_size(int p_size);

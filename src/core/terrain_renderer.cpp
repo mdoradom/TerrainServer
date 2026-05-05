@@ -87,6 +87,11 @@ void TerrainRenderer::rebuild_mesh(const float p_size, const int p_resolution) {
 		rs->material_set_param(material, "height_scale", static_cast<float>(_config->get_height_scale()));
 		rs->material_set_param(material, "resolution", static_cast<float>(p_resolution));
 
+		Ref<Texture2D> albedo_texture = _config->get_albedo_texture();
+		if (albedo_texture.is_valid()) {
+			rs->material_set_param(material, "albedo_texture", albedo_texture->get_rid());
+		}
+
 		// Noise parameters
 		Ref<FastNoiseLite> noise = _config->get_noise();
 		if (noise.is_valid()) {
