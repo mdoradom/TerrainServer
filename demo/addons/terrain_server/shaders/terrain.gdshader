@@ -11,6 +11,8 @@ uniform float base_frequency = 0.002;
 uniform float lacunarity = 2.0;
 uniform float gain = 0.5;
 
+uniform sampler2D albedo_texture : source_color;
+
 varying vec2 v_world_xz;
 
 // Hash function to generate a pseudo-random gradient vector based on the input position
@@ -91,5 +93,8 @@ void fragment() {
 	ROUGHNESS = 0.8;
 
 	NORMAL = (VIEW_MATRIX * vec4(world_normal, 0.0)).xyz;
-}
 
+	vec4 tex_color = texture(albedo_texture, UV * 10.0);
+	ALBEDO = tex_color.rgb; //vec3(0.2, 0.6, 0.2); // Basic green color
+	ROUGHNESS = 0.8;
+}
