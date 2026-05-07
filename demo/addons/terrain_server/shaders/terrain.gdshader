@@ -14,6 +14,7 @@ uniform float gain = 0.5;
 uniform sampler2D albedo_texture : source_color;
 
 varying vec2 v_world_xz;
+varying vec3 v_normal_ws;
 
 // Hash function to generate a pseudo-random gradient vector based on the input position
 vec2 hash(vec2 p) {
@@ -75,26 +76,31 @@ void vertex() {
 
 	float final_height = get_height_at(v_world_xz);
 	VERTEX.y = final_height / length(MODEL_MATRIX[1].xyz);
+
+	float lod_scale = length(MODEL_MATRIX[0].xyz);
+	float e = max(0.05, lod_scale * 0.5 / resolution);
+
+	float hL = get_height_at(v_world_xz + vec2(-e, 0.0));
+	float hR = get_height_at(v_world_xz + vec2( e, 0.0));
+	float hD = get_height_at(v_world_xz + vec2(0.0, -e));
+	float hU = get_height_at(v_world_xz + vec2(0.0,  e));
+
+	vec3 normal_ws   = normalize(vec3(hL - hR, 2.0 * e, hD - hU));
+	vec3 tangent_ws  = normalize(vec3(2.0 * e, hR - hL, 0.0));
+	vec3 binormal_ws = normalize(vec3(0.0, hU - hD, 2.0 * e));
+
+	v_normal_ws = normal_ws;
+
+	mat3 inv_model = transpose(mat3(MODEL_MATRIX[0].xyz, MODEL_MATRIX[1].xyz, MODEL_MATRIX[2].xyz));
+	NORMAL   = inv_model * normal_ws;
+	TANGENT  = inv_model * tangent_ws;
+	BINORMAL = inv_model * binormal_ws;
 }
 
-void fragment() {
-	// Finite difference to compute normal
-	float e = max(0.1, length(CAMERA_POSITION_WORLD - (INV_VIEW_MATRIX * vec4(VERTEX, 1.0)).xyz) * 0.005);
-
-	vec3 n;
-	n.x = get_height_at(v_world_xz + vec2(-e, 0.0)) - get_height_at(v_world_xz + vec2(e, 0.0));
-	n.z = get_height_at(v_world_xz + vec2(0.0, -e)) - get_height_at(v_world_xz + vec2(0.0, e));
-	n.y = 2.0 * e;
-
-	vec3 world_normal = normalize(n);
-
+void fragment()
+{
 	// TODO Basic visual parameters (will be replaced by layer system in the biomes implementation). Replace with multi-layer material system
-	ALBEDO = vec3(1.0, 1.0, 1.0);
-	ROUGHNESS = 0.8;
-
-	NORMAL = (VIEW_MATRIX * vec4(world_normal, 0.0)).xyz;
-
 	vec4 tex_color = texture(albedo_texture, v_world_xz * 0.1);
-	ALBEDO = tex_color.rgb; //vec3(0.2, 0.6, 0.2); // Basic green color
+	ALBEDO = tex_color.rgb;
 	ROUGHNESS = 0.8;
 }

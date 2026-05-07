@@ -17,8 +17,8 @@ fog_sky_affect = 0.0
 fog_height_density = 0.4077
 
 [sub_resource type="FastNoiseLite" id="FastNoiseLite_7s5li"]
-seed = 9
-frequency = 0.0839
+seed = 10
+frequency = 0.078
 fractal_type = 2
 fractal_octaves = 3
 fractal_lacunarity = 1.51
@@ -30,6 +30,7 @@ metadata/_preview_in_3d_space_ = true
 height_scale = 25.0
 noise = SubResource("FastNoiseLite_7s5li")
 terrain_size = 100.0
+noise_texture_size = 1024
 
 [node name="Node3D" type="Node3D" unique_id=695386943]
 
@@ -39,6 +40,8 @@ environment = SubResource("Environment_q4ink")
 [node name="DirectionalLight3D" type="DirectionalLight3D" parent="." unique_id=940258741]
 transform = Transform3D(-0.8660254, -0.43301284, 0.24999993, -0.30570835, 0.8542168, 0.4205427, -0.3956545, 0.28777355, -0.87214905, 0, 18.475882, 0)
 shadow_enabled = true
+shadow_normal_bias = 0.05
+shadow_blur = 10.0
 
 [node name="Camera3D" type="Camera3D" parent="." unique_id=699225141]
 transform = Transform3D(0.9077775, 0.066339724, -0.41417277, 0, 0.9874138, 0.15815806, 0.41945207, -0.14357233, 0.89635205, 0, 35.398827, 0)
