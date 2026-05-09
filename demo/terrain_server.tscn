@@ -16,21 +16,10 @@ glow_enabled = true
 fog_sky_affect = 0.0
 fog_height_density = 0.4077
 
-[sub_resource type="FastNoiseLite" id="FastNoiseLite_7s5li"]
-seed = 10
-frequency = 0.078
-fractal_type = 2
-fractal_octaves = 3
-fractal_lacunarity = 1.51
-fractal_gain = 0.545
-fractal_weighted_strength = 1.0
-metadata/_preview_in_3d_space_ = true
-
-[sub_resource type="TerrainConfiguration" id="TerrainConfiguration_pegvl"]
-height_scale = 25.0
-noise = SubResource("FastNoiseLite_7s5li")
-terrain_size = 100.0
-noise_texture_size = 1024
+[sub_resource type="TerrainConfiguration" id="TerrainConfiguration_pt7ik"]
+mesh_resolution = 512
+noise_base_frequency = 0.1
+noise_gain = 0.26
 
 [node name="Node3D" type="Node3D" unique_id=695386943]
 
@@ -44,7 +33,7 @@ shadow_normal_bias = 0.05
 shadow_blur = 10.0
 
 [node name="Camera3D" type="Camera3D" parent="." unique_id=699225141]
-transform = Transform3D(0.9077775, 0.066339724, -0.41417277, 0, 0.9874138, 0.15815806, 0.41945207, -0.14357233, 0.89635205, 0, 35.398827, 0)
+transform = Transform3D(0.9077775, 0.066339724, -0.41417277, 0, 0.9874138, 0.15815806, 0.41945207, -0.14357233, 0.89635205, 0, 15.277344, 0)
 
-[node name="Terrain3D" type="Terrain3D" parent="." unique_id=1679670075]
-configuration = SubResource("TerrainConfiguration_pegvl")
+[node name="Terrain3D" type="Terrain3D" parent="." unique_id=789345193]
+configuration = SubResource("TerrainConfiguration_pt7ik")
