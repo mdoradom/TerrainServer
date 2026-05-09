@@ -1,6 +1,8 @@
 #include "terrain_generator.h"
+
 #include <godot_cpp/classes/surface_tool.hpp>
 #include <godot_cpp/core/class_db.hpp>
+#include <godot_cpp/core/error_macros.hpp>
 
 using namespace godot;
 
@@ -8,8 +10,8 @@ namespace ts {
 
 void TerrainGenerator::_bind_methods() {
 	ClassDB::bind_method(D_METHOD("setup", "config"), &TerrainGenerator::setup);
-	ClassDB::bind_method(D_METHOD("get_height", "x", "y"), &TerrainGenerator::get_height);
-	ClassDB::bind_method(D_METHOD("generate_mesh", "resolution", "size"), &TerrainGenerator::generate_mesh);
+	ClassDB::bind_static_method("TerrainGenerator", D_METHOD("create_block_mesh", "resolution"), &TerrainGenerator::create_block_mesh);
+	ClassDB::bind_static_method("TerrainGenerator", D_METHOD("create_ring_fixup_mesh", "resolution"), &TerrainGenerator::create_ring_fixup_mesh);
 }
 
 TerrainGenerator::TerrainGenerator() : _height_scale(1.0f) {}
@@ -18,86 +20,114 @@ TerrainGenerator::~TerrainGenerator() {}
 
 void TerrainGenerator::setup(const Ref<TerrainConfiguration> &p_config) {
 	if (!p_config.is_valid()) {
-		ERR_PRINT("TerrainGenerator: Invalid configuration provided");
+		ERR_PRINT("Invalid TerrainConfiguration provided to TerrainGenerator::setup");
 		return;
 	}
-
-	_noise = p_config->get_noise();
 	_height_scale = p_config->get_height_scale();
+}
 
-	if (!_noise.is_valid()) {
-		WARN_PRINT("TerrainGenerator: No noise configured - terrain will be flat");
+// Create two triangles for a quad, alternating the diagonal direction
+//
+// tl--tr  tl--tr
+// | \  |  |  / |
+// |  \ |  | /  |
+// bl--br  bl--br
+static void add_quad(SurfaceTool *st, int tl, int tr, int bl, int br, int x, int z) {
+	if ((x + z) % 2 == 0) {
+		//   tl--tr
+		//   |  / |
+		//   | /  |
+		//   bl--br
+		st->add_index(tl);
+		st->add_index(tr);
+		st->add_index(br);
+		st->add_index(tl);
+		st->add_index(br);
+		st->add_index(bl);
+	} else {
+		//   tl--tr
+		//   | \  |
+		//   |  \ |
+		//   bl--br
+		st->add_index(tl);
+		st->add_index(tr);
+		st->add_index(bl);
+		st->add_index(tr);
+		st->add_index(br);
+		st->add_index(bl);
 	}
 }
 
-float TerrainGenerator::get_height(float x, float y) const {
-	if (!_noise.is_valid()) {
-		return 0.0f;
-	}
-	float noise_value = _noise->get_noise_2d(x, y);
-	return noise_value * _height_scale;
-}
-
-Ref<ArrayMesh> TerrainGenerator::create_mesh_data(int resolution, float vertex_spacing) const {
+Ref<ArrayMesh> TerrainGenerator::create_block_mesh(const int resolution) {
 	Ref<SurfaceTool> st;
 	st.instantiate();
 	st->begin(Mesh::PRIMITIVE_TRIANGLES);
 
-	for (int z = 0; z < resolution; z++) {
-		for (int x = 0; x < resolution; x++) {
-			// Calculate vertex positions
-			float x0 = x * vertex_spacing;
-			float x1 = (x + 1) * vertex_spacing;
-			float z0 = z * vertex_spacing;
-			float z1 = (z + 1) * vertex_spacing;
+	const int vertex_count = resolution + 1;
 
-			// Get heights at each corner
-			float y00 = get_height(x0, z0);
-			float y10 = get_height(x1, z0);
-			float y01 = get_height(x0, z1);
-			float y11 = get_height(x1, z1);
+	for (int z = 0; z < vertex_count; z++) {
+		for (int x = 0; x < vertex_count; x++) {
+			const float offset = 0.5f;
+			float x_pos = (static_cast<float>(x) / resolution) - offset;
+			float z_pos = (static_cast<float>(z) / resolution) - offset;
 
-			// Compute UVs based on grid coordinates so the texture spans the entire terrain
-			float u0 = static_cast<float>(x) / static_cast<float>(resolution);
-			float u1 = static_cast<float>(x + 1) / static_cast<float>(resolution);
-			float v0 = static_cast<float>(z) / static_cast<float>(resolution);
-			float v1 = static_cast<float>(z + 1) / static_cast<float>(resolution);
-
-			// Triangle 1 (0,0 -> 1,0 -> 0,1)
+			st->set_uv(Vector2(static_cast<float>(x) / resolution, static_cast<float>(z) / resolution));
 			st->set_normal(Vector3(0, 1, 0));
-			st->set_uv(Vector2(u0, v0));
-			st->add_vertex(Vector3(x0, y00, z0));
-
-			st->set_normal(Vector3(0, 1, 0));
-			st->set_uv(Vector2(u1, v0));
-			st->add_vertex(Vector3(x1, y10, z0));
-
-			st->set_normal(Vector3(0, 1, 0));
-			st->set_uv(Vector2(u0, v1));
-			st->add_vertex(Vector3(x0, y01, z1));
-
-			// Triangle 2 (1,0 -> 1,1 -> 0,1)
-			st->set_normal(Vector3(0, 1, 0));
-			st->set_uv(Vector2(u1, v0));
-			st->add_vertex(Vector3(x1, y10, z0));
-
-			st->set_normal(Vector3(0, 1, 0));
-			st->set_uv(Vector2(u1, v1));
-			st->add_vertex(Vector3(x1, y11, z1));
-
-			st->set_normal(Vector3(0, 1, 0));
-			st->set_uv(Vector2(u0, v1));
-			st->add_vertex(Vector3(x0, y01, z1));
+			st->add_vertex(Vector3(x_pos, 0.0f, z_pos));
 		}
 	}
-	st->generate_normals();
 
+	for (int z = 0; z < resolution; z++) {
+		for (int x = 0; x < resolution; x++) {
+			int tl = z * vertex_count + x;
+			int tr = tl + 1;
+			int bl = (z + 1) * vertex_count + x;
+			int br = bl + 1;
+			add_quad(st.ptr(), tl, tr, bl, br, x, z);
+		}
+	}
+
+	st->generate_tangents();
 	return st->commit();
 }
 
-Ref<ArrayMesh> TerrainGenerator::generate_mesh(int resolution, float size) const {
-	float vertex_spacing = size / resolution;
-	return create_mesh_data(resolution, vertex_spacing);
+Ref<ArrayMesh> TerrainGenerator::create_ring_fixup_mesh(int resolution) {
+	Ref<SurfaceTool> st;
+	st.instantiate();
+	st->begin(Mesh::PRIMITIVE_TRIANGLES);
+
+	const int vertex_count = resolution + 1;
+	const int hole_start = resolution / 4;
+	const int hole_end = (3 * resolution) / 4;
+
+	for (int z = 0; z < vertex_count; z++) {
+		for (int x = 0; x < vertex_count; x++) {
+			constexpr float offset = 0.5f;
+			float x_pos = (static_cast<float>(x) / resolution) - offset;
+			float z_pos = (static_cast<float>(z) / resolution) - offset;
+
+			st->set_uv(Vector2(static_cast<float>(x) / resolution, static_cast<float>(z) / resolution));
+			st->set_normal(Vector3(0, 1, 0));
+			st->add_vertex(Vector3(x_pos, 0.0f, z_pos));
+		}
+	}
+
+	for (int z = 0; z < resolution; z++) {
+		for (int x = 0; x < resolution; x++) {
+			if (x >= hole_start && x < hole_end && z >= hole_start && z < hole_end) {
+				continue;
+			}
+
+			int tl = z * vertex_count + x;
+			int tr = tl + 1;
+			int bl = (z + 1) * vertex_count + x;
+			int br = bl + 1;
+			add_quad(st.ptr(), tl, tr, bl, br, x, z);
+		}
+	}
+
+	st->generate_tangents();
+	return st->commit();
 }
 
 } //namespace ts

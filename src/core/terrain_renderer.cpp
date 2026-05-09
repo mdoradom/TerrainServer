@@ -1,22 +1,17 @@
 #include "terrain_renderer.h"
 
-#include <godot_cpp/core/class_db.hpp>
-#include <godot_cpp/core/error_macros.hpp>
-#include <godot_cpp/variant/utility_functions.hpp>
+#include <godot_cpp/classes/array_mesh.hpp>
+#include <godot_cpp/classes/file_access.hpp>
+#include <godot_cpp/classes/world3d.hpp>
+#include <godot_cpp/variant/vector3.hpp>
 
 using namespace godot;
 
 namespace ts {
 
-void TerrainRenderer::_bind_methods() {
-	ClassDB::bind_method(D_METHOD("set_mesh_resolution", "resolution"), &TerrainRenderer::set_mesh_resolution);
-	ClassDB::bind_method(D_METHOD("set_terrain_size", "size"), &TerrainRenderer::set_terrain_size);
-	ClassDB::bind_method(D_METHOD("set_material_override", "material"), &TerrainRenderer::set_material_override);
-	ClassDB::bind_method(D_METHOD("generate_mesh"), &TerrainRenderer::generate_mesh);
-}
+void TerrainRenderer::_bind_methods() {}
 
-TerrainRenderer::TerrainRenderer() : _mesh_instance(nullptr), _parent_node(nullptr), _mesh_resolution(32), _terrain_size(1024.0f) {
-}
+TerrainRenderer::TerrainRenderer() = default;
 
 TerrainRenderer::~TerrainRenderer() {
 	cleanup();
@@ -24,69 +19,142 @@ TerrainRenderer::~TerrainRenderer() {
 
 void TerrainRenderer::initialize(Node3D *p_parent) {
 	_parent_node = p_parent;
-
-	if (_mesh_instance == nullptr) {
-		_mesh_instance = Object::cast_to<MeshInstance3D>(_parent_node->get_node_or_null("TerrainMesh"));
-	}
 }
 
 void TerrainRenderer::cleanup() {
-	if (_mesh_instance != nullptr && ObjectDB::get_instance(_mesh_instance->get_instance_id()) != nullptr) {
-		if (_mesh_instance->is_inside_tree()) {
-			_mesh_instance->queue_free();
-		} else {
-			memdelete(_mesh_instance);
+	RenderingServer *rs = RenderingServer::get_singleton();
+
+	for (const auto &level : _clipmap_levels) {
+		if (level.instance_rid.is_valid()) {
+			rs->free_rid(level.instance_rid);
 		}
-		_mesh_instance = nullptr;
+
+		if (level.material_rid.is_valid()) {
+			rs->free_rid(level.material_rid);
+		}
+	}
+
+	_clipmap_levels.clear();
+
+	if (_mesh_rid.is_valid()) {
+		rs->free_rid(_mesh_rid);
+		_mesh_rid = RID();
+	}
+
+	if (_mesh_ring_rid.is_valid()) {
+		rs->free_rid(_mesh_ring_rid);
+		_mesh_ring_rid = RID();
+	}
+
+	if (_internal_shader_rid.is_valid()) {
+		RenderingServer::get_singleton()->free_rid(_internal_shader_rid);
+		_internal_shader_rid = RID();
 	}
 }
+
+void TerrainRenderer::rebuild_mesh(const float p_size, const int p_resolution) {
+	RenderingServer *rs = RenderingServer::get_singleton();
+	cleanup();
+
+	if (!_generator.is_valid() || !_config.is_valid()) {
+		return;
+	}
+
+	if (!_internal_shader_rid.is_valid()) {
+		const String shader_code = FileAccess::get_file_as_string("res://addons/terrain_server/shaders/terrain.gdshader");
+		if (shader_code.is_empty()) {
+			return;
+		}
+		_internal_shader_rid = rs->shader_create();
+		rs->shader_set_code(_internal_shader_rid, shader_code);
+	}
+
+	const Ref<ArrayMesh> block_mesh = TerrainGenerator::create_block_mesh(p_resolution);
+	_mesh_rid = rs->mesh_create();
+	rs->mesh_add_surface_from_arrays(_mesh_rid, RenderingServer::PRIMITIVE_TRIANGLES, block_mesh->surface_get_arrays(0));
+
+	const Ref<ArrayMesh> ring_mesh = TerrainGenerator::create_ring_fixup_mesh(p_resolution);
+	_mesh_ring_rid = rs->mesh_create();
+	rs->mesh_add_surface_from_arrays(_mesh_ring_rid, RenderingServer::PRIMITIVE_TRIANGLES, ring_mesh->surface_get_arrays(0));
+
+	int num_levels = _config->get_clipmap_levels();
+	if (num_levels <= 0) num_levels = 6;
+
+	for (int i = 0; i < num_levels; i++) {
+		RID instance = rs->instance_create();
+		RID mesh_to_use = (i == 0) ? _mesh_rid : _mesh_ring_rid;
+		rs->instance_set_base(instance, mesh_to_use);
+
+		RID material = rs->material_create();
+		rs->material_set_shader(material, _internal_shader_rid);
+
+		// Physics parameters
+		rs->material_set_param(material, "height_scale", static_cast<float>(_config->get_height_scale()));
+		rs->material_set_param(material, "resolution", static_cast<float>(p_resolution));
+
+		Ref<Texture2D> albedo_texture = _config->get_albedo_texture();
+		if (albedo_texture.is_valid()) {
+			rs->material_set_param(material, "albedo_texture", albedo_texture->get_rid());
+		}
+
+		// Noise parameters
+		rs->material_set_param(material, "octaves", _config->get_noise_octaves());
+		rs->material_set_param(material, "lacunarity", _config->get_noise_lacunarity());
+		rs->material_set_param(material, "gain", _config->get_noise_gain());
+		rs->material_set_param(material, "base_frequency", _config->get_noise_base_frequency());
+
+		const float level_scale = p_size * powf(2.0f, static_cast<float>(i));
+		rs->instance_geometry_set_material_override(instance, material);
+
+		if (_parent_node && _parent_node->is_inside_tree()) {
+			rs->instance_set_scenario(instance, _parent_node->get_world_3d()->get_scenario());
+		}
+
+		ClipmapLevel level;
+		level.instance_rid = instance;
+		level.material_rid = material;
+		level.scale = level_scale;
+
+		_clipmap_levels.push_back(level);
+	}
+}
+
+void TerrainRenderer::update_camera_position(const Vector3 p_camera_pos) {
+	RenderingServer *rs = RenderingServer::get_singleton();
+
+	if (!_config.is_valid() || _clipmap_levels.empty()) {
+		return;
+	}
+
+	int resolution = _config->get_mesh_resolution();
+	if (resolution <= 0) {
+		resolution = 64;
+	}
+
+	// Shared snapping
+	// We use the finest grid's resolution to snap ALL levels in unison.
+	// This prevents the rings from sliding and misaligning.
+	const float base_cell_size = _clipmap_levels[0].scale / static_cast<float>(resolution);
+	const float snapped_x = floorf(p_camera_pos.x / base_cell_size) * base_cell_size;
+	const float snapped_z = floorf(p_camera_pos.z / base_cell_size) * base_cell_size;
+
+	for (const auto &level : _clipmap_levels) {
+		Transform3D xform;
+		xform.basis = xform.basis.scaled(Vector3(level.scale, 1.0, level.scale));
+		xform.origin = Vector3(snapped_x, 0.0f, snapped_z);
+
+		rs->instance_set_transform(level.instance_rid, xform);
+	}
+}
+
+// ============== Getters and setters ==============
 
 void TerrainRenderer::set_generator(const Ref<TerrainGenerator> &p_generator) {
 	_generator = p_generator;
 }
 
-void TerrainRenderer::set_mesh_resolution(int p_resolution) {
-	_mesh_resolution = p_resolution;
-}
-
-void TerrainRenderer::set_terrain_size(float p_size) {
-	_terrain_size = p_size;
-}
-
-void TerrainRenderer::set_material_override(const Ref<Material> &p_material) {
-	_material_override = p_material;
-	if (_mesh_instance != nullptr && _material_override.is_valid()) {
-		_mesh_instance->set_material_override(_material_override);
-	}
-}
-
-void TerrainRenderer::generate_mesh() {
-	if (!_generator.is_valid()) {
-		ERR_FAIL_MSG("TerrainRenderer: Invalid generator");
-	}
-
-	if (_parent_node == nullptr) {
-		ERR_FAIL_MSG("TerrainRenderer: No parent node set");
-	}
-
-	if (_mesh_instance == nullptr || ObjectDB::get_instance(_mesh_instance->get_instance_id()) == nullptr) {
-		_mesh_instance = memnew(MeshInstance3D);
-		_parent_node->add_child(_mesh_instance);
-		_mesh_instance->set_name("TerrainMesh");
-		_mesh_instance->set_owner(_parent_node->get_owner());
-	}
-
-	float vertex_spacing = _terrain_size / _mesh_resolution;
-	Ref<ArrayMesh> mesh = _generator->create_mesh_data(_mesh_resolution, vertex_spacing);
-	_mesh_instance->set_mesh(mesh);
-
-	if (_material_override.is_valid()) {
-		_mesh_instance->set_material_override(_material_override);
-	}
-}
-
-void TerrainRenderer::update_mesh() {
-	generate_mesh();
+void TerrainRenderer::set_configuration(const Ref<TerrainConfiguration> &p_config) {
+	_config = p_config;
 }
 
 } //namespace ts
