@@ -1,150 +1,68 @@
 #pragma once
 
-#include <godot_cpp/classes/fast_noise_lite.hpp>
-#include <godot_cpp/classes/material.hpp>
+#include <godot_cpp/classes/image.hpp>
+#include <godot_cpp/classes/image_texture.hpp>
 #include <godot_cpp/classes/resource.hpp>
+#include <godot_cpp/classes/texture2d.hpp>
+#include <godot_cpp/classes/fast_noise_lite.hpp>
 
 namespace ts {
 
-/**
- * @class TerrainConfiguration
- * @brief A resource that stores configuration parameters for terrain generation and rendering.
- *
- * TerrainConfiguration is a Godot Resource that encapsulates all the parameters needed to
- * generate and render procedural terrain. It includes noise settings for height generation,
- * height scaling, mesh resolution, and optional material overrides.
- *
- * This resource emits the "changed" signal whenever any of its properties are modified,
- * allowing connected systems (like Terrain3D) to automatically update the terrain in response
- * to parameter changes in the editor.
- *
- * @note This class extends Godot's Resource, making it serializable and editable in the inspector.
- */
 class TerrainConfiguration : public godot::Resource {
 	GDCLASS(TerrainConfiguration, godot::Resource);
 
 private:
-	/** @brief Multiplier applied to noise values to control overall terrain height range */
 	double _height_scale;
-
-	/** @brief Number of vertices along each axis of the terrain mesh grid */
 	int _mesh_resolution;
-
-	/** @brief Physical size of the terrain in world units */
 	float _terrain_size;
 
-	/** @brief Optional material to apply to the terrain mesh, overriding default materials */
-	godot::Ref<godot::Material> _material_override;
+	int _noise_octaves;
+	float _noise_base_frequency;
+	float _noise_lacunarity;
+	float _noise_gain;
 
-	/** @brief FastNoiseLite instance used for generating procedural height values */
-	godot::Ref<godot::FastNoiseLite> _noise;
+	int _clipmap_levels;
+	godot::Ref<godot::Texture2D> _albedo_texture;
+
+	godot::Ref<godot::FastNoiseLite> _internal_noise;
+	godot::Ref<godot::ImageTexture> _noise_preview;
+	void _update_preview();
 
 protected:
-	/**
-	 * @brief Binds methods and properties to Godot's ClassDB system.
-	 *
-	 * Registers all getters, setters, and properties for use in GDScript and the editor.
-	 */
 	static void _bind_methods();
 
 public:
-	/**
-	 * @brief Constructs a new TerrainConfiguration with default values.
-	 *
-	 * Initializes height scale to 100.0, mesh resolution to 32, and terrain size to 256.0.
-	 * The noise property is null by default and must be set manually in the editor.
-	 */
 	TerrainConfiguration();
-
-	/**
-	 * @brief Destructor for TerrainConfiguration.
-	 */
 	~TerrainConfiguration();
 
-	/**
-	 * @brief Gets the current height scale multiplier.
-	 *
-	 * @return The height scale value used to multiply noise output.
-	 */
 	double get_height_scale() const;
-
-	/**
-	 * @brief Sets the height scale multiplier.
-	 *
-	 * Changes the multiplier applied to noise values, affecting the overall height range
-	 * of the terrain. Emits the "changed" signal to trigger terrain updates.
-	 *
-	 * @param p_scale The new height scale value (typically positive).
-	 */
 	void set_height_scale(double p_scale);
 
-	/**
-	 * @brief Gets the current mesh resolution.
-	 *
-	 * @return The number of vertices along each axis of the terrain grid.
-	 */
 	int get_mesh_resolution() const;
-
-	/**
-	 * @brief Sets the mesh resolution.
-	 *
-	 * Changes the number of vertices along each axis of the terrain grid. Higher values
-	 * produce more detailed terrain but require more processing. Emits the "changed" signal.
-	 *
-	 * @param p_resolution The new mesh resolution (number of vertices per axis).
-	 */
 	void set_mesh_resolution(int p_resolution);
 
-	/**
-	 * @brief Gets the current material override.
-	 *
-	 * @return Reference to the Material resource, or null if no override is set.
-	 */
-	godot::Ref<godot::Material> get_material_override() const;
+	int get_noise_octaves() const;
+	void set_noise_octaves(int p_octaves);
 
-	/**
-	 * @brief Sets a material override for the terrain.
-	 *
-	 * Allows specifying a custom material to be applied to the terrain mesh.
-	 * Emits the "changed" signal to trigger terrain updates.
-	 *
-	 * @param p_material Reference to a Material resource, or null to clear the override.
-	 */
-	void set_material_override(const godot::Ref<godot::Material> &p_material);
+	float get_noise_base_frequency() const;
+	void set_noise_base_frequency(float p_base_frequency);
 
-	/**
-	 * @brief Gets the noise generator used for terrain height calculations.
-	 *
-	 * @return Reference to the FastNoiseLite instance.
-	 */
-	godot::Ref<godot::FastNoiseLite> get_noise() const;
+	float get_noise_lacunarity() const;
+	void set_noise_lacunarity(float p_lacunarity);
 
-	/**
-	 * @brief Sets the noise generator for terrain height calculations.
-	 *
-	 * Replaces the current FastNoiseLite instance with a new one, affecting how
-	 * terrain heights are generated. Emits the "changed" signal.
-	 *
-	 * @param p_noise Reference to a FastNoiseLite resource.
-	 */
-	void set_noise(const godot::Ref<godot::FastNoiseLite> &p_noise);
+	float get_noise_gain() const;
+	void set_noise_gain(float p_gain);
 
-	/**
-	 * @brief Gets the physical size of the terrain in world units.
-	 *
-	 * @return The terrain size value.
-	 */
 	float get_terrain_size() const;
-
-	/**
-	 * @brief Sets the physical size of the terrain in world units.
-	 *
-	 * Changes the physical dimensions of the terrain. Emits the "changed" signal
-	 * to trigger terrain updates.
-	 *
-	 * @param p_size The new terrain size in world units.
-	 */
 	void set_terrain_size(float p_size);
+
+	int get_clipmap_levels() const;
+	void set_clipmap_levels(int p_levels);
+
+	godot::Ref<godot::Texture2D> get_albedo_texture() const;
+	void set_albedo_texture(const godot::Ref<godot::Texture2D> &p_texture);
+
+	godot::Ref<godot::ImageTexture> get_noise_preview() const;
 };
 
 } //namespace ts
