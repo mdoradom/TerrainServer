@@ -23,7 +23,6 @@ void TerrainGenerator::setup(const Ref<TerrainConfiguration> &p_config) {
 		ERR_PRINT("Invalid TerrainConfiguration provided to TerrainGenerator::setup");
 		return;
 	}
-	_noise = p_config->get_noise();
 	_height_scale = p_config->get_height_scale();
 }
 

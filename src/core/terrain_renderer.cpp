@@ -93,17 +93,10 @@ void TerrainRenderer::rebuild_mesh(const float p_size, const int p_resolution) {
 		}
 
 		// Noise parameters
-		Ref<FastNoiseLite> noise = _config->get_noise();
-		if (noise.is_valid()) {
-			// TODO present this in a more user-friendly way in the inspector
-			// Right now, we just send the params from the FastNoiseLite resource from the inspector, but we're not using that
-			// texture, cause it's better to generate it on the shader side to avoid readbacks and sync issues.
-			// We should probably hide that texture from the user and just use the params to generate it on the shader side.
-			rs->material_set_param(material, "octaves", noise->get_fractal_octaves());
-			rs->material_set_param(material, "lacunarity", noise->get_fractal_lacunarity());
-			rs->material_set_param(material, "gain", noise->get_fractal_gain());
-			rs->material_set_param(material, "base_frequency", noise->get_frequency());
-		}
+		rs->material_set_param(material, "octaves", _config->get_noise_octaves());
+		rs->material_set_param(material, "lacunarity", _config->get_noise_lacunarity());
+		rs->material_set_param(material, "gain", _config->get_noise_gain());
+		rs->material_set_param(material, "base_frequency", _config->get_noise_base_frequency());
 
 		const float level_scale = p_size * powf(2.0f, static_cast<float>(i));
 		rs->instance_geometry_set_material_override(instance, material);

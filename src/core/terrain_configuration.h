@@ -1,6 +1,5 @@
 #pragma once
 
-#include <godot_cpp/classes/fast_noise_lite.hpp>
 #include <godot_cpp/classes/image.hpp>
 #include <godot_cpp/classes/image_texture.hpp>
 #include <godot_cpp/classes/resource.hpp>
@@ -16,15 +15,13 @@ private:
 	int _mesh_resolution;
 	float _terrain_size;
 
-	godot::Ref<godot::FastNoiseLite> _noise;
-	godot::Ref<godot::ImageTexture> _noise_texture;
-	int _noise_texture_size;
+	int _noise_octaves;
+	float _noise_base_frequency;
+	float _noise_lacunarity;
+	float _noise_gain;
 
 	int _clipmap_levels;
 	godot::Ref<godot::Texture2D> _albedo_texture;
-
-	void _generate_noise_texture() const;
-	void _on_noise_changed();
 
 protected:
 	static void _bind_methods();
@@ -39,10 +36,17 @@ public:
 	int get_mesh_resolution() const;
 	void set_mesh_resolution(int p_resolution);
 
-	godot::Ref<godot::FastNoiseLite> get_noise() const;
-	void set_noise(const godot::Ref<godot::FastNoiseLite> &p_noise);
+	int get_noise_octaves() const;
+	void set_noise_octaves(int p_octaves);
 
-	godot::Ref<godot::ImageTexture> get_noise_texture() const;
+	float get_noise_base_frequency() const;
+	void set_noise_base_frequency(float p_base_frequency);
+
+	float get_noise_lacunarity() const;
+	void set_noise_lacunarity(float p_lacunarity);
+
+	float get_noise_gain() const;
+	void set_noise_gain(float p_gain);
 
 	float get_terrain_size() const;
 	void set_terrain_size(float p_size);
@@ -52,9 +56,6 @@ public:
 
 	godot::Ref<godot::Texture2D> get_albedo_texture() const;
 	void set_albedo_texture(const godot::Ref<godot::Texture2D> &p_texture);
-
-	int get_noise_texture_size() const;
-	void set_noise_texture_size(int p_size);
 };
 
 } //namespace ts

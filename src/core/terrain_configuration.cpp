@@ -14,9 +14,21 @@ void TerrainConfiguration::_bind_methods() {
 	ClassDB::bind_method(D_METHOD("get_mesh_resolution"), &TerrainConfiguration::get_mesh_resolution);
 	ADD_PROPERTY(PropertyInfo(Variant::INT, "mesh_resolution", PROPERTY_HINT_RANGE, "1,512"), "set_mesh_resolution", "get_mesh_resolution");
 
-	ClassDB::bind_method(D_METHOD("set_noise", "noise"), &TerrainConfiguration::set_noise);
-	ClassDB::bind_method(D_METHOD("get_noise"), &TerrainConfiguration::get_noise);
-	ADD_PROPERTY(PropertyInfo(Variant::OBJECT, "noise", PROPERTY_HINT_RESOURCE_TYPE, "FastNoiseLite"), "set_noise", "get_noise");
+	ClassDB::bind_method(D_METHOD("set_noise_octaves", "octaves"), &TerrainConfiguration::set_noise_octaves);
+	ClassDB::bind_method(D_METHOD("get_noise_octaves"), &TerrainConfiguration::get_noise_octaves);
+	ADD_PROPERTY(PropertyInfo(Variant::INT, "noise_octaves", PROPERTY_HINT_RANGE, "1,10"), "set_noise_octaves", "get_noise_octaves");
+
+	ClassDB::bind_method(D_METHOD("set_noise_base_frequency", "base_frequency"), &TerrainConfiguration::set_noise_base_frequency);
+	ClassDB::bind_method(D_METHOD("get_noise_base_frequency"), &TerrainConfiguration::get_noise_base_frequency);
+	ADD_PROPERTY(PropertyInfo(Variant::FLOAT, "noise_base_frequency", PROPERTY_HINT_RANGE, "0.0001,0.1"), "set_noise_base_frequency", "get_noise_base_frequency");
+
+	ClassDB::bind_method(D_METHOD("set_noise_lacunarity", "lacunarity"), &TerrainConfiguration::set_noise_lacunarity);
+	ClassDB::bind_method(D_METHOD("get_noise_lacunarity"), &TerrainConfiguration::get_noise_lacunarity);
+	ADD_PROPERTY(PropertyInfo(Variant::FLOAT, "noise_lacunarity", PROPERTY_HINT_RANGE, "1.0,5.0"), "set_noise_lacunarity", "get_noise_lacunarity");
+
+	ClassDB::bind_method(D_METHOD("set_noise_gain", "gain"), &TerrainConfiguration::set_noise_gain);
+	ClassDB::bind_method(D_METHOD("get_noise_gain"), &TerrainConfiguration::get_noise_gain);
+	ADD_PROPERTY(PropertyInfo(Variant::FLOAT, "noise_gain", PROPERTY_HINT_RANGE, "0.0,1.0"), "set_noise_gain", "get_noise_gain");
 
 	ClassDB::bind_method(D_METHOD("set_terrain_size", "size"), &TerrainConfiguration::set_terrain_size);
 	ClassDB::bind_method(D_METHOD("get_terrain_size"), &TerrainConfiguration::get_terrain_size);
@@ -29,40 +41,12 @@ void TerrainConfiguration::_bind_methods() {
 	ClassDB::bind_method(D_METHOD("set_albedo_texture", "texture"), &TerrainConfiguration::set_albedo_texture);
 	ClassDB::bind_method(D_METHOD("get_albedo_texture"), &TerrainConfiguration::get_albedo_texture);
 	ADD_PROPERTY(PropertyInfo(Variant::OBJECT, "albedo_texture", PROPERTY_HINT_RESOURCE_TYPE, "Texture2D"), "set_albedo_texture", "get_albedo_texture");
-
-	ClassDB::bind_method(D_METHOD("set_noise_texture_size", "size"), &TerrainConfiguration::set_noise_texture_size);
-	ClassDB::bind_method(D_METHOD("get_noise_texture_size"), &TerrainConfiguration::get_noise_texture_size);
-	ADD_PROPERTY(PropertyInfo(Variant::INT, "noise_texture_size", PROPERTY_HINT_RANGE, "64,4096"), "set_noise_texture_size", "get_noise_texture_size");
-
-	ClassDB::bind_method(D_METHOD("get_noise_texture"), &TerrainConfiguration::get_noise_texture);
-	ClassDB::bind_method(D_METHOD("_on_noise_changed"), &TerrainConfiguration::_on_noise_changed);
 }
 
-TerrainConfiguration::TerrainConfiguration() : _height_scale(10.0), _mesh_resolution(256), _terrain_size(256.0f), _noise_texture_size(256), _clipmap_levels(6) {
-	_noise_texture.instantiate();
+TerrainConfiguration::TerrainConfiguration() : _height_scale(10.0), _mesh_resolution(256), _terrain_size(256.0f), _noise_octaves(5), _noise_base_frequency(0.002f), _noise_lacunarity(2.0f), _noise_gain(0.5f), _clipmap_levels(6) {
 }
 
 TerrainConfiguration::~TerrainConfiguration() {
-	if (_noise.is_valid() && _noise->is_connected("changed", Callable(this, "emit_changed"))) {
-		_noise->disconnect("changed", Callable(this, "emit_changed"));
-	}
-}
-
-void TerrainConfiguration::_generate_noise_texture() const {
-	if (!_noise.is_valid()) {
-		return;
-	}
-
-	const Ref<Image> noise_image = _noise->get_seamless_image(_noise_texture_size, _noise_texture_size);
-
-	if (noise_image.is_valid()) {
-		_noise_texture->set_image(noise_image);
-	}
-}
-
-void TerrainConfiguration::_on_noise_changed() {
-	_generate_noise_texture();
-	emit_changed();
 }
 
 // ============== Getters and setters ==============
@@ -89,24 +73,46 @@ void TerrainConfiguration::set_mesh_resolution(const int p_resolution) {
 	}
 }
 
-Ref<FastNoiseLite> TerrainConfiguration::get_noise() const {
-	return _noise;
+int TerrainConfiguration::get_noise_octaves() const {
+	return _noise_octaves;
 }
 
-void TerrainConfiguration::set_noise(const Ref<FastNoiseLite> &p_noise) {
-	if (_noise != p_noise) {
-		if (_noise.is_valid()) {
-			_noise->disconnect("changed", Callable(this, "emit_changed"));
-			_noise->disconnect("changed", Callable(this, "_on_noise_changed"));
-		}
+void TerrainConfiguration::set_noise_octaves(const int p_octaves) {
+	if (_noise_octaves != p_octaves) {
+		_noise_octaves = p_octaves;
+		emit_changed();
+	}
+}
 
-		_noise = p_noise;
+float TerrainConfiguration::get_noise_base_frequency() const {
+	return _noise_base_frequency;
+}
 
-		if (_noise.is_valid()) {
-			_noise->connect("changed", Callable(this, "_on_noise_changed"));
-		}
+void TerrainConfiguration::set_noise_base_frequency(const float p_base_frequency) {
+	if (_noise_base_frequency != p_base_frequency) {
+		_noise_base_frequency = p_base_frequency;
+		emit_changed();
+	}
+}
 
-		_generate_noise_texture();
+float TerrainConfiguration::get_noise_lacunarity() const {
+	return _noise_lacunarity;
+}
+
+void TerrainConfiguration::set_noise_lacunarity(const float p_lacunarity) {
+	if (_noise_lacunarity != p_lacunarity) {
+		_noise_lacunarity = p_lacunarity;
+		emit_changed();
+	}
+}
+
+float TerrainConfiguration::get_noise_gain() const {
+	return _noise_gain;
+}
+
+void TerrainConfiguration::set_noise_gain(const float p_gain) {
+	if (_noise_gain != p_gain) {
+		_noise_gain = p_gain;
 		emit_changed();
 	}
 }
@@ -153,20 +159,5 @@ void TerrainConfiguration::set_albedo_texture(const Ref<Texture2D> &p_texture) {
 	}
 }
 
-Ref<ImageTexture> TerrainConfiguration::get_noise_texture() const {
-	return _noise_texture;
-}
-
-int TerrainConfiguration::get_noise_texture_size() const {
-	return _noise_texture_size;
-}
-
-void TerrainConfiguration::set_noise_texture_size(const int p_size) {
-	if (_noise_texture_size != p_size) {
-		_noise_texture_size = CLAMP(p_size, 64, 4096);
-		_generate_noise_texture();
-		emit_changed();
-	}
-}
-
 } //namespace ts
+

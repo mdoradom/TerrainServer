@@ -3,7 +3,6 @@
 #include "terrain_configuration.h"
 
 #include <godot_cpp/classes/array_mesh.hpp>
-#include <godot_cpp/classes/fast_noise_lite.hpp>
 #include <godot_cpp/classes/ref_counted.hpp>
 
 namespace ts {
@@ -12,7 +11,6 @@ class TerrainGenerator : public godot::RefCounted {
 	GDCLASS(TerrainGenerator, godot::RefCounted);
 
 private:
-	godot::Ref<godot::FastNoiseLite> _noise;
 	double _height_scale;
 
 protected:
