@@ -47,7 +47,7 @@ void TerrainRenderer::cleanup() {
 	}
 
 	if (_internal_shader_rid.is_valid()) {
-		rs->free_rid(_internal_shader_rid);
+		RenderingServer::get_singleton()->free_rid(_internal_shader_rid);
 		_internal_shader_rid = RID();
 	}
 }
@@ -60,9 +60,14 @@ void TerrainRenderer::rebuild_mesh(const float p_size, const int p_resolution) {
 		return;
 	}
 
-	_internal_shader_rid = rs->shader_create();
-	const String shader_code = FileAccess::get_file_as_string("res://addons/terrain_server/shaders/terrain.gdshader");
-	rs->shader_set_code(_internal_shader_rid, shader_code);
+	if (!_internal_shader_rid.is_valid()) {
+		const String shader_code = FileAccess::get_file_as_string("res://addons/terrain_server/shaders/terrain.gdshader");
+		if (shader_code.is_empty()) {
+			return;
+		}
+		_internal_shader_rid = rs->shader_create();
+		rs->shader_set_code(_internal_shader_rid, shader_code);
+	}
 
 	const Ref<ArrayMesh> block_mesh = TerrainGenerator::create_block_mesh(p_resolution);
 	_mesh_rid = rs->mesh_create();
@@ -133,7 +138,7 @@ void TerrainRenderer::update_camera_position(const Vector3 p_camera_pos) {
 	const float snapped_x = floorf(p_camera_pos.x / base_cell_size) * base_cell_size;
 	const float snapped_z = floorf(p_camera_pos.z / base_cell_size) * base_cell_size;
 
-	for (const auto & level : _clipmap_levels) {
+	for (const auto &level : _clipmap_levels) {
 		Transform3D xform;
 		xform.basis = xform.basis.scaled(Vector3(level.scale, 1.0, level.scale));
 		xform.origin = Vector3(snapped_x, 0.0f, snapped_z);
