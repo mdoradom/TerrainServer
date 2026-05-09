@@ -36,7 +36,6 @@ Terrain3D::~Terrain3D() {
 
 void Terrain3D::_ready() {
 	_renderer->initialize(this);
-	_on_config_changed();
 }
 
 void Terrain3D::_process(double delta) {
