@@ -1,7 +1,7 @@
 shader_type spatial;
 render_mode cull_back;
 
-// Physic parameters
+// Physics parameters
 uniform float height_scale = 100.0;
 uniform float resolution = 64.0;
 
