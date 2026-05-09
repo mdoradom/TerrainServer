@@ -12,7 +12,6 @@ void TerrainGenerator::_bind_methods() {
 	ClassDB::bind_method(D_METHOD("setup", "config"), &TerrainGenerator::setup);
 	ClassDB::bind_static_method("TerrainGenerator", D_METHOD("create_block_mesh", "resolution"), &TerrainGenerator::create_block_mesh);
 	ClassDB::bind_static_method("TerrainGenerator", D_METHOD("create_ring_fixup_mesh", "resolution"), &TerrainGenerator::create_ring_fixup_mesh);
-
 }
 
 TerrainGenerator::TerrainGenerator() : _height_scale(1.0f) {}
@@ -26,6 +25,38 @@ void TerrainGenerator::setup(const Ref<TerrainConfiguration> &p_config) {
 	}
 	_noise = p_config->get_noise();
 	_height_scale = p_config->get_height_scale();
+}
+
+// Create two triangles for a quad, alternating the diagonal direction
+//
+// tl--tr  tl--tr
+// | \  |  |  / |
+// |  \ |  | /  |
+// bl--br  bl--br
+static void add_quad(SurfaceTool *st, int tl, int tr, int bl, int br, int x, int z) {
+	if ((x + z) % 2 == 0) {
+		//   tl--tr
+		//   |  / |
+		//   | /  |
+		//   bl--br
+		st->add_index(tl);
+		st->add_index(tr);
+		st->add_index(br);
+		st->add_index(tl);
+		st->add_index(br);
+		st->add_index(bl);
+	} else {
+		//   tl--tr
+		//   | \  |
+		//   |  \ |
+		//   bl--br
+		st->add_index(tl);
+		st->add_index(tr);
+		st->add_index(bl);
+		st->add_index(tr);
+		st->add_index(br);
+		st->add_index(bl);
+	}
 }
 
 Ref<ArrayMesh> TerrainGenerator::create_block_mesh(const int resolution) {
@@ -47,28 +78,13 @@ Ref<ArrayMesh> TerrainGenerator::create_block_mesh(const int resolution) {
 		}
 	}
 
-	// Draw two triangles per quad in the following order:
-	// tl----------tr
-	// |         / |
-	// |  1    /   |
-	// |     /     |
-	// |   /    2  |
-	// | /         |
-	// bl----------br
-	// Triangle 1: tl -> tr -> bl
-	// Triangle 2: tr -> br -> bl
 	for (int z = 0; z < resolution; z++) {
 		for (int x = 0; x < resolution; x++) {
 			int tl = z * vertex_count + x;
 			int tr = tl + 1;
 			int bl = (z + 1) * vertex_count + x;
 			int br = bl + 1;
-			st->add_index(tl);
-			st->add_index(tr);
-			st->add_index(bl);
-			st->add_index(tr);
-			st->add_index(br);
-			st->add_index(bl);
+			add_quad(st.ptr(), tl, tr, bl, br, x, z);
 		}
 	}
 
@@ -82,7 +98,6 @@ Ref<ArrayMesh> TerrainGenerator::create_ring_fixup_mesh(int resolution) {
 	st->begin(Mesh::PRIMITIVE_TRIANGLES);
 
 	const int vertex_count = resolution + 1;
-
 	const int hole_start = resolution / 4;
 	const int hole_end = (3 * resolution) / 4;
 
@@ -98,16 +113,6 @@ Ref<ArrayMesh> TerrainGenerator::create_ring_fixup_mesh(int resolution) {
 		}
 	}
 
-	// Draw two triangles per quad in the following order:
-	// tl----------tr
-	// |         / |
-	// |  1    /   |
-	// |     /     |
-	// |   /    2  |
-	// | /         |
-	// bl----------br
-	// Triangle 1: tl -> tr -> bl
-	// Triangle 2: tr -> br -> bl
 	for (int z = 0; z < resolution; z++) {
 		for (int x = 0; x < resolution; x++) {
 			if (x >= hole_start && x < hole_end && z >= hole_start && z < hole_end) {
@@ -118,13 +123,7 @@ Ref<ArrayMesh> TerrainGenerator::create_ring_fixup_mesh(int resolution) {
 			int tr = tl + 1;
 			int bl = (z + 1) * vertex_count + x;
 			int br = bl + 1;
-
-			st->add_index(tl);
-			st->add_index(tr);
-			st->add_index(bl);
-			st->add_index(tr);
-			st->add_index(br);
-			st->add_index(bl);
+			add_quad(st.ptr(), tl, tr, bl, br, x, z);
 		}
 	}
 
