@@ -100,6 +100,8 @@ void vertex() {
 void fragment()
 {
 	// TODO Basic visual parameters (will be replaced by layer system in the biomes implementation). Replace with multi-layer material system
+	NORMAL = normalize(NORMAL);
+
 	vec4 tex_color = texture(albedo_texture, v_world_xz * 0.1);
 	ALBEDO = tex_color.rgb;
 	ROUGHNESS = 0.8;
