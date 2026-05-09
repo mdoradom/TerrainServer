@@ -4,6 +4,7 @@
 #include <godot_cpp/classes/image_texture.hpp>
 #include <godot_cpp/classes/resource.hpp>
 #include <godot_cpp/classes/texture2d.hpp>
+#include <godot_cpp/classes/fast_noise_lite.hpp>
 
 namespace ts {
 
@@ -22,6 +23,10 @@ private:
 
 	int _clipmap_levels;
 	godot::Ref<godot::Texture2D> _albedo_texture;
+
+	godot::Ref<godot::FastNoiseLite> _internal_noise;
+	godot::Ref<godot::ImageTexture> _noise_preview;
+	void _update_preview();
 
 protected:
 	static void _bind_methods();
@@ -56,6 +61,8 @@ public:
 
 	godot::Ref<godot::Texture2D> get_albedo_texture() const;
 	void set_albedo_texture(const godot::Ref<godot::Texture2D> &p_texture);
+
+	godot::Ref<godot::ImageTexture> get_noise_preview() const;
 };
 
 } //namespace ts
