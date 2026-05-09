@@ -6,4 +6,4 @@
 [![Build](https://github.com/mdoradom/TerrainServer/actions/workflows/build.yml/badge.svg)](https://github.com/mdoradom/TerrainServer/actions/workflows/build.yml)
 
 > [!NOTE]
-> Every time you add a new class to the pluging, re-generate `compile_commands.json` by running `scons compiledb=yes` in the terminal.
+> Every time you add a new class to the plugin, re-generate `compile_commands.json` by running `scons compiledb=yes` in the terminal.
