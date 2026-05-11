@@ -39,7 +39,7 @@ void TerrainConfiguration::_bind_methods() {
 	ADD_PROPERTY(PropertyInfo(Variant::INT, "clipmap_levels", PROPERTY_HINT_RANGE, "1,10"), "set_clipmap_levels", "get_clipmap_levels");
 
 	ClassDB::bind_method(D_METHOD("get_noise_preview"), &TerrainConfiguration::get_noise_preview);
-	ADD_PROPERTY(PropertyInfo(Variant::OBJECT, "noise_preview", PROPERTY_HINT_RESOURCE_TYPE, "ImageTexture"), "", "get_noise_preview");
+	ADD_PROPERTY(PropertyInfo(Variant::OBJECT, "noise_preview", PROPERTY_HINT_RESOURCE_TYPE, "ImageTexture", PROPERTY_USAGE_EDITOR), "", "get_noise_preview");
 
 	ClassDB::bind_method(D_METHOD("set_albedo_texture", "texture"), &TerrainConfiguration::set_albedo_texture);
 	ClassDB::bind_method(D_METHOD("get_albedo_texture"), &TerrainConfiguration::get_albedo_texture);
@@ -50,17 +50,18 @@ TerrainConfiguration::TerrainConfiguration() : _height_scale(10.0), _mesh_resolu
 	_internal_noise.instantiate();
 	_internal_noise->set_noise_type(FastNoiseLite::TYPE_PERLIN);
 	_internal_noise->set_fractal_type(FastNoiseLite::FRACTAL_FBM);
-
-	_noise_preview.instantiate();
-	_update_preview();
 }
 
 TerrainConfiguration::~TerrainConfiguration() {
 }
 
 void TerrainConfiguration::_update_preview() {
-	if (!_internal_noise.is_valid() || !_noise_preview.is_valid()) {
+	if (!_internal_noise.is_valid()) {
 		return;
+	}
+
+	if (!_noise_preview.is_valid()) {
+		_noise_preview.instantiate();
 	}
 
 	_internal_noise->set_fractal_octaves(_noise_octaves);
