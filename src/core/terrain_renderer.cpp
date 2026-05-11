@@ -47,7 +47,7 @@ void TerrainRenderer::cleanup() {
 	}
 
 	if (_internal_shader_rid.is_valid()) {
-		RenderingServer::get_singleton()->free_rid(_internal_shader_rid);
+		rs->free_rid(_internal_shader_rid);
 		_internal_shader_rid = RID();
 	}
 }
