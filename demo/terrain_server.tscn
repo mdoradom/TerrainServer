@@ -37,6 +37,10 @@ noise_lacunarity = 1.416
 noise_preview = SubResource("ImageTexture_q4ink")
 albedo_texture = ExtResource("1_j1qb7")
 
+[sub_resource type="SphereShape3D" id="SphereShape3D_7s5li"]
+
+[sub_resource type="SphereMesh" id="SphereMesh_pegvl"]
+
 [node name="Node3D" type="Node3D" unique_id=695386943]
 
 [node name="WorldEnvironment" type="WorldEnvironment" parent="." unique_id=2050402637]
@@ -49,7 +53,16 @@ shadow_normal_bias = 0.05
 shadow_blur = 10.0
 
 [node name="Camera3D" type="Camera3D" parent="." unique_id=699225141]
-transform = Transform3D(0.9077775, 0.066339724, -0.41417277, 0, 0.9874138, 0.15815806, 0.41945207, -0.14357233, 0.89635205, 0, 15.277344, 0)
+transform = Transform3D(0.9077775, 0.066339724, -0.41417277, 0, 0.9874138, 0.15815806, 0.41945207, -0.14357233, 0.89635205, -2.959343, 3.6941547, 9.376048)
 
 [node name="Terrain3D" type="Terrain3D" parent="." unique_id=789345193]
 configuration = SubResource("TerrainConfiguration_pt7ik")
+
+[node name="RigidBody3D" type="RigidBody3D" parent="." unique_id=1456719488]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 5.1342397, -3.5445926)
+
+[node name="CollisionShape3D" type="CollisionShape3D" parent="RigidBody3D" unique_id=936135791]
+shape = SubResource("SphereShape3D_7s5li")
+
+[node name="MeshInstance3D" type="MeshInstance3D" parent="RigidBody3D" unique_id=837949051]
+mesh = SubResource("SphereMesh_pegvl")
