@@ -22,11 +22,16 @@ Terrain3D::Terrain3D() {
 	set_process(true);
 	_renderer.instantiate();
 	_generator.instantiate();
+	_physics.instantiate();
 }
 
 Terrain3D::~Terrain3D() {
 	if (_config.is_valid()) {
 		_config->disconnect("changed", Callable(this, "_on_config_changed"));
+	}
+
+	if (_physics.is_valid()) {
+		_physics->cleanup();
 	}
 
 	if (_renderer.is_valid()) {
@@ -36,6 +41,7 @@ Terrain3D::~Terrain3D() {
 
 void Terrain3D::_ready() {
 	_renderer->initialize(this);
+	_physics->initialize(this);
 }
 
 void Terrain3D::_process(double delta) {
@@ -53,12 +59,18 @@ void Terrain3D::_process(double delta) {
 void Terrain3D::_notification(const int p_what) {
 	switch (p_what) {
 		case NOTIFICATION_EXIT_TREE: {
+			if (_physics.is_valid()) {
+				_physics->cleanup();
+			}
 			if (_renderer.is_valid()) {
 				_renderer->cleanup();
 			}
 		} break;
 
 		case NOTIFICATION_ENTER_TREE: {
+			if (_physics.is_valid()) {
+				_physics->initialize(this);
+			}
 			if (_renderer.is_valid()) {
 				_renderer->initialize(this);
 				_on_config_changed();
@@ -68,11 +80,12 @@ void Terrain3D::_notification(const int p_what) {
 }
 
 void Terrain3D::_on_config_changed() {
-	if (!_config.is_valid() || !_renderer.is_valid() || !_generator.is_valid()) {
+	if (!_config.is_valid() || !_renderer.is_valid() || !_generator.is_valid() || !_physics.is_valid()) {
 		return;
 	}
 
 	_generator->setup(_config);
+	_physics->set_configuration(_config);
 	_renderer->set_generator(_generator);
 	_renderer->set_configuration(_config);
 	_renderer->rebuild_mesh(_config->get_terrain_size(), _config->get_mesh_resolution());

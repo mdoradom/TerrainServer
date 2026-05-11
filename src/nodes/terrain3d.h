@@ -2,6 +2,7 @@
 
 #include "core/terrain_configuration.h"
 #include "core/terrain_generator.h"
+#include "core/terrain_physics.h"
 #include "core/terrain_renderer.h"
 
 #include <godot_cpp/classes/node3d.hpp>
@@ -15,6 +16,7 @@ private:
 	godot::Ref<TerrainConfiguration> _config;
 	godot::Ref<TerrainRenderer> _renderer;
 	godot::Ref<TerrainGenerator> _generator;
+	godot::Ref<TerrainPhysics> _physics;
 
 protected:
 	static void _bind_methods();
