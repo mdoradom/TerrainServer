@@ -7,6 +7,7 @@
 #include <godot_cpp/classes/scene_tree.hpp>
 #include <godot_cpp/classes/world3d.hpp>
 #include <godot_cpp/variant/array.hpp>
+#include <godot_cpp/variant/callable_method_pointer.hpp>
 #include <godot_cpp/variant/dictionary.hpp>
 #include <godot_cpp/variant/packed_float32_array.hpp>
 #include <godot_cpp/variant/packed_vector3_array.hpp>
@@ -33,6 +34,11 @@ void TerrainPhysics::initialize(Node3D *p_parent) {
 }
 
 void TerrainPhysics::cleanup() {
+	if (_rebuild_in_flight) {
+		WorkerThreadPool::get_singleton()->wait_for_task_completion(_rebuild_task_id);
+		_rebuild_in_flight = false;
+	}
+
 	PhysicsServer3D *ps = PhysicsServer3D::get_singleton();
 
 	if (_shape_rid.is_valid()) {
@@ -142,6 +148,18 @@ void TerrainPhysics::update_camera_position(const Vector3 p_camera_pos) {
 		return;
 	}
 
+	if (_rebuild_in_flight) {
+		if (!WorkerThreadPool::get_singleton()->is_task_completed(_rebuild_task_id)) {
+			return;
+		}
+
+		WorkerThreadPool::get_singleton()->wait_for_task_completion(_rebuild_task_id);
+		_rebuild_in_flight = false;
+		_apply_heightmap();
+		_last_built_origin = Vector2(_job_center_x, _job_center_z);
+		_has_built = true;
+	}
+
 	const float cell_size = _range / static_cast<float>(_grid_resolution);
 	const float snapped_x = floorf(p_camera_pos.x / cell_size) * cell_size;
 	const float snapped_z = floorf(p_camera_pos.z / cell_size) * cell_size;
@@ -152,9 +170,7 @@ void TerrainPhysics::update_camera_position(const Vector3 p_camera_pos) {
 			fabsf(snapped_z - _last_built_origin.y) >= rebuild_margin;
 
 	if (need_rebuild) {
-		_rebuild_heightmap(snapped_x, snapped_z);
-		_last_built_origin = Vector2(snapped_x, snapped_z);
-		_has_built = true;
+		_start_heightmap_rebuild(snapped_x, snapped_z);
 	}
 }
 
@@ -166,13 +182,22 @@ float TerrainPhysics::get_height_at(const Vector2 p_world_xz) const {
 	return TerrainNoise::get_height_at(p_world_xz, _noise_params);
 }
 
-void TerrainPhysics::_rebuild_heightmap(const float p_center_x, const float p_center_z) {
-	PhysicsServer3D *ps = PhysicsServer3D::get_singleton();
+void TerrainPhysics::_start_heightmap_rebuild(const float p_center_x, const float p_center_z) {
+	_job_center_x = p_center_x;
+	_job_center_z = p_center_z;
+	_job_grid_resolution = _grid_resolution;
+	_job_range = _range;
+	_job_noise_params = _noise_params;
 
-	const int width = _grid_resolution + 1;
+	_rebuild_task_id = WorkerThreadPool::get_singleton()->add_task(callable_mp(this, &TerrainPhysics::_compute_heightmap_task), false, "TerrainHeightmapRebuild");
+	_rebuild_in_flight = true;
+}
+
+void TerrainPhysics::_compute_heightmap_task() {
+	const int width = _job_grid_resolution + 1;
 	const int depth = width;
-	const float cell_size = _range / static_cast<float>(_grid_resolution);
-	const float half_res = static_cast<float>(_grid_resolution) * 0.5f;
+	const float cell_size = _job_range / static_cast<float>(_job_grid_resolution);
+	const float half_res = static_cast<float>(_job_grid_resolution) * 0.5f;
 
 	PackedFloat32Array heights;
 	heights.resize(width * depth);
@@ -185,30 +210,42 @@ void TerrainPhysics::_rebuild_heightmap(const float p_center_x, const float p_ce
 		for (int col = 0; col < width; col++) {
 			const float local_x = static_cast<float>(col) - half_res;
 			const float local_z = static_cast<float>(row) - half_res;
-			const float world_x = p_center_x + local_x * cell_size;
-			const float world_z = p_center_z + local_z * cell_size;
+			const float world_x = _job_center_x + local_x * cell_size;
+			const float world_z = _job_center_z + local_z * cell_size;
 
-			const float h = TerrainNoise::get_height_at(Vector2(world_x, world_z), _noise_params);
+			const float h = TerrainNoise::get_height_at(Vector2(world_x, world_z), _job_noise_params);
 			w[row * width + col] = h;
 			min_h = std::min(min_h, h);
 			max_h = std::max(max_h, h);
 		}
 	}
 
+	_job_heights = heights;
+	_job_min_h = min_h;
+	_job_max_h = max_h;
+}
+
+void TerrainPhysics::_apply_heightmap() {
+	PhysicsServer3D *ps = PhysicsServer3D::get_singleton();
+
+	const int width = _job_grid_resolution + 1;
+	const int depth = width;
+	const float cell_size = _job_range / static_cast<float>(_job_grid_resolution);
+
 	Dictionary shape_data;
 	shape_data["width"] = width;
 	shape_data["depth"] = depth;
-	shape_data["heights"] = heights;
-	shape_data["min_height"] = min_h;
-	shape_data["max_height"] = max_h;
+	shape_data["heights"] = _job_heights;
+	shape_data["min_height"] = _job_min_h;
+	shape_data["max_height"] = _job_max_h;
 	ps->shape_set_data(_shape_rid, shape_data);
 
 	Transform3D xform;
 	xform.basis = xform.basis.scaled(Vector3(cell_size, 1.0f, cell_size));
-	xform.origin = Vector3(p_center_x, 0.0f, p_center_z);
+	xform.origin = Vector3(_job_center_x, 0.0f, _job_center_z);
 	ps->body_set_state(_body_rid, PhysicsServer3D::BODY_STATE_TRANSFORM, xform);
 
-	_update_debug_mesh(heights, width, depth, cell_size, p_center_x, p_center_z);
+	_update_debug_mesh(_job_heights, width, depth, cell_size, _job_center_x, _job_center_z);
 }
 
 void TerrainPhysics::_update_debug_mesh(const PackedFloat32Array &p_heights, const int p_width, const int p_depth, const float p_cell_size, const float p_center_x, const float p_center_z) {
