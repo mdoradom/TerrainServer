@@ -51,6 +51,9 @@ void Terrain3D::_process(double delta) {
 			const Camera3D *camera = viewport->get_camera_3d();
 			if (camera != nullptr) {
 				_renderer->update_camera_position(camera->get_global_position());
+				if (_physics.is_valid()) {
+					_physics->update_camera_position(camera->get_global_position());
+				}
 			}
 		}
 	}
