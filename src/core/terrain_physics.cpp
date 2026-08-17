@@ -146,6 +146,14 @@ void TerrainPhysics::update_camera_position(const Vector3 p_camera_pos) {
 	}
 }
 
+float TerrainPhysics::get_height_at(const Vector2 p_world_xz) const {
+	if (!_config.is_valid()) {
+		return 0.0f;
+	}
+
+	return TerrainNoise::get_height_at(p_world_xz, _noise_params);
+}
+
 void TerrainPhysics::_rebuild_heightmap(const float p_center_x, const float p_center_z) {
 	PhysicsServer3D *ps = PhysicsServer3D::get_singleton();
 

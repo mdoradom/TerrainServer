@@ -12,6 +12,7 @@ namespace ts {
 void Terrain3D::_bind_methods() {
 	ClassDB::bind_method(D_METHOD("set_configuration", "config"), &Terrain3D::set_configuration);
 	ClassDB::bind_method(D_METHOD("get_configuration"), &Terrain3D::get_configuration);
+	ClassDB::bind_method(D_METHOD("get_height_at", "world_xz"), &Terrain3D::get_height_at);
 	ClassDB::bind_method(D_METHOD("_on_config_changed"), &Terrain3D::_on_config_changed);
 
 	ADD_PROPERTY(PropertyInfo(Variant::OBJECT, "configuration", PROPERTY_HINT_RESOURCE_TYPE, "TerrainConfiguration"), "set_configuration", "get_configuration");
@@ -114,6 +115,14 @@ void Terrain3D::set_configuration(const Ref<TerrainConfiguration> &p_config) {
 
 Ref<TerrainConfiguration> Terrain3D::get_configuration() const {
 	return _config;
+}
+
+float Terrain3D::get_height_at(const Vector2 p_world_xz) const {
+	if (!_physics.is_valid()) {
+		return 0.0f;
+	}
+
+	return _physics->get_height_at(p_world_xz);
 }
 
 } //namespace ts
