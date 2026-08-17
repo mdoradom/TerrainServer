@@ -59,6 +59,10 @@ void TerrainPhysics::set_configuration(const Ref<TerrainConfiguration> &p_config
 		return;
 	}
 
+	const TerrainNoise::FbmParams previous_noise_params = _noise_params;
+	const float previous_range = _range;
+	const int previous_grid_resolution = _grid_resolution;
+
 	_noise_params.octaves = _config->get_noise_octaves();
 	_noise_params.base_frequency = _config->get_noise_base_frequency();
 	_noise_params.lacunarity = _config->get_noise_lacunarity();
@@ -90,7 +94,17 @@ void TerrainPhysics::set_configuration(const Ref<TerrainConfiguration> &p_config
 	const int desired_resolution = static_cast<int>(ceilf(_range / visual_cell_size));
 	_grid_resolution = std::clamp(desired_resolution, PHYSICS_MIN_GRID_RESOLUTION, PHYSICS_MAX_GRID_RESOLUTION);
 
-	_has_built = false;
+	const bool heightmap_params_changed = _grid_resolution != previous_grid_resolution ||
+			_range != previous_range ||
+			_noise_params.octaves != previous_noise_params.octaves ||
+			_noise_params.base_frequency != previous_noise_params.base_frequency ||
+			_noise_params.lacunarity != previous_noise_params.lacunarity ||
+			_noise_params.gain != previous_noise_params.gain ||
+			_noise_params.height_scale != previous_noise_params.height_scale;
+
+	if (heightmap_params_changed) {
+		_has_built = false;
+	}
 }
 
 void TerrainPhysics::_ensure_body_created() {

@@ -29,6 +29,8 @@ private:
 
 	std::vector<ClipmapLevel> _clipmap_levels;
 
+	void _free_mesh_instances();
+
 protected:
 	static void _bind_methods();
 
