@@ -1,7 +1,6 @@
 #pragma once
 
 #include "terrain_configuration.h"
-#include "terrain_generator.h"
 
 #include <godot_cpp/classes/material.hpp>
 #include <godot_cpp/classes/node3d.hpp>
@@ -20,8 +19,6 @@ private:
 	godot::RID _internal_shader_rid;
 	godot::Node3D *_parent_node = nullptr;
 
-	// TODO maybe we can get rid of _generator and use the static methods directly?
-	godot::Ref<TerrainGenerator> _generator;
 	godot::Ref<TerrainConfiguration> _config;
 
 	struct ClipmapLevel {
@@ -42,7 +39,6 @@ public:
 	void initialize(godot::Node3D *p_parent);
 	void cleanup();
 
-	void set_generator(const godot::Ref<TerrainGenerator> &p_generator);
 	void set_configuration(const godot::Ref<TerrainConfiguration> &p_config);
 
 	void rebuild_mesh(float p_size, int p_resolution);

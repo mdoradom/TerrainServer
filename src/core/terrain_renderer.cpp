@@ -1,5 +1,7 @@
 #include "terrain_renderer.h"
 
+#include "terrain_generator.h"
+
 #include <godot_cpp/classes/array_mesh.hpp>
 #include <godot_cpp/classes/file_access.hpp>
 #include <godot_cpp/classes/world3d.hpp>
@@ -56,7 +58,7 @@ void TerrainRenderer::rebuild_mesh(const float p_size, const int p_resolution) {
 	RenderingServer *rs = RenderingServer::get_singleton();
 	cleanup();
 
-	if (!_generator.is_valid() || !_config.is_valid()) {
+	if (!_config.is_valid()) {
 		return;
 	}
 
@@ -148,10 +150,6 @@ void TerrainRenderer::update_camera_position(const Vector3 p_camera_pos) {
 }
 
 // ============== Getters and setters ==============
-
-void TerrainRenderer::set_generator(const Ref<TerrainGenerator> &p_generator) {
-	_generator = p_generator;
-}
 
 void TerrainRenderer::set_configuration(const Ref<TerrainConfiguration> &p_config) {
 	_config = p_config;

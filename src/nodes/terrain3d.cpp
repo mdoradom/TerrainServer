@@ -90,7 +90,6 @@ void Terrain3D::_on_config_changed() {
 
 	_generator->setup(_config);
 	_physics->set_configuration(_config);
-	_renderer->set_generator(_generator);
 	_renderer->set_configuration(_config);
 	_renderer->rebuild_mesh(_config->get_terrain_size(), _config->get_mesh_resolution());
 }
