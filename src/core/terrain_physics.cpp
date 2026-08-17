@@ -134,7 +134,7 @@ void TerrainPhysics::_ensure_body_created() {
 	ps->body_set_space(_body_rid, space);
 }
 
-void TerrainPhysics::update_camera_position(const Vector3 p_camera_pos) {
+void TerrainPhysics::update_focus_position(const Vector3 p_focus_pos) {
 	if (!_config.is_valid() || _grid_resolution <= 0 || _range <= 0.0f) {
 		return;
 	}
@@ -161,8 +161,8 @@ void TerrainPhysics::update_camera_position(const Vector3 p_camera_pos) {
 	}
 
 	const float cell_size = _range / static_cast<float>(_grid_resolution);
-	const float snapped_x = floorf(p_camera_pos.x / cell_size) * cell_size;
-	const float snapped_z = floorf(p_camera_pos.z / cell_size) * cell_size;
+	const float snapped_x = floorf(p_focus_pos.x / cell_size) * cell_size;
+	const float snapped_z = floorf(p_focus_pos.z / cell_size) * cell_size;
 
 	const float rebuild_margin = _range * 0.25f;
 	const bool need_rebuild = !_has_built ||

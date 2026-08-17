@@ -61,7 +61,7 @@ public:
 	void initialize(godot::Node3D *p_parent);
 	void cleanup();
 	void set_configuration(const godot::Ref<TerrainConfiguration> &p_config);
-	void update_camera_position(godot::Vector3 p_camera_pos);
+	void update_focus_position(godot::Vector3 p_focus_pos);
 	float get_height_at(godot::Vector2 p_world_xz) const;
 };
 } //namespace ts

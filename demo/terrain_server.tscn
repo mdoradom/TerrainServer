@@ -44,6 +44,7 @@ transform = Transform3D(0.9077775, 0.066339724, -0.41417277, 0, 0.9874138, 0.158
 
 [node name="Terrain3D" type="Terrain3D" parent="." unique_id=1294411717]
 configuration = SubResource("TerrainConfiguration_b3x7c")
+focus_path = NodePath("../Camera3D")
 
 [node name="Node3D" type="Node3D" parent="." unique_id=2110923160]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 8.016816, 0)

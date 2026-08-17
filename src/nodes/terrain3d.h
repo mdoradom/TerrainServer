@@ -6,6 +6,7 @@
 #include "core/terrain_renderer.h"
 
 #include <godot_cpp/classes/node3d.hpp>
+#include <godot_cpp/variant/node_path.hpp>
 
 namespace ts {
 
@@ -17,6 +18,7 @@ private:
 	godot::Ref<TerrainRenderer> _renderer;
 	godot::Ref<TerrainGenerator> _generator;
 	godot::Ref<TerrainPhysics> _physics;
+	godot::NodePath _focus_path;
 
 protected:
 	static void _bind_methods();
@@ -33,6 +35,9 @@ public:
 	void set_configuration(const godot::Ref<TerrainConfiguration> &p_config);
 	godot::Ref<TerrainConfiguration> get_configuration() const;
 	float get_height_at(godot::Vector2 p_world_xz) const;
+
+	void set_focus_path(const godot::NodePath &p_path);
+	godot::NodePath get_focus_path() const;
 };
 
 } //namespace ts
