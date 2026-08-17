@@ -24,6 +24,8 @@ private:
 	TerrainNoise::FbmParams _noise_params;
 	int _grid_resolution = 0;
 	float _range = 0.0f;
+	uint32_t _collision_layer = 1;
+	uint32_t _collision_mask = 0;
 
 	bool _has_built = false;
 	godot::Vector2 _last_built_origin;

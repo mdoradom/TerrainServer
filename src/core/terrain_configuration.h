@@ -24,6 +24,8 @@ private:
 	int _clipmap_levels;
 
 	float _physics_range;
+	int _physics_collision_layer;
+	int _physics_collision_mask;
 
 	godot::Ref<godot::Texture2D> _albedo_texture;
 
@@ -64,6 +66,12 @@ public:
 
 	float get_physics_range() const;
 	void set_physics_range(float p_range);
+
+	int get_physics_collision_layer() const;
+	void set_physics_collision_layer(int p_layer);
+
+	int get_physics_collision_mask() const;
+	void set_physics_collision_mask(int p_mask);
 
 	godot::Ref<godot::Texture2D> get_albedo_texture() const;
 	void set_albedo_texture(const godot::Ref<godot::Texture2D> &p_texture);

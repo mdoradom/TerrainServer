@@ -35,6 +35,12 @@ void TerrainConfiguration::_bind_methods() {
 	ClassDB::bind_method(D_METHOD("set_physics_range", "range"), &TerrainConfiguration::set_physics_range);
 	ClassDB::bind_method(D_METHOD("get_physics_range"), &TerrainConfiguration::get_physics_range);
 
+	ClassDB::bind_method(D_METHOD("set_physics_collision_layer", "layer"), &TerrainConfiguration::set_physics_collision_layer);
+	ClassDB::bind_method(D_METHOD("get_physics_collision_layer"), &TerrainConfiguration::get_physics_collision_layer);
+
+	ClassDB::bind_method(D_METHOD("set_physics_collision_mask", "mask"), &TerrainConfiguration::set_physics_collision_mask);
+	ClassDB::bind_method(D_METHOD("get_physics_collision_mask"), &TerrainConfiguration::get_physics_collision_mask);
+
 	ClassDB::bind_method(D_METHOD("set_albedo_texture", "texture"), &TerrainConfiguration::set_albedo_texture);
 	ClassDB::bind_method(D_METHOD("get_albedo_texture"), &TerrainConfiguration::get_albedo_texture);
 
@@ -53,12 +59,14 @@ void TerrainConfiguration::_bind_methods() {
 
 	ADD_GROUP("Physics", "physics_");
 	ADD_PROPERTY(PropertyInfo(Variant::FLOAT, "physics_range", PROPERTY_HINT_RANGE, "8.0,512.0"), "set_physics_range", "get_physics_range");
+	ADD_PROPERTY(PropertyInfo(Variant::INT, "physics_collision_layer", PROPERTY_HINT_LAYERS_3D_PHYSICS), "set_physics_collision_layer", "get_physics_collision_layer");
+	ADD_PROPERTY(PropertyInfo(Variant::INT, "physics_collision_mask", PROPERTY_HINT_LAYERS_3D_PHYSICS), "set_physics_collision_mask", "get_physics_collision_mask");
 
 	ADD_GROUP("Material", "");
 	ADD_PROPERTY(PropertyInfo(Variant::OBJECT, "albedo_texture", PROPERTY_HINT_RESOURCE_TYPE, "Texture2D"), "set_albedo_texture", "get_albedo_texture");
 }
 
-TerrainConfiguration::TerrainConfiguration() : _height_scale(10.0), _mesh_resolution(256), _terrain_size(256.0f), _noise_octaves(5), _noise_base_frequency(0.002f), _noise_lacunarity(2.0f), _noise_gain(0.5f), _clipmap_levels(6), _physics_range(64.0f) {
+TerrainConfiguration::TerrainConfiguration() : _height_scale(10.0), _mesh_resolution(256), _terrain_size(256.0f), _noise_octaves(5), _noise_base_frequency(0.002f), _noise_lacunarity(2.0f), _noise_gain(0.5f), _clipmap_levels(6), _physics_range(64.0f), _physics_collision_layer(1), _physics_collision_mask(0) {
 	_internal_noise.instantiate();
 	_internal_noise->set_noise_type(FastNoiseLite::TYPE_PERLIN);
 	_internal_noise->set_fractal_type(FastNoiseLite::FRACTAL_FBM);
@@ -187,6 +195,28 @@ float TerrainConfiguration::get_physics_range() const {
 void TerrainConfiguration::set_physics_range(const float p_range) {
 	if (_physics_range != p_range) {
 		_physics_range = p_range;
+		emit_changed();
+	}
+}
+
+int TerrainConfiguration::get_physics_collision_layer() const {
+	return _physics_collision_layer;
+}
+
+void TerrainConfiguration::set_physics_collision_layer(const int p_layer) {
+	if (_physics_collision_layer != p_layer) {
+		_physics_collision_layer = p_layer;
+		emit_changed();
+	}
+}
+
+int TerrainConfiguration::get_physics_collision_mask() const {
+	return _physics_collision_mask;
+}
+
+void TerrainConfiguration::set_physics_collision_mask(const int p_mask) {
+	if (_physics_collision_mask != p_mask) {
+		_physics_collision_mask = p_mask;
 		emit_changed();
 	}
 }
