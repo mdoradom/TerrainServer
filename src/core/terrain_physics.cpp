@@ -17,10 +17,8 @@ using namespace godot;
 
 namespace ts {
 
-namespace {
 constexpr int PHYSICS_MIN_GRID_RESOLUTION = 8;
 constexpr int PHYSICS_MAX_GRID_RESOLUTION = 256;
-} // namespace
 
 void TerrainPhysics::_bind_methods() {}
 
