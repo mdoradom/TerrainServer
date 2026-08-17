@@ -70,6 +70,14 @@ void TerrainPhysics::set_configuration(const Ref<TerrainConfiguration> &p_config
 		_range = 64.0f;
 	}
 
+	_collision_layer = static_cast<uint32_t>(_config->get_physics_collision_layer());
+	_collision_mask = static_cast<uint32_t>(_config->get_physics_collision_mask());
+	if (_body_rid.is_valid()) {
+		PhysicsServer3D *ps = PhysicsServer3D::get_singleton();
+		ps->body_set_collision_layer(_body_rid, _collision_layer);
+		ps->body_set_collision_mask(_body_rid, _collision_mask);
+	}
+
 	float terrain_size = _config->get_terrain_size();
 	if (terrain_size <= 0.0f) {
 		terrain_size = 256.0f;
@@ -98,8 +106,8 @@ void TerrainPhysics::_ensure_body_created() {
 
 	_body_rid = ps->body_create();
 	ps->body_set_mode(_body_rid, PhysicsServer3D::BODY_MODE_STATIC);
-	ps->body_set_collision_layer(_body_rid, 1);
-	ps->body_set_collision_mask(_body_rid, 0);
+	ps->body_set_collision_layer(_body_rid, _collision_layer);
+	ps->body_set_collision_mask(_body_rid, _collision_mask);
 
 	_shape_rid = ps->heightmap_shape_create();
 	ps->body_add_shape(_body_rid, _shape_rid);
