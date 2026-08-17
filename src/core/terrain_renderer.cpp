@@ -23,7 +23,7 @@ void TerrainRenderer::initialize(Node3D *p_parent) {
 	_parent_node = p_parent;
 }
 
-void TerrainRenderer::cleanup() {
+void TerrainRenderer::_free_mesh_instances() {
 	RenderingServer *rs = RenderingServer::get_singleton();
 
 	for (const auto &level : _clipmap_levels) {
@@ -47,7 +47,12 @@ void TerrainRenderer::cleanup() {
 		rs->free_rid(_mesh_ring_rid);
 		_mesh_ring_rid = RID();
 	}
+}
 
+void TerrainRenderer::cleanup() {
+	_free_mesh_instances();
+
+	RenderingServer *rs = RenderingServer::get_singleton();
 	if (_internal_shader_rid.is_valid()) {
 		rs->free_rid(_internal_shader_rid);
 		_internal_shader_rid = RID();
@@ -56,7 +61,7 @@ void TerrainRenderer::cleanup() {
 
 void TerrainRenderer::rebuild_mesh(const float p_size, const int p_resolution) {
 	RenderingServer *rs = RenderingServer::get_singleton();
-	cleanup();
+	_free_mesh_instances();
 
 	if (!_config.is_valid()) {
 		return;
