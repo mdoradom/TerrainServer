@@ -32,6 +32,7 @@ public:
 
 	void set_configuration(const godot::Ref<TerrainConfiguration> &p_config);
 	godot::Ref<TerrainConfiguration> get_configuration() const;
+	float get_height_at(godot::Vector2 p_world_xz) const;
 };
 
 } //namespace ts
