@@ -10,9 +10,6 @@ namespace ts {
 class TerrainGenerator : public godot::RefCounted {
 	GDCLASS(TerrainGenerator, godot::RefCounted);
 
-private:
-	double _height_scale;
-
 protected:
 	static void _bind_methods();
 
