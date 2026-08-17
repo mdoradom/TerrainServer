@@ -5,11 +5,14 @@
 #include <godot_cpp/classes/array_mesh.hpp>
 #include <godot_cpp/classes/file_access.hpp>
 #include <godot_cpp/classes/world3d.hpp>
+#include <godot_cpp/variant/aabb.hpp>
 #include <godot_cpp/variant/vector3.hpp>
 
 using namespace godot;
 
 namespace ts {
+
+constexpr float HEIGHT_AABB_MARGIN = 1.25f;
 
 void TerrainRenderer::_bind_methods() {}
 
@@ -85,12 +88,18 @@ void TerrainRenderer::rebuild_mesh(const float p_size, const int p_resolution) {
 	rs->mesh_add_surface_from_arrays(_mesh_ring_rid, RenderingServer::PRIMITIVE_TRIANGLES, ring_mesh->surface_get_arrays(0));
 
 	int num_levels = _config->get_clipmap_levels();
-	if (num_levels <= 0) num_levels = 6;
+	if (num_levels <= 0) {
+		num_levels = 6;
+	}
+
+	const float half_height = static_cast<float>(_config->get_height_scale()) * HEIGHT_AABB_MARGIN;
+	const AABB custom_aabb(Vector3(-0.5f, -half_height, -0.5f), Vector3(1.0f, half_height * 2.0f, 1.0f));
 
 	for (int i = 0; i < num_levels; i++) {
 		RID instance = rs->instance_create();
 		RID mesh_to_use = (i == 0) ? _mesh_rid : _mesh_ring_rid;
 		rs->instance_set_base(instance, mesh_to_use);
+		rs->instance_set_custom_aabb(instance, custom_aabb);
 
 		RID material = rs->material_create();
 		rs->material_set_shader(material, _internal_shader_rid);
