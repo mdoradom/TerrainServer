@@ -135,7 +135,7 @@ void TerrainRenderer::rebuild_mesh(const float p_size, const int p_resolution) {
 	}
 }
 
-void TerrainRenderer::update_camera_position(const Vector3 p_camera_pos) {
+void TerrainRenderer::update_focus_position(const Vector3 p_focus_pos) {
 	RenderingServer *rs = RenderingServer::get_singleton();
 
 	if (!_config.is_valid() || _clipmap_levels.empty()) {
@@ -151,8 +151,8 @@ void TerrainRenderer::update_camera_position(const Vector3 p_camera_pos) {
 	// We use the finest grid's resolution to snap ALL levels in unison.
 	// This prevents the rings from sliding and misaligning.
 	const float base_cell_size = _clipmap_levels[0].scale / static_cast<float>(resolution);
-	const float snapped_x = floorf(p_camera_pos.x / base_cell_size) * base_cell_size;
-	const float snapped_z = floorf(p_camera_pos.z / base_cell_size) * base_cell_size;
+	const float snapped_x = floorf(p_focus_pos.x / base_cell_size) * base_cell_size;
+	const float snapped_z = floorf(p_focus_pos.z / base_cell_size) * base_cell_size;
 
 	for (const auto &level : _clipmap_levels) {
 		Transform3D xform;

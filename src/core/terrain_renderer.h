@@ -44,7 +44,7 @@ public:
 	void set_configuration(const godot::Ref<TerrainConfiguration> &p_config);
 
 	void rebuild_mesh(float p_size, int p_resolution);
-	void update_camera_position(godot::Vector3 p_camera_pos);
+	void update_focus_position(godot::Vector3 p_focus_pos);
 };
 
 } //namespace ts
