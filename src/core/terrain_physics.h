@@ -3,6 +3,8 @@
 #include "terrain_noise.h"
 #include <godot_cpp/classes/node3d.hpp>
 #include <godot_cpp/classes/ref_counted.hpp>
+#include <godot_cpp/classes/worker_thread_pool.hpp>
+#include <godot_cpp/variant/packed_float32_array.hpp>
 #include <godot_cpp/variant/rid.hpp>
 #include <godot_cpp/variant/vector2.hpp>
 namespace ts {
@@ -30,8 +32,23 @@ private:
 	bool _has_built = false;
 	godot::Vector2 _last_built_origin;
 
+	bool _rebuild_in_flight = false;
+	godot::WorkerThreadPool::TaskID _rebuild_task_id = godot::WorkerThreadPool::INVALID_TASK_ID;
+
+	float _job_center_x = 0.0f;
+	float _job_center_z = 0.0f;
+	int _job_grid_resolution = 0;
+	float _job_range = 0.0f;
+	TerrainNoise::FbmParams _job_noise_params;
+
+	godot::PackedFloat32Array _job_heights;
+	float _job_min_h = 0.0f;
+	float _job_max_h = 0.0f;
+
 	void _ensure_body_created();
-	void _rebuild_heightmap(float p_center_x, float p_center_z);
+	void _start_heightmap_rebuild(float p_center_x, float p_center_z);
+	void _compute_heightmap_task();
+	void _apply_heightmap();
 	void _update_debug_mesh(const godot::PackedFloat32Array &p_heights, int p_width, int p_depth, float p_cell_size, float p_center_x, float p_center_z);
 	void _cleanup_debug_mesh();
 
