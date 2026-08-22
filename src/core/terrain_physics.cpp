@@ -3,14 +3,10 @@
 #include <algorithm>
 #include <cmath>
 #include <godot_cpp/classes/physics_server3d.hpp>
-#include <godot_cpp/classes/rendering_server.hpp>
-#include <godot_cpp/classes/scene_tree.hpp>
 #include <godot_cpp/classes/world3d.hpp>
-#include <godot_cpp/variant/array.hpp>
 #include <godot_cpp/variant/callable_method_pointer.hpp>
 #include <godot_cpp/variant/dictionary.hpp>
 #include <godot_cpp/variant/packed_float32_array.hpp>
-#include <godot_cpp/variant/packed_vector3_array.hpp>
 #include <godot_cpp/variant/transform3d.hpp>
 #include <limits>
 
@@ -50,8 +46,6 @@ void TerrainPhysics::cleanup() {
 		ps->free_rid(_body_rid);
 		_body_rid = RID();
 	}
-
-	_cleanup_debug_mesh();
 
 	_has_built = false;
 }
@@ -244,96 +238,6 @@ void TerrainPhysics::_apply_heightmap() {
 	xform.basis = xform.basis.scaled(Vector3(cell_size, 1.0f, cell_size));
 	xform.origin = Vector3(_job_center_x, 0.0f, _job_center_z);
 	ps->body_set_state(_body_rid, PhysicsServer3D::BODY_STATE_TRANSFORM, xform);
-
-	_update_debug_mesh(_job_heights, width, depth, cell_size, _job_center_x, _job_center_z);
-}
-
-void TerrainPhysics::_update_debug_mesh(const PackedFloat32Array &p_heights, const int p_width, const int p_depth, const float p_cell_size, const float p_center_x, const float p_center_z) {
-	if (!_parent_node || !_parent_node->get_tree() || !_parent_node->get_tree()->is_debugging_collisions_hint()) {
-		_cleanup_debug_mesh();
-		return;
-	}
-
-	RenderingServer *rs = RenderingServer::get_singleton();
-
-	const float half_res = static_cast<float>(p_width - 1) * 0.5f;
-	PackedVector3Array lines;
-	lines.resize(((p_width - 1) * p_depth + p_width * (p_depth - 1)) * 2);
-	Vector3 *w = lines.ptrw();
-	int idx = 0;
-
-	for (int row = 0; row < p_depth; row++) {
-		for (int col = 0; col < p_width - 1; col++) {
-			w[idx++] = Vector3(static_cast<float>(col) - half_res, p_heights[row * p_width + col], static_cast<float>(row) - half_res);
-			w[idx++] = Vector3(static_cast<float>(col + 1) - half_res, p_heights[row * p_width + col + 1], static_cast<float>(row) - half_res);
-		}
-	}
-	for (int col = 0; col < p_width; col++) {
-		for (int row = 0; row < p_depth - 1; row++) {
-			w[idx++] = Vector3(static_cast<float>(col) - half_res, p_heights[row * p_width + col], static_cast<float>(row) - half_res);
-			w[idx++] = Vector3(static_cast<float>(col) - half_res, p_heights[(row + 1) * p_width + col], static_cast<float>(row + 1) - half_res);
-		}
-	}
-
-	if (_debug_mesh_rid.is_valid()) {
-		rs->free_rid(_debug_mesh_rid);
-	}
-	_debug_mesh_rid = rs->mesh_create();
-
-	Array arrays;
-	arrays.resize(RenderingServer::ARRAY_MAX);
-	arrays[RenderingServer::ARRAY_VERTEX] = lines;
-	rs->mesh_add_surface_from_arrays(_debug_mesh_rid, RenderingServer::PRIMITIVE_LINES, arrays);
-
-	if (!_debug_shader_rid.is_valid()) {
-		_debug_shader_rid = rs->shader_create();
-		rs->shader_set_code(_debug_shader_rid,
-				"shader_type spatial;\n"
-				"render_mode unshaded, cull_disabled, depth_draw_always;\n"
-				"void fragment() { ALBEDO = vec3(0.15, 1.0, 0.3); }\n");
-	}
-
-	if (!_debug_material_rid.is_valid()) {
-		_debug_material_rid = rs->material_create();
-		rs->material_set_shader(_debug_material_rid, _debug_shader_rid);
-	}
-
-	if (!_debug_instance_rid.is_valid()) {
-		_debug_instance_rid = rs->instance_create();
-		rs->instance_geometry_set_material_override(_debug_instance_rid, _debug_material_rid);
-	}
-
-	rs->instance_set_base(_debug_instance_rid, _debug_mesh_rid);
-
-	if (_parent_node->is_inside_tree()) {
-		rs->instance_set_scenario(_debug_instance_rid, _parent_node->get_world_3d()->get_scenario());
-	}
-
-	Transform3D xform;
-	xform.basis = xform.basis.scaled(Vector3(p_cell_size, 1.0f, p_cell_size));
-	xform.origin = Vector3(p_center_x, 0.0f, p_center_z);
-	rs->instance_set_transform(_debug_instance_rid, xform);
-}
-
-void TerrainPhysics::_cleanup_debug_mesh() {
-	RenderingServer *rs = RenderingServer::get_singleton();
-
-	if (_debug_instance_rid.is_valid()) {
-		rs->free_rid(_debug_instance_rid);
-		_debug_instance_rid = RID();
-	}
-	if (_debug_mesh_rid.is_valid()) {
-		rs->free_rid(_debug_mesh_rid);
-		_debug_mesh_rid = RID();
-	}
-	if (_debug_material_rid.is_valid()) {
-		rs->free_rid(_debug_material_rid);
-		_debug_material_rid = RID();
-	}
-	if (_debug_shader_rid.is_valid()) {
-		rs->free_rid(_debug_shader_rid);
-		_debug_shader_rid = RID();
-	}
 }
 
 } // namespace ts

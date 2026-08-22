@@ -18,11 +18,6 @@ private:
 	godot::RID _body_rid;
 	godot::RID _shape_rid;
 
-	godot::RID _debug_mesh_rid;
-	godot::RID _debug_material_rid;
-	godot::RID _debug_shader_rid;
-	godot::RID _debug_instance_rid;
-
 	TerrainNoise::FbmParams _noise_params;
 	int _grid_resolution = 0;
 	float _range = 0.0f;
@@ -49,8 +44,6 @@ private:
 	void _start_heightmap_rebuild(float p_center_x, float p_center_z);
 	void _compute_heightmap_task();
 	void _apply_heightmap();
-	void _update_debug_mesh(const godot::PackedFloat32Array &p_heights, int p_width, int p_depth, float p_cell_size, float p_center_x, float p_center_z);
-	void _cleanup_debug_mesh();
 
 protected:
 	static void _bind_methods();
