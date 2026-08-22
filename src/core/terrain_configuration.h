@@ -1,10 +1,10 @@
 #pragma once
 
+#include <godot_cpp/classes/fast_noise_lite.hpp>
 #include <godot_cpp/classes/image.hpp>
 #include <godot_cpp/classes/image_texture.hpp>
 #include <godot_cpp/classes/resource.hpp>
 #include <godot_cpp/classes/texture2d.hpp>
-#include <godot_cpp/classes/fast_noise_lite.hpp>
 
 namespace ts {
 
@@ -22,6 +22,11 @@ private:
 	float _noise_gain;
 
 	int _clipmap_levels;
+
+	float _physics_range;
+	int _physics_collision_layer;
+	int _physics_collision_mask;
+
 	godot::Ref<godot::Texture2D> _albedo_texture;
 
 	godot::Ref<godot::FastNoiseLite> _internal_noise;
@@ -33,7 +38,7 @@ protected:
 
 public:
 	TerrainConfiguration();
-	~TerrainConfiguration();
+	~TerrainConfiguration() override;
 
 	double get_height_scale() const;
 	void set_height_scale(double p_scale);
@@ -58,6 +63,15 @@ public:
 
 	int get_clipmap_levels() const;
 	void set_clipmap_levels(int p_levels);
+
+	float get_physics_range() const;
+	void set_physics_range(float p_range);
+
+	int get_physics_collision_layer() const;
+	void set_physics_collision_layer(int p_layer);
+
+	int get_physics_collision_mask() const;
+	void set_physics_collision_mask(int p_mask);
 
 	godot::Ref<godot::Texture2D> get_albedo_texture() const;
 	void set_albedo_texture(const godot::Ref<godot::Texture2D> &p_texture);

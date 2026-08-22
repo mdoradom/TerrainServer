@@ -16,10 +16,27 @@ uniform sampler2D albedo_texture : source_color;
 varying vec2 v_world_xz;
 varying vec3 v_normal_ws;
 
+const vec2 GRADIENTS[8] = vec2[8](
+	vec2(1.0, 0.0), vec2(0.70710678, 0.70710678),
+	vec2(0.0, 1.0), vec2(-0.70710678, 0.70710678),
+	vec2(-1.0, 0.0), vec2(-0.70710678, -0.70710678),
+	vec2(0.0, -1.0), vec2(0.70710678, -0.70710678));
+
+uvec2 pcg2d(uvec2 v) {
+	v = v * 1664525u + 1013904223u;
+	v.x += v.y * 1664525u;
+	v.y += v.x * 1664525u;
+	v = v ^ (v >> 16u);
+	v.x += v.y * 1664525u;
+	v.y += v.x * 1664525u;
+	v = v ^ (v >> 16u);
+	return v;
+}
+
 // Hash function to generate a pseudo-random gradient vector based on the input position
 vec2 hash(vec2 p) {
-	p = vec2(dot(p, vec2(127.1, 311.7)), dot(p, vec2(269.5, 183.3)));
-	return -1.0 + 2.0 * fract(sin(p) * 43758.5453123);
+	uvec2 h = pcg2d(uvec2(ivec2(p)));
+	return GRADIENTS[h.x % 8u];
 }
 
 // Perlin Noise 2D

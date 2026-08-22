@@ -1,13 +1,18 @@
 #include "terrain_renderer.h"
 
+#include "terrain_generator.h"
+
 #include <godot_cpp/classes/array_mesh.hpp>
 #include <godot_cpp/classes/file_access.hpp>
 #include <godot_cpp/classes/world3d.hpp>
+#include <godot_cpp/variant/aabb.hpp>
 #include <godot_cpp/variant/vector3.hpp>
 
 using namespace godot;
 
 namespace ts {
+
+constexpr float HEIGHT_AABB_MARGIN = 1.25f;
 
 void TerrainRenderer::_bind_methods() {}
 
@@ -21,7 +26,7 @@ void TerrainRenderer::initialize(Node3D *p_parent) {
 	_parent_node = p_parent;
 }
 
-void TerrainRenderer::cleanup() {
+void TerrainRenderer::_free_mesh_instances() {
 	RenderingServer *rs = RenderingServer::get_singleton();
 
 	for (const auto &level : _clipmap_levels) {
@@ -45,18 +50,23 @@ void TerrainRenderer::cleanup() {
 		rs->free_rid(_mesh_ring_rid);
 		_mesh_ring_rid = RID();
 	}
+}
 
+void TerrainRenderer::cleanup() {
+	_free_mesh_instances();
+
+	RenderingServer *rs = RenderingServer::get_singleton();
 	if (_internal_shader_rid.is_valid()) {
-		RenderingServer::get_singleton()->free_rid(_internal_shader_rid);
+		rs->free_rid(_internal_shader_rid);
 		_internal_shader_rid = RID();
 	}
 }
 
 void TerrainRenderer::rebuild_mesh(const float p_size, const int p_resolution) {
 	RenderingServer *rs = RenderingServer::get_singleton();
-	cleanup();
+	_free_mesh_instances();
 
-	if (!_generator.is_valid() || !_config.is_valid()) {
+	if (!_config.is_valid()) {
 		return;
 	}
 
@@ -78,12 +88,18 @@ void TerrainRenderer::rebuild_mesh(const float p_size, const int p_resolution) {
 	rs->mesh_add_surface_from_arrays(_mesh_ring_rid, RenderingServer::PRIMITIVE_TRIANGLES, ring_mesh->surface_get_arrays(0));
 
 	int num_levels = _config->get_clipmap_levels();
-	if (num_levels <= 0) num_levels = 6;
+	if (num_levels <= 0) {
+		num_levels = 6;
+	}
+
+	const float half_height = static_cast<float>(_config->get_height_scale()) * HEIGHT_AABB_MARGIN;
+	const AABB custom_aabb(Vector3(-0.5f, -half_height, -0.5f), Vector3(1.0f, half_height * 2.0f, 1.0f));
 
 	for (int i = 0; i < num_levels; i++) {
 		RID instance = rs->instance_create();
 		RID mesh_to_use = (i == 0) ? _mesh_rid : _mesh_ring_rid;
 		rs->instance_set_base(instance, mesh_to_use);
+		rs->instance_set_custom_aabb(instance, custom_aabb);
 
 		RID material = rs->material_create();
 		rs->material_set_shader(material, _internal_shader_rid);
@@ -119,7 +135,7 @@ void TerrainRenderer::rebuild_mesh(const float p_size, const int p_resolution) {
 	}
 }
 
-void TerrainRenderer::update_camera_position(const Vector3 p_camera_pos) {
+void TerrainRenderer::update_focus_position(const Vector3 p_focus_pos) {
 	RenderingServer *rs = RenderingServer::get_singleton();
 
 	if (!_config.is_valid() || _clipmap_levels.empty()) {
@@ -135,8 +151,8 @@ void TerrainRenderer::update_camera_position(const Vector3 p_camera_pos) {
 	// We use the finest grid's resolution to snap ALL levels in unison.
 	// This prevents the rings from sliding and misaligning.
 	const float base_cell_size = _clipmap_levels[0].scale / static_cast<float>(resolution);
-	const float snapped_x = floorf(p_camera_pos.x / base_cell_size) * base_cell_size;
-	const float snapped_z = floorf(p_camera_pos.z / base_cell_size) * base_cell_size;
+	const float snapped_x = floorf(p_focus_pos.x / base_cell_size) * base_cell_size;
+	const float snapped_z = floorf(p_focus_pos.z / base_cell_size) * base_cell_size;
 
 	for (const auto &level : _clipmap_levels) {
 		Transform3D xform;
@@ -148,10 +164,6 @@ void TerrainRenderer::update_camera_position(const Vector3 p_camera_pos) {
 }
 
 // ============== Getters and setters ==============
-
-void TerrainRenderer::set_generator(const Ref<TerrainGenerator> &p_generator) {
-	_generator = p_generator;
-}
 
 void TerrainRenderer::set_configuration(const Ref<TerrainConfiguration> &p_config) {
 	_config = p_config;

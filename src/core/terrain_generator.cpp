@@ -14,7 +14,7 @@ void TerrainGenerator::_bind_methods() {
 	ClassDB::bind_static_method("TerrainGenerator", D_METHOD("create_ring_fixup_mesh", "resolution"), &TerrainGenerator::create_ring_fixup_mesh);
 }
 
-TerrainGenerator::TerrainGenerator() : _height_scale(1.0f) {}
+TerrainGenerator::TerrainGenerator() = default;
 
 TerrainGenerator::~TerrainGenerator() {}
 
@@ -23,7 +23,6 @@ void TerrainGenerator::setup(const Ref<TerrainConfiguration> &p_config) {
 		ERR_PRINT("Invalid TerrainConfiguration provided to TerrainGenerator::setup");
 		return;
 	}
-	_height_scale = p_config->get_height_scale();
 }
 
 // Create two triangles for a quad, alternating the diagonal direction
