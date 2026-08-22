@@ -111,7 +111,11 @@ int TerrainConfiguration::get_mesh_resolution() const {
 	return _mesh_resolution;
 }
 
-void TerrainConfiguration::set_mesh_resolution(const int p_resolution) {
+void TerrainConfiguration::set_mesh_resolution(int p_resolution) {
+	if (p_resolution <= 0) {
+		p_resolution = 64;
+	}
+
 	if (_mesh_resolution != p_resolution) {
 		_mesh_resolution = p_resolution;
 		emit_changed();
