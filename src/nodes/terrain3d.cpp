@@ -22,7 +22,6 @@ void Terrain3D::_bind_methods() {
 }
 
 Terrain3D::Terrain3D() {
-	set_notify_transform(true);
 	set_process(true);
 	_renderer.instantiate();
 	_generator.instantiate();
