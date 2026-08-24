@@ -11,10 +11,19 @@ uniform float base_frequency = 0.002;
 uniform float lacunarity = 2.0;
 uniform float gain = 0.5;
 
+uniform float temperature_frequency = 0.0004;
+uniform vec2 temperature_offset = vec2(10000.0, -6000.0);
+uniform float temperature_noise_influence = 0.4;
+uniform float temperature_altitude_reference = 10.0;
+
+uniform float moisture_frequency = 0.0006;
+uniform vec2 moisture_offset = vec2(-4000.0, 9000.0);
+
 uniform sampler2D albedo_texture : source_color;
 
 varying vec2 v_world_xz;
 varying vec3 v_normal_ws;
+varying float v_height;
 
 const vec2 GRADIENTS[8] = vec2[8](
 	vec2(1.0, 0.0), vec2(0.70710678, 0.70710678),
@@ -73,6 +82,26 @@ float get_height_at(vec2 world_xz) {
 	return h * height_scale;
 }
 
+const float NOISE_MAX_AMPLITUDE = 0.70710678;
+const float TEMPERATURE_MIN_C = -10.0;
+const float TEMPERATURE_MAX_C = 30.0;
+
+float temperature_at(vec2 world_xz, float height) {
+	float altitude_norm = 1.0 - clamp((height / temperature_altitude_reference) * 0.5 + 0.5, 0.0, 1.0);
+
+	float n = noise(world_xz * temperature_frequency + temperature_offset);
+	float noise_norm = clamp(n / NOISE_MAX_AMPLITUDE, -1.0, 1.0) * 0.5 + 0.5;
+
+	float combined_norm = clamp(altitude_norm + (noise_norm - 0.5) * temperature_noise_influence, 0.0, 1.0);
+
+	return TEMPERATURE_MIN_C + combined_norm * (TEMPERATURE_MAX_C - TEMPERATURE_MIN_C);
+}
+
+float moisture_at(vec2 world_xz) {
+	float n = noise(world_xz * moisture_frequency + moisture_offset);
+	return clamp(n / NOISE_MAX_AMPLITUDE, -1.0, 1.0) * 0.5 + 0.5;
+}
+
 void vertex() {
 	// Local x/z morphing
 	vec2 local_xz = VERTEX.xz;
@@ -93,6 +122,7 @@ void vertex() {
 
 	float final_height = get_height_at(v_world_xz);
 	VERTEX.y = final_height / length(MODEL_MATRIX[1].xyz);
+	v_height = final_height;
 
 	float lod_scale = length(MODEL_MATRIX[0].xyz);
 	float e = max(0.05, lod_scale * 0.5 / resolution);
