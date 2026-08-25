@@ -5,11 +5,18 @@
 #include <godot_cpp/classes/image_texture.hpp>
 #include <godot_cpp/classes/resource.hpp>
 #include <godot_cpp/classes/texture2d.hpp>
+#include <godot_cpp/variant/typed_array.hpp>
+#include <godot_cpp/variant/vector2.hpp>
+
+#include "terrain_biome_layer.h"
 
 namespace ts {
 
 class TerrainConfiguration : public godot::Resource {
 	GDCLASS(TerrainConfiguration, godot::Resource);
+
+public:
+	static constexpr int32_t MAX_BIOME_LAYERS = 32;
 
 private:
 	double _height_scale;
@@ -27,7 +34,15 @@ private:
 	int _physics_collision_layer;
 	int _physics_collision_mask;
 
-	godot::Ref<godot::Texture2D> _albedo_texture;
+	godot::TypedArray<TerrainBiomeLayer> _biome_layers;
+
+	float _temperature_frequency;
+	godot::Vector2 _temperature_offset;
+	float _temperature_noise_influence;
+	float _temperature_altitude_reference;
+
+	float _moisture_frequency;
+	godot::Vector2 _moisture_offset;
 
 	godot::Ref<godot::FastNoiseLite> _internal_noise;
 	godot::Ref<godot::ImageTexture> _noise_preview;
@@ -73,8 +88,26 @@ public:
 	int get_physics_collision_mask() const;
 	void set_physics_collision_mask(int p_mask);
 
-	godot::Ref<godot::Texture2D> get_albedo_texture() const;
-	void set_albedo_texture(const godot::Ref<godot::Texture2D> &p_texture);
+	godot::TypedArray<TerrainBiomeLayer> get_biome_layers() const;
+	void set_biome_layers(const godot::TypedArray<TerrainBiomeLayer> &p_layers);
+
+	float get_temperature_frequency() const;
+	void set_temperature_frequency(float p_frequency);
+
+	godot::Vector2 get_temperature_offset() const;
+	void set_temperature_offset(godot::Vector2 p_offset);
+
+	float get_temperature_noise_influence() const;
+	void set_temperature_noise_influence(float p_influence);
+
+	float get_temperature_altitude_reference() const;
+	void set_temperature_altitude_reference(float p_reference);
+
+	float get_moisture_frequency() const;
+	void set_moisture_frequency(float p_frequency);
+
+	godot::Vector2 get_moisture_offset() const;
+	void set_moisture_offset(godot::Vector2 p_offset);
 
 	godot::Ref<godot::ImageTexture> get_noise_preview() const;
 };
