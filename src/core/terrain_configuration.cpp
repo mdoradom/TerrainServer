@@ -1,5 +1,6 @@
 #include "terrain_configuration.h"
 #include <godot_cpp/core/class_db.hpp>
+#include <godot_cpp/variant/utility_functions.hpp>
 
 using namespace godot;
 
@@ -41,8 +42,26 @@ void TerrainConfiguration::_bind_methods() {
 	ClassDB::bind_method(D_METHOD("set_physics_collision_mask", "mask"), &TerrainConfiguration::set_physics_collision_mask);
 	ClassDB::bind_method(D_METHOD("get_physics_collision_mask"), &TerrainConfiguration::get_physics_collision_mask);
 
-	ClassDB::bind_method(D_METHOD("set_albedo_texture", "texture"), &TerrainConfiguration::set_albedo_texture);
-	ClassDB::bind_method(D_METHOD("get_albedo_texture"), &TerrainConfiguration::get_albedo_texture);
+	ClassDB::bind_method(D_METHOD("set_biome_layers", "layers"), &TerrainConfiguration::set_biome_layers);
+	ClassDB::bind_method(D_METHOD("get_biome_layers"), &TerrainConfiguration::get_biome_layers);
+
+	ClassDB::bind_method(D_METHOD("set_temperature_frequency", "frequency"), &TerrainConfiguration::set_temperature_frequency);
+	ClassDB::bind_method(D_METHOD("get_temperature_frequency"), &TerrainConfiguration::get_temperature_frequency);
+
+	ClassDB::bind_method(D_METHOD("set_temperature_offset", "offset"), &TerrainConfiguration::set_temperature_offset);
+	ClassDB::bind_method(D_METHOD("get_temperature_offset"), &TerrainConfiguration::get_temperature_offset);
+
+	ClassDB::bind_method(D_METHOD("set_temperature_noise_influence", "influence"), &TerrainConfiguration::set_temperature_noise_influence);
+	ClassDB::bind_method(D_METHOD("get_temperature_noise_influence"), &TerrainConfiguration::get_temperature_noise_influence);
+
+	ClassDB::bind_method(D_METHOD("set_temperature_altitude_reference", "reference"), &TerrainConfiguration::set_temperature_altitude_reference);
+	ClassDB::bind_method(D_METHOD("get_temperature_altitude_reference"), &TerrainConfiguration::get_temperature_altitude_reference);
+
+	ClassDB::bind_method(D_METHOD("set_moisture_frequency", "frequency"), &TerrainConfiguration::set_moisture_frequency);
+	ClassDB::bind_method(D_METHOD("get_moisture_frequency"), &TerrainConfiguration::get_moisture_frequency);
+
+	ClassDB::bind_method(D_METHOD("set_moisture_offset", "offset"), &TerrainConfiguration::set_moisture_offset);
+	ClassDB::bind_method(D_METHOD("get_moisture_offset"), &TerrainConfiguration::get_moisture_offset);
 
 	ADD_GROUP("Terrain", "");
 	ADD_PROPERTY(PropertyInfo(Variant::FLOAT, "terrain_size", PROPERTY_HINT_RANGE, "1.0,10000.0"), "set_terrain_size", "get_terrain_size");
@@ -62,11 +81,19 @@ void TerrainConfiguration::_bind_methods() {
 	ADD_PROPERTY(PropertyInfo(Variant::INT, "physics_collision_layer", PROPERTY_HINT_LAYERS_3D_PHYSICS), "set_physics_collision_layer", "get_physics_collision_layer");
 	ADD_PROPERTY(PropertyInfo(Variant::INT, "physics_collision_mask", PROPERTY_HINT_LAYERS_3D_PHYSICS), "set_physics_collision_mask", "get_physics_collision_mask");
 
-	ADD_GROUP("Material", "");
-	ADD_PROPERTY(PropertyInfo(Variant::OBJECT, "albedo_texture", PROPERTY_HINT_RESOURCE_TYPE, "Texture2D"), "set_albedo_texture", "get_albedo_texture");
+	ADD_GROUP("Biome", "");
+	ADD_PROPERTY(PropertyInfo(Variant::ARRAY, "biome_layers", PROPERTY_HINT_TYPE_STRING,
+						 vformat("%d/%d:%s", Variant::OBJECT, PROPERTY_HINT_RESOURCE_TYPE, "TerrainBiomeLayer")),
+			"set_biome_layers", "get_biome_layers");
+	ADD_PROPERTY(PropertyInfo(Variant::FLOAT, "temperature_frequency", PROPERTY_HINT_RANGE, "0.0001,0.01"), "set_temperature_frequency", "get_temperature_frequency");
+	ADD_PROPERTY(PropertyInfo(Variant::VECTOR2, "temperature_offset"), "set_temperature_offset", "get_temperature_offset");
+	ADD_PROPERTY(PropertyInfo(Variant::FLOAT, "temperature_noise_influence", PROPERTY_HINT_RANGE, "0.0,1.0"), "set_temperature_noise_influence", "get_temperature_noise_influence");
+	ADD_PROPERTY(PropertyInfo(Variant::FLOAT, "temperature_altitude_reference", PROPERTY_HINT_RANGE, "0.1,100.0"), "set_temperature_altitude_reference", "get_temperature_altitude_reference");
+	ADD_PROPERTY(PropertyInfo(Variant::FLOAT, "moisture_frequency", PROPERTY_HINT_RANGE, "0.0001,0.01"), "set_moisture_frequency", "get_moisture_frequency");
+	ADD_PROPERTY(PropertyInfo(Variant::VECTOR2, "moisture_offset"), "set_moisture_offset", "get_moisture_offset");
 }
 
-TerrainConfiguration::TerrainConfiguration() : _height_scale(10.0), _mesh_resolution(256), _terrain_size(256.0f), _noise_octaves(5), _noise_base_frequency(0.002f), _noise_lacunarity(2.0f), _noise_gain(0.5f), _clipmap_levels(6), _physics_range(64.0f), _physics_collision_layer(1), _physics_collision_mask(0) {
+TerrainConfiguration::TerrainConfiguration() : _height_scale(10.0), _mesh_resolution(256), _terrain_size(256.0f), _noise_octaves(5), _noise_base_frequency(0.002f), _noise_lacunarity(2.0f), _noise_gain(0.5f), _clipmap_levels(6), _physics_range(64.0f), _physics_collision_layer(1), _physics_collision_mask(0), _temperature_frequency(0.0004f), _temperature_offset(10000.0f, -6000.0f), _temperature_noise_influence(0.4f), _temperature_altitude_reference(10.0f), _moisture_frequency(0.0006f), _moisture_offset(-4000.0f, 9000.0f) {
 	_internal_noise.instantiate();
 	_internal_noise->set_noise_type(FastNoiseLite::TYPE_PERLIN);
 	_internal_noise->set_fractal_type(FastNoiseLite::FRACTAL_FBM);
@@ -225,22 +252,98 @@ void TerrainConfiguration::set_physics_collision_mask(const int p_mask) {
 	}
 }
 
-Ref<Texture2D> TerrainConfiguration::get_albedo_texture() const {
-	return _albedo_texture;
+TypedArray<TerrainBiomeLayer> TerrainConfiguration::get_biome_layers() const {
+	return _biome_layers;
 }
 
-void TerrainConfiguration::set_albedo_texture(const Ref<Texture2D> &p_texture) {
-	if (_albedo_texture != p_texture) {
-		if (_albedo_texture.is_valid()) {
-			_albedo_texture->disconnect("changed", Callable(this, "emit_changed"));
+void TerrainConfiguration::set_biome_layers(const TypedArray<TerrainBiomeLayer> &p_layers) {
+	TypedArray<TerrainBiomeLayer> new_layers = p_layers.duplicate();
+	if (new_layers.size() > MAX_BIOME_LAYERS) {
+		UtilityFunctions::push_warning(vformat("TerrainConfiguration: biome_layers has %d entries, exceeding the %d-layer limit; truncating.", new_layers.size(), MAX_BIOME_LAYERS));
+		new_layers.resize(MAX_BIOME_LAYERS);
+	}
+
+	for (int i = 0; i < _biome_layers.size(); i++) {
+		const Ref<TerrainBiomeLayer> layer = _biome_layers[i];
+		if (layer.is_valid() && layer->is_connected("changed", Callable(this, "emit_changed"))) {
+			layer->disconnect("changed", Callable(this, "emit_changed"));
 		}
+	}
 
-		_albedo_texture = p_texture;
+	_biome_layers = new_layers;
 
-		if (_albedo_texture.is_valid()) {
-			_albedo_texture->connect("changed", Callable(this, "emit_changed"));
+	for (int i = 0; i < _biome_layers.size(); i++) {
+		const Ref<TerrainBiomeLayer> layer = _biome_layers[i];
+		if (layer.is_valid() && !layer->is_connected("changed", Callable(this, "emit_changed"))) {
+			layer->connect("changed", Callable(this, "emit_changed"));
 		}
+	}
 
+	emit_changed();
+}
+
+float TerrainConfiguration::get_temperature_frequency() const {
+	return _temperature_frequency;
+}
+
+void TerrainConfiguration::set_temperature_frequency(const float p_frequency) {
+	if (_temperature_frequency != p_frequency) {
+		_temperature_frequency = p_frequency;
+		emit_changed();
+	}
+}
+
+Vector2 TerrainConfiguration::get_temperature_offset() const {
+	return _temperature_offset;
+}
+
+void TerrainConfiguration::set_temperature_offset(const Vector2 p_offset) {
+	if (_temperature_offset != p_offset) {
+		_temperature_offset = p_offset;
+		emit_changed();
+	}
+}
+
+float TerrainConfiguration::get_temperature_noise_influence() const {
+	return _temperature_noise_influence;
+}
+
+void TerrainConfiguration::set_temperature_noise_influence(const float p_influence) {
+	if (_temperature_noise_influence != p_influence) {
+		_temperature_noise_influence = p_influence;
+		emit_changed();
+	}
+}
+
+float TerrainConfiguration::get_temperature_altitude_reference() const {
+	return _temperature_altitude_reference;
+}
+
+void TerrainConfiguration::set_temperature_altitude_reference(const float p_reference) {
+	if (_temperature_altitude_reference != p_reference) {
+		_temperature_altitude_reference = p_reference;
+		emit_changed();
+	}
+}
+
+float TerrainConfiguration::get_moisture_frequency() const {
+	return _moisture_frequency;
+}
+
+void TerrainConfiguration::set_moisture_frequency(const float p_frequency) {
+	if (_moisture_frequency != p_frequency) {
+		_moisture_frequency = p_frequency;
+		emit_changed();
+	}
+}
+
+Vector2 TerrainConfiguration::get_moisture_offset() const {
+	return _moisture_offset;
+}
+
+void TerrainConfiguration::set_moisture_offset(const Vector2 p_offset) {
+	if (_moisture_offset != p_offset) {
+		_moisture_offset = p_offset;
 		emit_changed();
 	}
 }
