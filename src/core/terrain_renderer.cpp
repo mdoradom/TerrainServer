@@ -129,6 +129,7 @@ Ref<Image> TerrainRenderer::_prepare_layer_image(const Ref<Texture2D> &p_texture
 	if (!image.is_valid()) {
 		image = Image::create(p_expected_width, p_expected_height, false, Image::FORMAT_RGBA8);
 		image->fill(p_placeholder_color);
+		image->generate_mipmaps();
 		return image;
 	}
 
@@ -152,6 +153,7 @@ Ref<Image> TerrainRenderer::_prepare_layer_image(const Ref<Texture2D> &p_texture
 	if (image->has_mipmaps()) {
 		image->clear_mipmaps();
 	}
+	image->generate_mipmaps();
 
 	return image;
 }
