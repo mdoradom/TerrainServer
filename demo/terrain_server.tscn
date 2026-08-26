@@ -1,5 +1,15 @@
 [gd_scene format=3 uid="uid://wynwhvbc4af1"]
 
+[ext_resource type="Texture2D" uid="uid://br71omu3qqdqs" path="res://addons/terrain_server/assets/textures/mountain/rocks_ground_05_diff_2k.png" id="1_7s5li"]
+[ext_resource type="Texture2D" uid="uid://bee3kmfrq0qge" path="res://addons/terrain_server/assets/textures/mountain/rocks_ground_05_nor_gl_2k.png" id="2_pegvl"]
+[ext_resource type="Texture2D" uid="uid://dicrlu4i4fm1d" path="res://addons/terrain_server/assets/textures/mountain/rocks_ground_05_rough_2k.png" id="3_8umr4"]
+[ext_resource type="Texture2D" uid="uid://d3hsamxfldccu" path="res://addons/terrain_server/assets/textures/grass/forrest_ground_01_diff_2k.png" id="4_lfcib"]
+[ext_resource type="Texture2D" uid="uid://4cp00c131uo5" path="res://addons/terrain_server/assets/textures/grass/forrest_ground_01_nor_gl_2k.png" id="5_fcekq"]
+[ext_resource type="Texture2D" uid="uid://hbjijnci2ljk" path="res://addons/terrain_server/assets/textures/grass/forrest_ground_01_rough_2k.png" id="6_jtbiv"]
+[ext_resource type="Texture2D" uid="uid://cnhqpxw7mmwyj" path="res://addons/terrain_server/assets/textures/dirt/forest_ground_05_diff_2k.png" id="7_sd1bb"]
+[ext_resource type="Texture2D" uid="uid://ctnvvgecsf2n5" path="res://addons/terrain_server/assets/textures/dirt/forest_ground_05_nor_gl_2k.png" id="8_f2rm2"]
+[ext_resource type="Texture2D" uid="uid://vuxovscylsxx" path="res://addons/terrain_server/assets/textures/dirt/forest_ground_05_rough_2k.png" id="9_47h3d"]
+
 [sub_resource type="ProceduralSkyMaterial" id="ProceduralSkyMaterial_pt7ik"]
 sky_horizon_color = Color(0.66224277, 0.6717428, 0.6867428, 1)
 ground_horizon_color = Color(0.66224277, 0.6717428, 0.6867428, 1)
@@ -16,10 +26,29 @@ glow_enabled = true
 fog_sky_affect = 0.0
 fog_height_density = 0.4077
 
+[sub_resource type="TerrainBiomeLayer" id="TerrainBiomeLayer_xttv0"]
+biome_name = "Mountain"
+albedo_texture = ExtResource("1_7s5li")
+normal_texture = ExtResource("2_pegvl")
+roughness_texture = ExtResource("3_8umr4")
+
+[sub_resource type="TerrainBiomeLayer" id="TerrainBiomeLayer_l5t5o"]
+biome_name = "Grass"
+albedo_texture = ExtResource("4_lfcib")
+normal_texture = ExtResource("5_fcekq")
+roughness_texture = ExtResource("6_jtbiv")
+
+[sub_resource type="TerrainBiomeLayer" id="TerrainBiomeLayer_2k5k6"]
+biome_name = "Dirt"
+albedo_texture = ExtResource("7_sd1bb")
+normal_texture = ExtResource("8_f2rm2")
+roughness_texture = ExtResource("9_47h3d")
+
 [sub_resource type="TerrainConfiguration" id="TerrainConfiguration_b3x7c"]
 height_scale = 79.25999999999999
 noise_base_frequency = 0.0121
 physics_range = 128.0
+biome_layers = Array[TerrainBiomeLayer]([SubResource("TerrainBiomeLayer_xttv0"), SubResource("TerrainBiomeLayer_l5t5o"), SubResource("TerrainBiomeLayer_2k5k6")])
 
 [sub_resource type="SphereShape3D" id="SphereShape3D_7s5li"]
 
