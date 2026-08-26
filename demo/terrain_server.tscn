@@ -1,7 +1,5 @@
 [gd_scene format=3 uid="uid://wynwhvbc4af1"]
 
-[ext_resource type="Texture2D" uid="uid://b4s88juxtecb7" path="res://addons/terrain_server/rocky_terrain_02_diff_4k.jpg" id="1_j1qb7"]
-
 [sub_resource type="ProceduralSkyMaterial" id="ProceduralSkyMaterial_pt7ik"]
 sky_horizon_color = Color(0.66224277, 0.6717428, 0.6867428, 1)
 ground_horizon_color = Color(0.66224277, 0.6717428, 0.6867428, 1)
@@ -22,7 +20,6 @@ fog_height_density = 0.4077
 height_scale = 79.25999999999999
 noise_base_frequency = 0.0121
 physics_range = 128.0
-albedo_texture = ExtResource("1_j1qb7")
 
 [sub_resource type="SphereShape3D" id="SphereShape3D_7s5li"]
 
