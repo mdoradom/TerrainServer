@@ -21,6 +21,16 @@ uniform vec2 moisture_offset = vec2(-4000.0, 9000.0);
 
 uniform sampler2D albedo_texture : source_color;
 
+uniform sampler2DArray biome_albedo_textures : source_color;
+uniform sampler2DArray biome_normal_textures : hint_normal;
+uniform sampler2DArray biome_roughness_textures;
+uniform int biome_layer_count = 0;
+
+uniform float biome_min_temperature[32];
+uniform float biome_max_temperature[32];
+uniform float biome_min_moisture[32];
+uniform float biome_max_moisture[32];
+
 varying vec2 v_world_xz;
 varying vec3 v_normal_ws;
 varying float v_height;
@@ -146,10 +156,17 @@ void vertex() {
 
 void fragment()
 {
-	// TODO Basic visual parameters (will be replaced by layer system in the biomes implementation). Replace with multi-layer material system
 	NORMAL = normalize(NORMAL);
 
-	vec4 tex_color = texture(albedo_texture, v_world_xz * 0.1);
-	ALBEDO = tex_color.rgb;
-	ROUGHNESS = 0.8;
+	if (biome_layer_count == 0) {
+		// No biome layers configured, or a CPU-side size-mismatch fallback occurred.
+		// TODO(Task 5): fold this guard into the full Whittaker classification rewrite.
+		ALBEDO = vec3(1.0, 0.0, 1.0);
+		ROUGHNESS = 0.8;
+	} else {
+		// TODO Basic visual parameters (will be replaced by layer system in the biomes implementation). Replace with multi-layer material system
+		vec4 tex_color = texture(albedo_texture, v_world_xz * 0.1);
+		ALBEDO = tex_color.rgb;
+		ROUGHNESS = 0.8;
+	}
 }
