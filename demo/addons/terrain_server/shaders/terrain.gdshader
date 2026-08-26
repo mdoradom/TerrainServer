@@ -19,8 +19,6 @@ uniform float temperature_altitude_reference = 10.0;
 uniform float moisture_frequency = 0.0006;
 uniform vec2 moisture_offset = vec2(-4000.0, 9000.0);
 
-uniform sampler2D albedo_texture : source_color;
-
 uniform sampler2DArray biome_albedo_textures : source_color;
 uniform sampler2DArray biome_normal_textures : hint_normal;
 uniform sampler2DArray biome_roughness_textures;
@@ -154,19 +152,53 @@ void vertex() {
 	BINORMAL = inv_model * binormal_ws;
 }
 
+const float WHITTAKER_TEMP_SOFTNESS_MIN = 0.5; // deg C
+const float WHITTAKER_MOIST_SOFTNESS_MIN = 0.02; // normalized [0,1]
+const float WHITTAKER_WEIGHT_FLOOR = 0.0001;
+
 void fragment()
 {
 	NORMAL = normalize(NORMAL);
 
 	if (biome_layer_count == 0) {
 		// No biome layers configured, or a CPU-side size-mismatch fallback occurred.
-		// TODO(Task 5): fold this guard into the full Whittaker classification rewrite.
 		ALBEDO = vec3(1.0, 0.0, 1.0);
 		ROUGHNESS = 0.8;
 	} else {
-		// TODO Basic visual parameters (will be replaced by layer system in the biomes implementation). Replace with multi-layer material system
-		vec4 tex_color = texture(albedo_texture, v_world_xz * 0.1);
-		ALBEDO = tex_color.rgb;
-		ROUGHNESS = 0.8;
+		vec2 uv = v_world_xz * 0.1;
+		float t = temperature_at(v_world_xz, v_height);
+		float m = moisture_at(v_world_xz);
+
+		float weights[32];
+		float total_weight = 0.0;
+
+		for (int i = 0; i < biome_layer_count; i++) {
+			float softness_t = max(WHITTAKER_TEMP_SOFTNESS_MIN, (biome_max_temperature[i] - biome_min_temperature[i]) * 0.25);
+			float softness_m = max(WHITTAKER_MOIST_SOFTNESS_MIN, (biome_max_moisture[i] - biome_min_moisture[i]) * 0.25);
+
+			float wt = smoothstep(biome_min_temperature[i] - softness_t, biome_min_temperature[i], t) *
+					(1.0 - smoothstep(biome_max_temperature[i], biome_max_temperature[i] + softness_t, t));
+			float wm = smoothstep(biome_min_moisture[i] - softness_m, biome_min_moisture[i], m) *
+					(1.0 - smoothstep(biome_max_moisture[i], biome_max_moisture[i] + softness_m, m));
+
+			float w = max(wt * wm, WHITTAKER_WEIGHT_FLOOR);
+			weights[i] = w;
+			total_weight += w;
+		}
+
+		vec3 albedo_biome = vec3(0.0);
+		vec3 normal_biome = vec3(0.0);
+		float roughness_biome = 0.0;
+
+		for (int i = 0; i < biome_layer_count; i++) {
+			float w = weights[i] / total_weight;
+			albedo_biome += texture(biome_albedo_textures, vec3(uv, float(i))).rgb * w;
+			normal_biome += texture(biome_normal_textures, vec3(uv, float(i))).rgb * w;
+			roughness_biome += texture(biome_roughness_textures, vec3(uv, float(i))).r * w;
+		}
+
+		ALBEDO = albedo_biome;
+		NORMAL_MAP = normal_biome;
+		ROUGHNESS = roughness_biome;
 	}
 }
