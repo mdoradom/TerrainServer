@@ -38,6 +38,8 @@ private:
 	godot::RID _biome_normal_array_rid;
 	godot::RID _biome_roughness_array_rid;
 	std::vector<uint64_t> _biome_texture_signature;
+	// Distinguishes "never built" from "built with zero layers" (both leave the RIDs/signature
+	// empty), so a zero-layer config doesn't get rebuilt every call.
 	bool _biome_texture_arrays_built = false;
 	int _biome_layer_count = 0;
 
