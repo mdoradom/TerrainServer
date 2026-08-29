@@ -4,13 +4,15 @@
 #include <godot_cpp/classes/texture2d.hpp>
 #include <godot_cpp/variant/string.hpp>
 
+#include "terrain_texture_slot.h"
+
 namespace ts {
 
 class TerrainBiomeLayer : public godot::Resource {
 	GDCLASS(TerrainBiomeLayer, godot::Resource);
 
 public:
-	static constexpr int32_t MAX_TEXTURE_DIMENSION = 2048;
+	static constexpr int32_t MAX_TEXTURE_DIMENSION = TEXTURE_SLOT_MAX_DIMENSION;
 
 private:
 	godot::Ref<godot::Texture2D> _albedo_texture;
@@ -24,8 +26,6 @@ private:
 	float _max_moisture;
 
 	godot::String _biome_name;
-
-	void _set_texture(godot::Ref<godot::Texture2D> &r_slot, const godot::Ref<godot::Texture2D> &p_texture, const char *p_debug_kind);
 
 protected:
 	static void _bind_methods();

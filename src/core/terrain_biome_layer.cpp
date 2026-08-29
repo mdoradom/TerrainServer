@@ -52,27 +52,6 @@ TerrainBiomeLayer::TerrainBiomeLayer() :
 
 TerrainBiomeLayer::~TerrainBiomeLayer() = default;
 
-void TerrainBiomeLayer::_set_texture(Ref<Texture2D> &r_slot, const Ref<Texture2D> &p_texture, const char *p_debug_kind) {
-	if (p_texture.is_valid() && (p_texture->get_width() > MAX_TEXTURE_DIMENSION || p_texture->get_height() > MAX_TEXTURE_DIMENSION)) {
-		UtilityFunctions::push_warning("TerrainBiomeLayer: ", p_debug_kind, " (", p_texture->get_width(), "x", p_texture->get_height(), ") exceeds the ", MAX_TEXTURE_DIMENSION, "x", MAX_TEXTURE_DIMENSION, " size cap; ignoring.");
-		return;
-	}
-
-	if (r_slot != p_texture) {
-		if (r_slot.is_valid()) {
-			r_slot->disconnect("changed", Callable(this, "emit_changed"));
-		}
-
-		r_slot = p_texture;
-
-		if (r_slot.is_valid()) {
-			r_slot->connect("changed", Callable(this, "emit_changed"));
-		}
-
-		emit_changed();
-	}
-}
-
 // ============== Getters and setters ==============
 
 Ref<Texture2D> TerrainBiomeLayer::get_albedo_texture() const {
@@ -80,7 +59,7 @@ Ref<Texture2D> TerrainBiomeLayer::get_albedo_texture() const {
 }
 
 void TerrainBiomeLayer::set_albedo_texture(const Ref<Texture2D> &p_texture) {
-	_set_texture(_albedo_texture, p_texture, "albedo_texture");
+	set_texture_slot(this, _albedo_texture, p_texture, "albedo_texture", "TerrainBiomeLayer");
 }
 
 Ref<Texture2D> TerrainBiomeLayer::get_normal_texture() const {
@@ -88,7 +67,7 @@ Ref<Texture2D> TerrainBiomeLayer::get_normal_texture() const {
 }
 
 void TerrainBiomeLayer::set_normal_texture(const Ref<Texture2D> &p_texture) {
-	_set_texture(_normal_texture, p_texture, "normal_texture");
+	set_texture_slot(this, _normal_texture, p_texture, "normal_texture", "TerrainBiomeLayer");
 }
 
 Ref<Texture2D> TerrainBiomeLayer::get_roughness_texture() const {
@@ -96,7 +75,7 @@ Ref<Texture2D> TerrainBiomeLayer::get_roughness_texture() const {
 }
 
 void TerrainBiomeLayer::set_roughness_texture(const Ref<Texture2D> &p_texture) {
-	_set_texture(_roughness_texture, p_texture, "roughness_texture");
+	set_texture_slot(this, _roughness_texture, p_texture, "roughness_texture", "TerrainBiomeLayer");
 }
 
 float TerrainBiomeLayer::get_min_temperature() const {
