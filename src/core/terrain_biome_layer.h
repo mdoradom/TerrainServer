@@ -25,6 +25,8 @@ private:
 
 	godot::String _biome_name;
 
+	void _set_texture(godot::Ref<godot::Texture2D> &r_slot, const godot::Ref<godot::Texture2D> &p_texture, const char *p_debug_kind);
+
 protected:
 	static void _bind_methods();
 
