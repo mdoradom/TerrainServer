@@ -169,8 +169,10 @@ void fragment()
 		float t = temperature_at(v_world_xz, v_height);
 		float m = moisture_at(v_world_xz);
 
-		float weights[32];
 		float total_weight = 0.0;
+		vec3 albedo_biome = vec3(0.0);
+		vec3 normal_biome = vec3(0.0);
+		float roughness_biome = 0.0;
 
 		for (int i = 0; i < biome_layer_count; i++) {
 			float softness_t = max(WHITTAKER_TEMP_SOFTNESS_MIN, (biome_max_temperature[i] - biome_min_temperature[i]) * 0.25);
@@ -182,20 +184,16 @@ void fragment()
 					(1.0 - smoothstep(biome_max_moisture[i], biome_max_moisture[i] + softness_m, m));
 
 			float w = max(wt * wm, WHITTAKER_WEIGHT_FLOOR);
-			weights[i] = w;
 			total_weight += w;
-		}
 
-		vec3 albedo_biome = vec3(0.0);
-		vec3 normal_biome = vec3(0.0);
-		float roughness_biome = 0.0;
-
-		for (int i = 0; i < biome_layer_count; i++) {
-			float w = weights[i] / total_weight;
 			albedo_biome += texture(biome_albedo_textures, vec3(uv, float(i))).rgb * w;
 			normal_biome += texture(biome_normal_textures, vec3(uv, float(i))).rgb * w;
 			roughness_biome += texture(biome_roughness_textures, vec3(uv, float(i))).r * w;
 		}
+
+		albedo_biome /= total_weight;
+		normal_biome /= total_weight;
+		roughness_biome /= total_weight;
 
 		ALBEDO = albedo_biome;
 		NORMAL_MAP = normal_biome;
