@@ -37,18 +37,27 @@ biome_name = "Grass"
 albedo_texture = ExtResource("4_lfcib")
 normal_texture = ExtResource("5_fcekq")
 roughness_texture = ExtResource("6_jtbiv")
+min_temperature = 5.0
+min_moisture = 0.45
 
 [sub_resource type="TerrainBiomeLayer" id="TerrainBiomeLayer_2k5k6"]
 biome_name = "Dirt"
 albedo_texture = ExtResource("7_sd1bb")
 normal_texture = ExtResource("8_f2rm2")
 roughness_texture = ExtResource("9_47h3d")
+min_temperature = 5.0
+max_moisture = 0.45
 
 [sub_resource type="TerrainConfiguration" id="TerrainConfiguration_b3x7c"]
 height_scale = 79.25999999999999
-noise_base_frequency = 0.0121
+noise_base_frequency = 0.0041
+noise_lacunarity = 1.744
+noise_gain = 0.949
 physics_range = 128.0
 biome_layers = Array[TerrainBiomeLayer]([SubResource("TerrainBiomeLayer_xttv0"), SubResource("TerrainBiomeLayer_l5t5o"), SubResource("TerrainBiomeLayer_2k5k6")])
+temperature_frequency = 0.002
+temperature_altitude_reference = 60.0
+moisture_frequency = 0.01
 
 [sub_resource type="SphereShape3D" id="SphereShape3D_7s5li"]
 
