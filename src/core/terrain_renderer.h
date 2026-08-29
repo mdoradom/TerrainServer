@@ -1,6 +1,7 @@
 #pragma once
 
 #include "terrain_configuration.h"
+#include "terrain_slope_layer.h"
 
 #include <cstdint>
 #include <godot_cpp/classes/image.hpp>
@@ -43,6 +44,13 @@ private:
 	bool _biome_texture_arrays_built = false;
 	int _biome_layer_count = 0;
 
+	godot::RID _rock_albedo_rid;
+	godot::RID _rock_normal_rid;
+	godot::RID _rock_roughness_rid;
+	std::vector<uint64_t> _rock_texture_signature;
+	// Same "never built" vs. "built with no rock layer" distinction as the biome arrays above.
+	bool _rock_textures_built = false;
+
 	void _free_mesh_instances();
 
 	std::vector<uint64_t> _compute_biome_texture_signature(const godot::TypedArray<TerrainBiomeLayer> &p_layers) const;
@@ -52,6 +60,11 @@ private:
 			int p_expected_width, int p_expected_height, const godot::Color &p_placeholder_color,
 			const char *p_debug_kind, int p_layer_index, bool &r_size_mismatch);
 	void _free_biome_texture_arrays();
+
+	std::vector<uint64_t> _compute_rock_texture_signature(const godot::Ref<TerrainSlopeLayer> &p_layer) const;
+	void _rebuild_rock_textures_if_dirty(const godot::Ref<TerrainSlopeLayer> &p_layer);
+	void _build_rock_textures(const godot::Ref<TerrainSlopeLayer> &p_layer);
+	void _free_rock_textures();
 
 protected:
 	static void _bind_methods();

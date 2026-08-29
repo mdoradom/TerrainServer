@@ -4,6 +4,7 @@
 #include "core/terrain_configuration.h"
 #include "core/terrain_generator.h"
 #include "core/terrain_physics.h"
+#include "core/terrain_slope_layer.h"
 #include "nodes/terrain3d.h"
 
 #include <gdextension_interface.h>
@@ -20,6 +21,7 @@ void initialize_terrain_server_module(ModuleInitializationLevel p_level) {
 	GDREGISTER_CLASS(ts::Terrain3D);
 	GDREGISTER_CLASS(ts::TerrainConfiguration);
 	GDREGISTER_CLASS(ts::TerrainBiomeLayer);
+	GDREGISTER_CLASS(ts::TerrainSlopeLayer);
 	GDREGISTER_CLASS(ts::TerrainGenerator);
 	GDREGISTER_CLASS(ts::TerrainRenderer);
 	GDREGISTER_CLASS(ts::TerrainPhysics);
