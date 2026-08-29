@@ -17,6 +17,15 @@ namespace ts {
 
 constexpr float HEIGHT_AABB_MARGIN = 1.25f;
 
+namespace {
+void free_rid_if_valid(RenderingServer *p_rs, RID &p_rid) {
+	if (p_rid.is_valid()) {
+		p_rs->free_rid(p_rid);
+		p_rid = RID();
+	}
+}
+} //namespace
+
 void TerrainRenderer::_bind_methods() {}
 
 TerrainRenderer::TerrainRenderer() = default;
@@ -69,18 +78,9 @@ void TerrainRenderer::cleanup() {
 void TerrainRenderer::_free_biome_texture_arrays() {
 	RenderingServer *rs = RenderingServer::get_singleton();
 
-	if (_biome_albedo_array_rid.is_valid()) {
-		rs->free_rid(_biome_albedo_array_rid);
-		_biome_albedo_array_rid = RID();
-	}
-	if (_biome_normal_array_rid.is_valid()) {
-		rs->free_rid(_biome_normal_array_rid);
-		_biome_normal_array_rid = RID();
-	}
-	if (_biome_roughness_array_rid.is_valid()) {
-		rs->free_rid(_biome_roughness_array_rid);
-		_biome_roughness_array_rid = RID();
-	}
+	free_rid_if_valid(rs, _biome_albedo_array_rid);
+	free_rid_if_valid(rs, _biome_normal_array_rid);
+	free_rid_if_valid(rs, _biome_roughness_array_rid);
 
 	_biome_texture_signature.clear();
 	_biome_texture_arrays_built = false;
@@ -167,18 +167,9 @@ int TerrainRenderer::_build_biome_texture_arrays(const TypedArray<TerrainBiomeLa
 	const int num_layers = p_layers.size();
 	if (num_layers == 0) {
 		UtilityFunctions::push_warning("TerrainRenderer: no biome layers configured; rendering with a solid debug color until at least one TerrainBiomeLayer is assigned.");
-		if (_biome_albedo_array_rid.is_valid()) {
-			rs->free_rid(_biome_albedo_array_rid);
-			_biome_albedo_array_rid = RID();
-		}
-		if (_biome_normal_array_rid.is_valid()) {
-			rs->free_rid(_biome_normal_array_rid);
-			_biome_normal_array_rid = RID();
-		}
-		if (_biome_roughness_array_rid.is_valid()) {
-			rs->free_rid(_biome_roughness_array_rid);
-			_biome_roughness_array_rid = RID();
-		}
+		free_rid_if_valid(rs, _biome_albedo_array_rid);
+		free_rid_if_valid(rs, _biome_normal_array_rid);
+		free_rid_if_valid(rs, _biome_roughness_array_rid);
 		return 0;
 	}
 
@@ -251,18 +242,9 @@ int TerrainRenderer::_build_biome_texture_arrays(const TypedArray<TerrainBiomeLa
 
 	if (mismatch) {
 		UtilityFunctions::push_warning("TerrainRenderer: one or more biome layer textures do not match the first configured layer's dimensions for their texture type; falling back to the zero-layers debug render until sizes are made consistent.");
-		if (_biome_albedo_array_rid.is_valid()) {
-			rs->free_rid(_biome_albedo_array_rid);
-			_biome_albedo_array_rid = RID();
-		}
-		if (_biome_normal_array_rid.is_valid()) {
-			rs->free_rid(_biome_normal_array_rid);
-			_biome_normal_array_rid = RID();
-		}
-		if (_biome_roughness_array_rid.is_valid()) {
-			rs->free_rid(_biome_roughness_array_rid);
-			_biome_roughness_array_rid = RID();
-		}
+		free_rid_if_valid(rs, _biome_albedo_array_rid);
+		free_rid_if_valid(rs, _biome_normal_array_rid);
+		free_rid_if_valid(rs, _biome_roughness_array_rid);
 		return 0;
 	}
 
@@ -270,15 +252,9 @@ int TerrainRenderer::_build_biome_texture_arrays(const TypedArray<TerrainBiomeLa
 	const RID new_normal_rid = rs->texture_2d_layered_create(normal_images, RenderingServer::TEXTURE_LAYERED_2D_ARRAY);
 	const RID new_roughness_rid = rs->texture_2d_layered_create(roughness_images, RenderingServer::TEXTURE_LAYERED_2D_ARRAY);
 
-	if (_biome_albedo_array_rid.is_valid()) {
-		rs->free_rid(_biome_albedo_array_rid);
-	}
-	if (_biome_normal_array_rid.is_valid()) {
-		rs->free_rid(_biome_normal_array_rid);
-	}
-	if (_biome_roughness_array_rid.is_valid()) {
-		rs->free_rid(_biome_roughness_array_rid);
-	}
+	free_rid_if_valid(rs, _biome_albedo_array_rid);
+	free_rid_if_valid(rs, _biome_normal_array_rid);
+	free_rid_if_valid(rs, _biome_roughness_array_rid);
 
 	_biome_albedo_array_rid = new_albedo_rid;
 	_biome_normal_array_rid = new_normal_rid;
