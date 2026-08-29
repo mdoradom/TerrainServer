@@ -45,6 +45,9 @@ void TerrainConfiguration::_bind_methods() {
 	ClassDB::bind_method(D_METHOD("set_biome_layers", "layers"), &TerrainConfiguration::set_biome_layers);
 	ClassDB::bind_method(D_METHOD("get_biome_layers"), &TerrainConfiguration::get_biome_layers);
 
+	ClassDB::bind_method(D_METHOD("set_rock_layer", "layer"), &TerrainConfiguration::set_rock_layer);
+	ClassDB::bind_method(D_METHOD("get_rock_layer"), &TerrainConfiguration::get_rock_layer);
+
 	ClassDB::bind_method(D_METHOD("set_temperature_frequency", "frequency"), &TerrainConfiguration::set_temperature_frequency);
 	ClassDB::bind_method(D_METHOD("get_temperature_frequency"), &TerrainConfiguration::get_temperature_frequency);
 
@@ -85,6 +88,7 @@ void TerrainConfiguration::_bind_methods() {
 	ADD_PROPERTY(PropertyInfo(Variant::ARRAY, "biome_layers", PROPERTY_HINT_TYPE_STRING,
 						 vformat("%d/%d:%s", Variant::OBJECT, PROPERTY_HINT_RESOURCE_TYPE, "TerrainBiomeLayer")),
 			"set_biome_layers", "get_biome_layers");
+	ADD_PROPERTY(PropertyInfo(Variant::OBJECT, "rock_layer", PROPERTY_HINT_RESOURCE_TYPE, "TerrainSlopeLayer"), "set_rock_layer", "get_rock_layer");
 	ADD_PROPERTY(PropertyInfo(Variant::FLOAT, "temperature_frequency", PROPERTY_HINT_RANGE, "0.0001,0.01"), "set_temperature_frequency", "get_temperature_frequency");
 	ADD_PROPERTY(PropertyInfo(Variant::VECTOR2, "temperature_offset"), "set_temperature_offset", "get_temperature_offset");
 	ADD_PROPERTY(PropertyInfo(Variant::FLOAT, "temperature_noise_influence", PROPERTY_HINT_RANGE, "0.0,1.0"), "set_temperature_noise_influence", "get_temperature_noise_influence");
@@ -277,6 +281,28 @@ void TerrainConfiguration::set_biome_layers(const TypedArray<TerrainBiomeLayer> 
 		if (layer.is_valid() && !layer->is_connected("changed", Callable(this, "emit_changed"))) {
 			layer->connect("changed", Callable(this, "emit_changed"));
 		}
+	}
+
+	emit_changed();
+}
+
+Ref<TerrainSlopeLayer> TerrainConfiguration::get_rock_layer() const {
+	return _rock_layer;
+}
+
+void TerrainConfiguration::set_rock_layer(const Ref<TerrainSlopeLayer> &p_layer) {
+	if (_rock_layer == p_layer) {
+		return;
+	}
+
+	if (_rock_layer.is_valid() && _rock_layer->is_connected("changed", Callable(this, "emit_changed"))) {
+		_rock_layer->disconnect("changed", Callable(this, "emit_changed"));
+	}
+
+	_rock_layer = p_layer;
+
+	if (_rock_layer.is_valid() && !_rock_layer->is_connected("changed", Callable(this, "emit_changed"))) {
+		_rock_layer->connect("changed", Callable(this, "emit_changed"));
 	}
 
 	emit_changed();

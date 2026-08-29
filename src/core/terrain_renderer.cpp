@@ -67,6 +67,7 @@ void TerrainRenderer::_free_mesh_instances() {
 void TerrainRenderer::cleanup() {
 	_free_mesh_instances();
 	_free_biome_texture_arrays();
+	_free_rock_textures();
 
 	RenderingServer *rs = RenderingServer::get_singleton();
 	if (_internal_shader_rid.is_valid()) {
@@ -263,6 +264,75 @@ int TerrainRenderer::_build_biome_texture_arrays(const TypedArray<TerrainBiomeLa
 	return num_layers;
 }
 
+void TerrainRenderer::_free_rock_textures() {
+	RenderingServer *rs = RenderingServer::get_singleton();
+
+	free_rid_if_valid(rs, _rock_albedo_rid);
+	free_rid_if_valid(rs, _rock_normal_rid);
+	free_rid_if_valid(rs, _rock_roughness_rid);
+
+	_rock_texture_signature.clear();
+	_rock_textures_built = false;
+}
+
+std::vector<uint64_t> TerrainRenderer::_compute_rock_texture_signature(const Ref<TerrainSlopeLayer> &p_layer) const {
+	if (!p_layer.is_valid()) {
+		return {};
+	}
+
+	const Ref<Texture2D> albedo = p_layer->get_albedo_texture();
+	const Ref<Texture2D> normal = p_layer->get_normal_texture();
+	const Ref<Texture2D> roughness = p_layer->get_roughness_texture();
+
+	return {
+		p_layer->get_instance_id(),
+		albedo.is_valid() ? albedo->get_instance_id() : 0,
+		normal.is_valid() ? normal->get_instance_id() : 0,
+		roughness.is_valid() ? roughness->get_instance_id() : 0,
+	};
+}
+
+void TerrainRenderer::_rebuild_rock_textures_if_dirty(const Ref<TerrainSlopeLayer> &p_layer) {
+	std::vector<uint64_t> new_signature = _compute_rock_texture_signature(p_layer);
+	if (_rock_textures_built && new_signature == _rock_texture_signature) {
+		return;
+	}
+
+	_free_rock_textures();
+	if (p_layer.is_valid()) {
+		_build_rock_textures(p_layer);
+	}
+
+	_rock_texture_signature = std::move(new_signature);
+	_rock_textures_built = true;
+}
+
+void TerrainRenderer::_build_rock_textures(const Ref<TerrainSlopeLayer> &p_layer) {
+	RenderingServer *rs = RenderingServer::get_singleton();
+
+	constexpr int DEFAULT_DIM = 4;
+	bool unused_mismatch = false;
+
+	const Ref<Texture2D> albedo_tex = p_layer->get_albedo_texture();
+	const Ref<Texture2D> normal_tex = p_layer->get_normal_texture();
+	const Ref<Texture2D> roughness_tex = p_layer->get_roughness_texture();
+
+	const int albedo_w = albedo_tex.is_valid() ? albedo_tex->get_width() : DEFAULT_DIM;
+	const int albedo_h = albedo_tex.is_valid() ? albedo_tex->get_height() : DEFAULT_DIM;
+	const int normal_w = normal_tex.is_valid() ? normal_tex->get_width() : DEFAULT_DIM;
+	const int normal_h = normal_tex.is_valid() ? normal_tex->get_height() : DEFAULT_DIM;
+	const int roughness_w = roughness_tex.is_valid() ? roughness_tex->get_width() : DEFAULT_DIM;
+	const int roughness_h = roughness_tex.is_valid() ? roughness_tex->get_height() : DEFAULT_DIM;
+
+	const Ref<Image> albedo = _prepare_layer_image(albedo_tex, albedo_w, albedo_h, Color(0.5f, 0.5f, 0.5f, 1.0f), "rock albedo", 0, unused_mismatch);
+	const Ref<Image> normal = _prepare_layer_image(normal_tex, normal_w, normal_h, Color(0.5f, 0.5f, 1.0f, 1.0f), "rock normal", 0, unused_mismatch);
+	const Ref<Image> roughness = _prepare_layer_image(roughness_tex, roughness_w, roughness_h, Color(0.5f, 0.5f, 0.5f, 1.0f), "rock roughness", 0, unused_mismatch);
+
+	_rock_albedo_rid = rs->texture_2d_create(albedo);
+	_rock_normal_rid = rs->texture_2d_create(normal);
+	_rock_roughness_rid = rs->texture_2d_create(roughness);
+}
+
 void TerrainRenderer::rebuild_mesh(const float p_size, const int p_resolution) {
 	RenderingServer *rs = RenderingServer::get_singleton();
 	_free_mesh_instances();
@@ -290,6 +360,9 @@ void TerrainRenderer::rebuild_mesh(const float p_size, const int p_resolution) {
 
 	const TypedArray<TerrainBiomeLayer> biome_layers = _config->get_biome_layers();
 	_rebuild_biome_texture_arrays_if_dirty(biome_layers);
+
+	const Ref<TerrainSlopeLayer> rock_layer = _config->get_rock_layer();
+	_rebuild_rock_textures_if_dirty(rock_layer);
 
 	PackedFloat32Array biome_min_temperature;
 	PackedFloat32Array biome_max_temperature;
@@ -355,6 +428,14 @@ void TerrainRenderer::rebuild_mesh(const float p_size, const int p_resolution) {
 		rs->material_set_param(material, "temperature_altitude_reference", _config->get_temperature_altitude_reference());
 		rs->material_set_param(material, "moisture_frequency", _config->get_moisture_frequency());
 		rs->material_set_param(material, "moisture_offset", _config->get_moisture_offset());
+
+		// Rock/cliff slope overlay
+		rs->material_set_param(material, "rock_albedo_texture", _rock_albedo_rid);
+		rs->material_set_param(material, "rock_normal_texture", _rock_normal_rid);
+		rs->material_set_param(material, "rock_roughness_texture", _rock_roughness_rid);
+		rs->material_set_param(material, "rock_layer_enabled", rock_layer.is_valid());
+		rs->material_set_param(material, "rock_slope_threshold", rock_layer.is_valid() ? rock_layer->get_slope_threshold() : 0.0f);
+		rs->material_set_param(material, "rock_slope_blend_range", rock_layer.is_valid() ? rock_layer->get_slope_blend_range() : 1.0f);
 
 		const float level_scale = p_size * powf(2.0f, static_cast<float>(i));
 		rs->instance_geometry_set_material_override(instance, material);

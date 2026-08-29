@@ -9,6 +9,7 @@
 #include <godot_cpp/variant/vector2.hpp>
 
 #include "terrain_biome_layer.h"
+#include "terrain_slope_layer.h"
 
 namespace ts {
 
@@ -35,6 +36,7 @@ private:
 	int _physics_collision_mask;
 
 	godot::TypedArray<TerrainBiomeLayer> _biome_layers;
+	godot::Ref<TerrainSlopeLayer> _rock_layer;
 
 	float _temperature_frequency;
 	godot::Vector2 _temperature_offset;
@@ -90,6 +92,9 @@ public:
 
 	godot::TypedArray<TerrainBiomeLayer> get_biome_layers() const;
 	void set_biome_layers(const godot::TypedArray<TerrainBiomeLayer> &p_layers);
+
+	godot::Ref<TerrainSlopeLayer> get_rock_layer() const;
+	void set_rock_layer(const godot::Ref<TerrainSlopeLayer> &p_layer);
 
 	float get_temperature_frequency() const;
 	void set_temperature_frequency(float p_frequency);
