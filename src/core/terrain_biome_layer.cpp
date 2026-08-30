@@ -16,6 +16,15 @@ void TerrainBiomeLayer::_bind_methods() {
 	ClassDB::bind_method(D_METHOD("set_roughness_texture", "texture"), &TerrainBiomeLayer::set_roughness_texture);
 	ClassDB::bind_method(D_METHOD("get_roughness_texture"), &TerrainBiomeLayer::get_roughness_texture);
 
+	ClassDB::bind_method(D_METHOD("set_height_texture", "texture"), &TerrainBiomeLayer::set_height_texture);
+	ClassDB::bind_method(D_METHOD("get_height_texture"), &TerrainBiomeLayer::get_height_texture);
+
+	ClassDB::bind_method(D_METHOD("set_ao_texture", "texture"), &TerrainBiomeLayer::set_ao_texture);
+	ClassDB::bind_method(D_METHOD("get_ao_texture"), &TerrainBiomeLayer::get_ao_texture);
+
+	ClassDB::bind_method(D_METHOD("set_uv_scale", "scale"), &TerrainBiomeLayer::set_uv_scale);
+	ClassDB::bind_method(D_METHOD("get_uv_scale"), &TerrainBiomeLayer::get_uv_scale);
+
 	ClassDB::bind_method(D_METHOD("set_min_temperature", "temperature"), &TerrainBiomeLayer::set_min_temperature);
 	ClassDB::bind_method(D_METHOD("get_min_temperature"), &TerrainBiomeLayer::get_min_temperature);
 
@@ -38,6 +47,9 @@ void TerrainBiomeLayer::_bind_methods() {
 	ADD_PROPERTY(PropertyInfo(Variant::OBJECT, "albedo_texture", PROPERTY_HINT_RESOURCE_TYPE, "Texture2D"), "set_albedo_texture", "get_albedo_texture");
 	ADD_PROPERTY(PropertyInfo(Variant::OBJECT, "normal_texture", PROPERTY_HINT_RESOURCE_TYPE, "Texture2D"), "set_normal_texture", "get_normal_texture");
 	ADD_PROPERTY(PropertyInfo(Variant::OBJECT, "roughness_texture", PROPERTY_HINT_RESOURCE_TYPE, "Texture2D"), "set_roughness_texture", "get_roughness_texture");
+	ADD_PROPERTY(PropertyInfo(Variant::OBJECT, "height_texture", PROPERTY_HINT_RESOURCE_TYPE, "Texture2D"), "set_height_texture", "get_height_texture");
+	ADD_PROPERTY(PropertyInfo(Variant::OBJECT, "ao_texture", PROPERTY_HINT_RESOURCE_TYPE, "Texture2D"), "set_ao_texture", "get_ao_texture");
+	ADD_PROPERTY(PropertyInfo(Variant::FLOAT, "uv_scale", PROPERTY_HINT_RANGE, "0.001,2.0,0.001,or_greater"), "set_uv_scale", "get_uv_scale");
 
 	ADD_GROUP("Classification", "");
 	ADD_PROPERTY(PropertyInfo(Variant::FLOAT, "min_temperature", PROPERTY_HINT_RANGE, "-10.0,30.0"), "set_min_temperature", "get_min_temperature");
@@ -47,7 +59,7 @@ void TerrainBiomeLayer::_bind_methods() {
 }
 
 TerrainBiomeLayer::TerrainBiomeLayer() :
-		_min_temperature(-10.0f), _max_temperature(30.0f), _min_moisture(0.0f), _max_moisture(1.0f) {
+		_uv_scale(0.1f), _min_temperature(-10.0f), _max_temperature(30.0f), _min_moisture(0.0f), _max_moisture(1.0f) {
 }
 
 TerrainBiomeLayer::~TerrainBiomeLayer() = default;
@@ -76,6 +88,33 @@ Ref<Texture2D> TerrainBiomeLayer::get_roughness_texture() const {
 
 void TerrainBiomeLayer::set_roughness_texture(const Ref<Texture2D> &p_texture) {
 	set_texture_slot(this, _roughness_texture, p_texture, "roughness_texture", "TerrainBiomeLayer");
+}
+
+Ref<Texture2D> TerrainBiomeLayer::get_height_texture() const {
+	return _height_texture;
+}
+
+void TerrainBiomeLayer::set_height_texture(const Ref<Texture2D> &p_texture) {
+	set_texture_slot(this, _height_texture, p_texture, "height_texture", "TerrainBiomeLayer");
+}
+
+Ref<Texture2D> TerrainBiomeLayer::get_ao_texture() const {
+	return _ao_texture;
+}
+
+void TerrainBiomeLayer::set_ao_texture(const Ref<Texture2D> &p_texture) {
+	set_texture_slot(this, _ao_texture, p_texture, "ao_texture", "TerrainBiomeLayer");
+}
+
+float TerrainBiomeLayer::get_uv_scale() const {
+	return _uv_scale;
+}
+
+void TerrainBiomeLayer::set_uv_scale(const float p_scale) {
+	if (_uv_scale != p_scale) {
+		_uv_scale = p_scale;
+		emit_changed();
+	}
 }
 
 float TerrainBiomeLayer::get_min_temperature() const {

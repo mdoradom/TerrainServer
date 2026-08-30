@@ -82,6 +82,8 @@ void TerrainRenderer::_free_biome_texture_arrays() {
 	free_rid_if_valid(rs, _biome_albedo_array_rid);
 	free_rid_if_valid(rs, _biome_normal_array_rid);
 	free_rid_if_valid(rs, _biome_roughness_array_rid);
+	free_rid_if_valid(rs, _biome_height_array_rid);
+	free_rid_if_valid(rs, _biome_ao_array_rid);
 
 	_biome_texture_signature.clear();
 	_biome_texture_arrays_built = false;
@@ -90,11 +92,13 @@ void TerrainRenderer::_free_biome_texture_arrays() {
 
 std::vector<uint64_t> TerrainRenderer::_compute_biome_texture_signature(const TypedArray<TerrainBiomeLayer> &p_layers) const {
 	std::vector<uint64_t> signature;
-	signature.reserve(static_cast<size_t>(p_layers.size()) * 3);
+	signature.reserve(static_cast<size_t>(p_layers.size()) * 5);
 
 	for (int i = 0; i < p_layers.size(); i++) {
 		const Ref<TerrainBiomeLayer> layer = p_layers[i];
 		if (!layer.is_valid()) {
+			signature.push_back(0);
+			signature.push_back(0);
 			signature.push_back(0);
 			signature.push_back(0);
 			signature.push_back(0);
@@ -104,9 +108,13 @@ std::vector<uint64_t> TerrainRenderer::_compute_biome_texture_signature(const Ty
 		const Ref<Texture2D> albedo = layer->get_albedo_texture();
 		const Ref<Texture2D> normal = layer->get_normal_texture();
 		const Ref<Texture2D> roughness = layer->get_roughness_texture();
+		const Ref<Texture2D> height = layer->get_height_texture();
+		const Ref<Texture2D> ao = layer->get_ao_texture();
 		signature.push_back(albedo.is_valid() ? albedo->get_instance_id() : 0);
 		signature.push_back(normal.is_valid() ? normal->get_instance_id() : 0);
 		signature.push_back(roughness.is_valid() ? roughness->get_instance_id() : 0);
+		signature.push_back(height.is_valid() ? height->get_instance_id() : 0);
+		signature.push_back(ao.is_valid() ? ao->get_instance_id() : 0);
 	}
 
 	return signature;
@@ -171,12 +179,16 @@ int TerrainRenderer::_build_biome_texture_arrays(const TypedArray<TerrainBiomeLa
 		free_rid_if_valid(rs, _biome_albedo_array_rid);
 		free_rid_if_valid(rs, _biome_normal_array_rid);
 		free_rid_if_valid(rs, _biome_roughness_array_rid);
+		free_rid_if_valid(rs, _biome_height_array_rid);
+		free_rid_if_valid(rs, _biome_ao_array_rid);
 		return 0;
 	}
 
 	int albedo_w = 0, albedo_h = 0;
 	int normal_w = 0, normal_h = 0;
 	int roughness_w = 0, roughness_h = 0;
+	int height_w = 0, height_h = 0;
+	int ao_w = 0, ao_h = 0;
 
 	for (int i = 0; i < num_layers; i++) {
 		const Ref<TerrainBiomeLayer> layer = p_layers[i];
@@ -201,6 +213,18 @@ int TerrainRenderer::_build_biome_texture_arrays(const TypedArray<TerrainBiomeLa
 				roughness_h = t->get_height();
 			}
 		}
+		if (height_w == 0) {
+			if (const Ref<Texture2D> t = layer->get_height_texture(); t.is_valid()) {
+				height_w = t->get_width();
+				height_h = t->get_height();
+			}
+		}
+		if (ao_w == 0) {
+			if (const Ref<Texture2D> t = layer->get_ao_texture(); t.is_valid()) {
+				ao_w = t->get_width();
+				ao_h = t->get_height();
+			}
+		}
 	}
 
 	constexpr int DEFAULT_DIM = 4;
@@ -213,15 +237,23 @@ int TerrainRenderer::_build_biome_texture_arrays(const TypedArray<TerrainBiomeLa
 	if (roughness_w == 0) {
 		roughness_w = roughness_h = DEFAULT_DIM;
 	}
+	if (height_w == 0) {
+		height_w = height_h = DEFAULT_DIM;
+	}
+	if (ao_w == 0) {
+		ao_w = ao_h = DEFAULT_DIM;
+	}
 
 	// Already enforced upstream by TerrainBiomeLayer's setters (reject textures larger than
 	// MAX_TEXTURE_DIMENSION) -- reaching this point with an oversized reference is a bug.
 	CRASH_COND_MSG(albedo_w > TerrainBiomeLayer::MAX_TEXTURE_DIMENSION || albedo_h > TerrainBiomeLayer::MAX_TEXTURE_DIMENSION ||
 					normal_w > TerrainBiomeLayer::MAX_TEXTURE_DIMENSION || normal_h > TerrainBiomeLayer::MAX_TEXTURE_DIMENSION ||
-					roughness_w > TerrainBiomeLayer::MAX_TEXTURE_DIMENSION || roughness_h > TerrainBiomeLayer::MAX_TEXTURE_DIMENSION,
+					roughness_w > TerrainBiomeLayer::MAX_TEXTURE_DIMENSION || roughness_h > TerrainBiomeLayer::MAX_TEXTURE_DIMENSION ||
+					height_w > TerrainBiomeLayer::MAX_TEXTURE_DIMENSION || height_h > TerrainBiomeLayer::MAX_TEXTURE_DIMENSION ||
+					ao_w > TerrainBiomeLayer::MAX_TEXTURE_DIMENSION || ao_h > TerrainBiomeLayer::MAX_TEXTURE_DIMENSION,
 			"TerrainRenderer: a biome layer texture exceeds MAX_TEXTURE_DIMENSION; TerrainBiomeLayer's setters should have rejected this already.");
 
-	TypedArray<Ref<Image>> albedo_images, normal_images, roughness_images;
+	TypedArray<Ref<Image>> albedo_images, normal_images, roughness_images, height_images, ao_images;
 	bool mismatch = false;
 
 	for (int i = 0; i < num_layers; i++) {
@@ -229,16 +261,22 @@ int TerrainRenderer::_build_biome_texture_arrays(const TypedArray<TerrainBiomeLa
 		const Ref<Texture2D> albedo_tex = layer.is_valid() ? layer->get_albedo_texture() : Ref<Texture2D>();
 		const Ref<Texture2D> normal_tex = layer.is_valid() ? layer->get_normal_texture() : Ref<Texture2D>();
 		const Ref<Texture2D> roughness_tex = layer.is_valid() ? layer->get_roughness_texture() : Ref<Texture2D>();
+		const Ref<Texture2D> height_tex = layer.is_valid() ? layer->get_height_texture() : Ref<Texture2D>();
+		const Ref<Texture2D> ao_tex = layer.is_valid() ? layer->get_ao_texture() : Ref<Texture2D>();
 
 		bool layer_mismatch = false;
 		Ref<Image> a = _prepare_layer_image(albedo_tex, albedo_w, albedo_h, Color(0.5f, 0.5f, 0.5f, 1.0f), "albedo", i, layer_mismatch);
 		Ref<Image> n = _prepare_layer_image(normal_tex, normal_w, normal_h, Color(0.5f, 0.5f, 1.0f, 1.0f), "normal", i, layer_mismatch);
 		Ref<Image> r = _prepare_layer_image(roughness_tex, roughness_w, roughness_h, Color(0.5f, 0.5f, 0.5f, 1.0f), "roughness", i, layer_mismatch);
+		Ref<Image> h = _prepare_layer_image(height_tex, height_w, height_h, Color(0.5f, 0.5f, 0.5f, 1.0f), "height", i, layer_mismatch);
+		Ref<Image> o = _prepare_layer_image(ao_tex, ao_w, ao_h, Color(1.0f, 1.0f, 1.0f, 1.0f), "ao", i, layer_mismatch);
 
 		mismatch = mismatch || layer_mismatch;
 		albedo_images.push_back(a);
 		normal_images.push_back(n);
 		roughness_images.push_back(r);
+		height_images.push_back(h);
+		ao_images.push_back(o);
 	}
 
 	if (mismatch) {
@@ -246,20 +284,28 @@ int TerrainRenderer::_build_biome_texture_arrays(const TypedArray<TerrainBiomeLa
 		free_rid_if_valid(rs, _biome_albedo_array_rid);
 		free_rid_if_valid(rs, _biome_normal_array_rid);
 		free_rid_if_valid(rs, _biome_roughness_array_rid);
+		free_rid_if_valid(rs, _biome_height_array_rid);
+		free_rid_if_valid(rs, _biome_ao_array_rid);
 		return 0;
 	}
 
 	const RID new_albedo_rid = rs->texture_2d_layered_create(albedo_images, RenderingServer::TEXTURE_LAYERED_2D_ARRAY);
 	const RID new_normal_rid = rs->texture_2d_layered_create(normal_images, RenderingServer::TEXTURE_LAYERED_2D_ARRAY);
 	const RID new_roughness_rid = rs->texture_2d_layered_create(roughness_images, RenderingServer::TEXTURE_LAYERED_2D_ARRAY);
+	const RID new_height_rid = rs->texture_2d_layered_create(height_images, RenderingServer::TEXTURE_LAYERED_2D_ARRAY);
+	const RID new_ao_rid = rs->texture_2d_layered_create(ao_images, RenderingServer::TEXTURE_LAYERED_2D_ARRAY);
 
 	free_rid_if_valid(rs, _biome_albedo_array_rid);
 	free_rid_if_valid(rs, _biome_normal_array_rid);
 	free_rid_if_valid(rs, _biome_roughness_array_rid);
+	free_rid_if_valid(rs, _biome_height_array_rid);
+	free_rid_if_valid(rs, _biome_ao_array_rid);
 
 	_biome_albedo_array_rid = new_albedo_rid;
 	_biome_normal_array_rid = new_normal_rid;
 	_biome_roughness_array_rid = new_roughness_rid;
+	_biome_height_array_rid = new_height_rid;
+	_biome_ao_array_rid = new_ao_rid;
 
 	return num_layers;
 }
@@ -270,6 +316,8 @@ void TerrainRenderer::_free_rock_textures() {
 	free_rid_if_valid(rs, _rock_albedo_rid);
 	free_rid_if_valid(rs, _rock_normal_rid);
 	free_rid_if_valid(rs, _rock_roughness_rid);
+	free_rid_if_valid(rs, _rock_height_rid);
+	free_rid_if_valid(rs, _rock_ao_rid);
 
 	_rock_texture_signature.clear();
 	_rock_textures_built = false;
@@ -283,12 +331,16 @@ std::vector<uint64_t> TerrainRenderer::_compute_rock_texture_signature(const Ref
 	const Ref<Texture2D> albedo = p_layer->get_albedo_texture();
 	const Ref<Texture2D> normal = p_layer->get_normal_texture();
 	const Ref<Texture2D> roughness = p_layer->get_roughness_texture();
+	const Ref<Texture2D> height = p_layer->get_height_texture();
+	const Ref<Texture2D> ao = p_layer->get_ao_texture();
 
 	return {
 		p_layer->get_instance_id(),
 		albedo.is_valid() ? albedo->get_instance_id() : 0,
 		normal.is_valid() ? normal->get_instance_id() : 0,
 		roughness.is_valid() ? roughness->get_instance_id() : 0,
+		height.is_valid() ? height->get_instance_id() : 0,
+		ao.is_valid() ? ao->get_instance_id() : 0,
 	};
 }
 
@@ -316,6 +368,8 @@ void TerrainRenderer::_build_rock_textures(const Ref<TerrainSlopeLayer> &p_layer
 	const Ref<Texture2D> albedo_tex = p_layer->get_albedo_texture();
 	const Ref<Texture2D> normal_tex = p_layer->get_normal_texture();
 	const Ref<Texture2D> roughness_tex = p_layer->get_roughness_texture();
+	const Ref<Texture2D> height_tex = p_layer->get_height_texture();
+	const Ref<Texture2D> ao_tex = p_layer->get_ao_texture();
 
 	const int albedo_w = albedo_tex.is_valid() ? albedo_tex->get_width() : DEFAULT_DIM;
 	const int albedo_h = albedo_tex.is_valid() ? albedo_tex->get_height() : DEFAULT_DIM;
@@ -323,14 +377,22 @@ void TerrainRenderer::_build_rock_textures(const Ref<TerrainSlopeLayer> &p_layer
 	const int normal_h = normal_tex.is_valid() ? normal_tex->get_height() : DEFAULT_DIM;
 	const int roughness_w = roughness_tex.is_valid() ? roughness_tex->get_width() : DEFAULT_DIM;
 	const int roughness_h = roughness_tex.is_valid() ? roughness_tex->get_height() : DEFAULT_DIM;
+	const int height_w = height_tex.is_valid() ? height_tex->get_width() : DEFAULT_DIM;
+	const int height_h = height_tex.is_valid() ? height_tex->get_height() : DEFAULT_DIM;
+	const int ao_w = ao_tex.is_valid() ? ao_tex->get_width() : DEFAULT_DIM;
+	const int ao_h = ao_tex.is_valid() ? ao_tex->get_height() : DEFAULT_DIM;
 
 	const Ref<Image> albedo = _prepare_layer_image(albedo_tex, albedo_w, albedo_h, Color(0.5f, 0.5f, 0.5f, 1.0f), "rock albedo", 0, unused_mismatch);
 	const Ref<Image> normal = _prepare_layer_image(normal_tex, normal_w, normal_h, Color(0.5f, 0.5f, 1.0f, 1.0f), "rock normal", 0, unused_mismatch);
 	const Ref<Image> roughness = _prepare_layer_image(roughness_tex, roughness_w, roughness_h, Color(0.5f, 0.5f, 0.5f, 1.0f), "rock roughness", 0, unused_mismatch);
+	const Ref<Image> height = _prepare_layer_image(height_tex, height_w, height_h, Color(0.5f, 0.5f, 0.5f, 1.0f), "rock height", 0, unused_mismatch);
+	const Ref<Image> ao = _prepare_layer_image(ao_tex, ao_w, ao_h, Color(1.0f, 1.0f, 1.0f, 1.0f), "rock ao", 0, unused_mismatch);
 
 	_rock_albedo_rid = rs->texture_2d_create(albedo);
 	_rock_normal_rid = rs->texture_2d_create(normal);
 	_rock_roughness_rid = rs->texture_2d_create(roughness);
+	_rock_height_rid = rs->texture_2d_create(height);
+	_rock_ao_rid = rs->texture_2d_create(ao);
 }
 
 void TerrainRenderer::rebuild_mesh(const float p_size, const int p_resolution) {
@@ -368,11 +430,13 @@ void TerrainRenderer::rebuild_mesh(const float p_size, const int p_resolution) {
 	PackedFloat32Array biome_max_temperature;
 	PackedFloat32Array biome_min_moisture;
 	PackedFloat32Array biome_max_moisture;
+	PackedFloat32Array biome_uv_scale;
 
 	biome_min_temperature.resize(_biome_layer_count);
 	biome_max_temperature.resize(_biome_layer_count);
 	biome_min_moisture.resize(_biome_layer_count);
 	biome_max_moisture.resize(_biome_layer_count);
+	biome_uv_scale.resize(_biome_layer_count);
 
 	for (int i = 0; i < _biome_layer_count; i++) {
 		const Ref<TerrainBiomeLayer> layer = biome_layers[i];
@@ -380,6 +444,7 @@ void TerrainRenderer::rebuild_mesh(const float p_size, const int p_resolution) {
 		biome_max_temperature[i] = layer.is_valid() ? layer->get_max_temperature() : 0.0f;
 		biome_min_moisture[i] = layer.is_valid() ? layer->get_min_moisture() : 0.0f;
 		biome_max_moisture[i] = layer.is_valid() ? layer->get_max_moisture() : 0.0f;
+		biome_uv_scale[i] = layer.is_valid() ? layer->get_uv_scale() : 0.1f;
 	}
 
 	int num_levels = _config->get_clipmap_levels();
@@ -413,6 +478,8 @@ void TerrainRenderer::rebuild_mesh(const float p_size, const int p_resolution) {
 		rs->material_set_param(material, "biome_albedo_textures", _biome_albedo_array_rid);
 		rs->material_set_param(material, "biome_normal_textures", _biome_normal_array_rid);
 		rs->material_set_param(material, "biome_roughness_textures", _biome_roughness_array_rid);
+		rs->material_set_param(material, "biome_height_textures", _biome_height_array_rid);
+		rs->material_set_param(material, "biome_ao_textures", _biome_ao_array_rid);
 		rs->material_set_param(material, "biome_layer_count", _biome_layer_count);
 
 		// Biome thresholds
@@ -420,6 +487,7 @@ void TerrainRenderer::rebuild_mesh(const float p_size, const int p_resolution) {
 		rs->material_set_param(material, "biome_max_temperature", biome_max_temperature);
 		rs->material_set_param(material, "biome_min_moisture", biome_min_moisture);
 		rs->material_set_param(material, "biome_max_moisture", biome_max_moisture);
+		rs->material_set_param(material, "biome_uv_scale", biome_uv_scale);
 
 		// Temperature/moisture noise parameters
 		rs->material_set_param(material, "temperature_frequency", _config->get_temperature_frequency());
@@ -433,9 +501,12 @@ void TerrainRenderer::rebuild_mesh(const float p_size, const int p_resolution) {
 		rs->material_set_param(material, "rock_albedo_texture", _rock_albedo_rid);
 		rs->material_set_param(material, "rock_normal_texture", _rock_normal_rid);
 		rs->material_set_param(material, "rock_roughness_texture", _rock_roughness_rid);
+		rs->material_set_param(material, "rock_height_texture", _rock_height_rid);
+		rs->material_set_param(material, "rock_ao_texture", _rock_ao_rid);
 		rs->material_set_param(material, "rock_layer_enabled", rock_layer.is_valid());
 		rs->material_set_param(material, "rock_slope_threshold", rock_layer.is_valid() ? rock_layer->get_slope_threshold() : 0.0f);
 		rs->material_set_param(material, "rock_slope_blend_range", rock_layer.is_valid() ? rock_layer->get_slope_blend_range() : 1.0f);
+		rs->material_set_param(material, "rock_uv_scale", rock_layer.is_valid() ? rock_layer->get_uv_scale() : 0.1f);
 
 		const float level_scale = p_size * powf(2.0f, static_cast<float>(i));
 		rs->instance_geometry_set_material_override(instance, material);

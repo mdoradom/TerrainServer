@@ -17,6 +17,9 @@ private:
 	godot::Ref<godot::Texture2D> _albedo_texture;
 	godot::Ref<godot::Texture2D> _normal_texture;
 	godot::Ref<godot::Texture2D> _roughness_texture;
+	godot::Ref<godot::Texture2D> _height_texture;
+	godot::Ref<godot::Texture2D> _ao_texture;
+	float _uv_scale;
 
 	float _slope_threshold;
 	float _slope_blend_range;
@@ -36,6 +39,15 @@ public:
 
 	godot::Ref<godot::Texture2D> get_roughness_texture() const;
 	void set_roughness_texture(const godot::Ref<godot::Texture2D> &p_texture);
+
+	godot::Ref<godot::Texture2D> get_height_texture() const;
+	void set_height_texture(const godot::Ref<godot::Texture2D> &p_texture);
+
+	godot::Ref<godot::Texture2D> get_ao_texture() const;
+	void set_ao_texture(const godot::Ref<godot::Texture2D> &p_texture);
+
+	float get_uv_scale() const;
+	void set_uv_scale(float p_scale);
 
 	float get_slope_threshold() const;
 	void set_slope_threshold(float p_threshold);
