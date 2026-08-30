@@ -178,6 +178,7 @@ const float POM_MIN_DEPTH = 0.00001;
 const int POM_REFINE_STEPS = 5;
 // Keeps the sweep finite when the view ray is near-parallel to the surface.
 const float POM_GRAZING_CLAMP = 0.1;
+const float POM_SECANT_EPSILON = 1e-6;
 const float TRIPLANAR_WEIGHT_EPSILON = 0.001;
 const float TRIPLANAR_WEIGHT_SUM_MIN = 0.00001;
 
@@ -328,61 +329,55 @@ void fragment()
 		float step_count = max(1.0, floor(mix(float(pom_max_steps), float(pom_min_steps), abs(n_dot_v)) * pom_fade));
 		int steps = int(step_count);
 		float layer_step = 1.0 / step_count;
-		vec3 delta = sweep / step_count;
 
-		vec3 cur_offset = vec3(0.0);
+		// The offset at any point along the ray is exactly -depth * sweep, so the march and the
+		// refinement below track the scalar depth alone and materialise the offset once, at the end.
 		float ray_depth = 0.0;
 		float cur_surface = 0.0;
-		vec3 prev_offset = vec3(0.0);
-		float prev_surface = 0.0;
 		float prev_ray_depth = 0.0;
+		float prev_surface = 0.0;
 		bool hit = false;
 
 		for (int s = 0; s <= steps; s++) {
-			cur_surface = 1.0 - blended_height(base_pos + cur_offset, pos_ddx, pos_ddy, tri_w, weights, rock_alpha);
+			cur_surface = 1.0 - blended_height(base_pos - ray_depth * sweep, pos_ddx, pos_ddy, tri_w, weights, rock_alpha);
 			if (ray_depth >= cur_surface) {
 				hit = true;
 				break;
 			}
 
-			prev_offset = cur_offset;
 			prev_surface = cur_surface;
 			prev_ray_depth = ray_depth;
-			cur_offset -= delta;
 			ray_depth += layer_step;
 		}
 
-		world_offset = cur_offset;
+		float final_depth = ray_depth;
 
 		if (hit) {
-			vec3 above_offset = prev_offset;
-			float above_surface = prev_surface;
 			float above_depth = prev_ray_depth;
-			vec3 below_offset = cur_offset;
-			float below_surface = cur_surface;
+			float above_surface = prev_surface;
 			float below_depth = ray_depth;
+			float below_surface = cur_surface;
 
 			for (int b = 0; b < POM_REFINE_STEPS; b++) {
-				vec3 mid_offset = mix(above_offset, below_offset, 0.5);
 				float mid_depth = mix(above_depth, below_depth, 0.5);
-				float mid_surface = 1.0 - blended_height(base_pos + mid_offset, pos_ddx, pos_ddy, tri_w, weights, rock_alpha);
+				float mid_surface = 1.0 - blended_height(base_pos - mid_depth * sweep, pos_ddx, pos_ddy, tri_w, weights, rock_alpha);
 
 				if (mid_depth >= mid_surface) {
-					below_offset = mid_offset;
-					below_surface = mid_surface;
 					below_depth = mid_depth;
+					below_surface = mid_surface;
 				} else {
-					above_offset = mid_offset;
-					above_surface = mid_surface;
 					above_depth = mid_depth;
+					above_surface = mid_surface;
 				}
 			}
 
 			float after = below_surface - below_depth;
 			float before = above_surface - above_depth;
 			float denom = after - before;
-			world_offset = abs(denom) > 1e-6 ? mix(below_offset, above_offset, clamp(after / denom, 0.0, 1.0)) : below_offset;
+			final_depth = abs(denom) > POM_SECANT_EPSILON ? mix(below_depth, above_depth, clamp(after / denom, 0.0, 1.0)) : below_depth;
 		}
+
+		world_offset = -final_depth * sweep;
 	}
 
 	vec3 sample_pos = base_pos + world_offset;
