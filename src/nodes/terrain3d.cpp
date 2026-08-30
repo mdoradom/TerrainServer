@@ -13,6 +13,7 @@ void Terrain3D::_bind_methods() {
 	ClassDB::bind_method(D_METHOD("set_configuration", "config"), &Terrain3D::set_configuration);
 	ClassDB::bind_method(D_METHOD("get_configuration"), &Terrain3D::get_configuration);
 	ClassDB::bind_method(D_METHOD("get_height_at", "world_xz"), &Terrain3D::get_height_at);
+	ClassDB::bind_method(D_METHOD("get_biome_at", "world_xz"), &Terrain3D::get_biome_at);
 	ClassDB::bind_method(D_METHOD("set_focus_path", "path"), &Terrain3D::set_focus_path);
 	ClassDB::bind_method(D_METHOD("get_focus_path"), &Terrain3D::get_focus_path);
 	ClassDB::bind_method(D_METHOD("_on_config_changed"), &Terrain3D::_on_config_changed);
@@ -145,6 +146,14 @@ float Terrain3D::get_height_at(const Vector2 p_world_xz) const {
 	}
 
 	return _physics->get_height_at(p_world_xz);
+}
+
+Ref<TerrainBiomeLayer> Terrain3D::get_biome_at(const Vector2 p_world_xz) const {
+	if (!_physics.is_valid()) {
+		return nullptr;
+	}
+
+	return _physics->get_biome_at(p_world_xz);
 }
 
 void Terrain3D::set_focus_path(const NodePath &p_path) {

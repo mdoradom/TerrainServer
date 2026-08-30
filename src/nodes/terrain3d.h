@@ -1,5 +1,6 @@
 #pragma once
 
+#include "core/terrain_biome_layer.h"
 #include "core/terrain_configuration.h"
 #include "core/terrain_generator.h"
 #include "core/terrain_physics.h"
@@ -35,6 +36,7 @@ public:
 	void set_configuration(const godot::Ref<TerrainConfiguration> &p_config);
 	godot::Ref<TerrainConfiguration> get_configuration() const;
 	float get_height_at(godot::Vector2 p_world_xz) const;
+	godot::Ref<TerrainBiomeLayer> get_biome_at(godot::Vector2 p_world_xz) const;
 
 	void set_focus_path(const godot::NodePath &p_path);
 	godot::NodePath get_focus_path() const;

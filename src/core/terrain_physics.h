@@ -1,4 +1,5 @@
 #pragma once
+#include "terrain_biome_layer.h"
 #include "terrain_configuration.h"
 #include "terrain_noise.h"
 #include <godot_cpp/classes/node3d.hpp>
@@ -19,6 +20,7 @@ private:
 	godot::RID _shape_rid;
 
 	TerrainNoise::FbmParams _noise_params;
+	TerrainNoise::TemperatureMoistureParams _temp_moist_params;
 	int _grid_resolution = 0;
 	float _range = 0.0f;
 	uint32_t _collision_layer = 1;
@@ -56,5 +58,6 @@ public:
 	void set_configuration(const godot::Ref<TerrainConfiguration> &p_config);
 	void update_focus_position(godot::Vector3 p_focus_pos);
 	float get_height_at(godot::Vector2 p_world_xz) const;
+	godot::Ref<TerrainBiomeLayer> get_biome_at(godot::Vector2 p_world_xz) const;
 };
 } //namespace ts
