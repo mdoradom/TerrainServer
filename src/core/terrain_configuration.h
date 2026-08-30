@@ -50,6 +50,7 @@ private:
 	int _pom_max_steps;
 	float _pom_fade_start;
 	float _pom_fade_end;
+	float _triplanar_sharpness;
 
 	godot::Ref<godot::FastNoiseLite> _internal_noise;
 	godot::Ref<godot::ImageTexture> _noise_preview;
@@ -131,6 +132,8 @@ public:
 	float get_pom_fade_end() const;
 	void set_pom_fade_end(float p_distance);
 
+	float get_triplanar_sharpness() const;
+	void set_triplanar_sharpness(float p_sharpness);
 
 	godot::Ref<godot::ImageTexture> get_noise_preview() const;
 };

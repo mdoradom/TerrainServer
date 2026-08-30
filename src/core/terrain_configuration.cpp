@@ -78,6 +78,9 @@ void TerrainConfiguration::_bind_methods() {
 	ClassDB::bind_method(D_METHOD("set_pom_fade_end", "distance"), &TerrainConfiguration::set_pom_fade_end);
 	ClassDB::bind_method(D_METHOD("get_pom_fade_end"), &TerrainConfiguration::get_pom_fade_end);
 
+	ClassDB::bind_method(D_METHOD("set_triplanar_sharpness", "sharpness"), &TerrainConfiguration::set_triplanar_sharpness);
+	ClassDB::bind_method(D_METHOD("get_triplanar_sharpness"), &TerrainConfiguration::get_triplanar_sharpness);
+
 	ADD_GROUP("Terrain", "");
 	ADD_PROPERTY(PropertyInfo(Variant::FLOAT, "terrain_size", PROPERTY_HINT_RANGE, "1.0,10000.0"), "set_terrain_size", "get_terrain_size");
 	ADD_PROPERTY(PropertyInfo(Variant::FLOAT, "height_scale", PROPERTY_HINT_RANGE, "0.1,100.0"), "set_height_scale", "get_height_scale");
@@ -113,9 +116,12 @@ void TerrainConfiguration::_bind_methods() {
 	ADD_PROPERTY(PropertyInfo(Variant::INT, "pom_max_steps", PROPERTY_HINT_RANGE, "1,128,1"), "set_pom_max_steps", "get_pom_max_steps");
 	ADD_PROPERTY(PropertyInfo(Variant::FLOAT, "pom_fade_start", PROPERTY_HINT_RANGE, "0.0,1000.0,0.1,or_greater"), "set_pom_fade_start", "get_pom_fade_start");
 	ADD_PROPERTY(PropertyInfo(Variant::FLOAT, "pom_fade_end", PROPERTY_HINT_RANGE, "0.0,1000.0,0.1,or_greater"), "set_pom_fade_end", "get_pom_fade_end");
+
+	ADD_GROUP("Triplanar", "triplanar_");
+	ADD_PROPERTY(PropertyInfo(Variant::FLOAT, "triplanar_sharpness", PROPERTY_HINT_RANGE, "1.0,16.0,0.1"), "set_triplanar_sharpness", "get_triplanar_sharpness");
 }
 
-TerrainConfiguration::TerrainConfiguration() : _height_scale(10.0), _mesh_resolution(256), _terrain_size(256.0f), _noise_octaves(5), _noise_base_frequency(0.002f), _noise_lacunarity(2.0f), _noise_gain(0.5f), _clipmap_levels(6), _physics_range(64.0f), _physics_collision_layer(1), _physics_collision_mask(0), _temperature_frequency(0.0004f), _temperature_offset(10000.0f, -6000.0f), _temperature_noise_influence(0.4f), _temperature_altitude_reference(10.0f), _moisture_frequency(0.0006f), _moisture_offset(-4000.0f, 9000.0f), _pom_min_steps(8), _pom_max_steps(32), _pom_fade_start(40.0f), _pom_fade_end(120.0f) {
+TerrainConfiguration::TerrainConfiguration() : _height_scale(10.0), _mesh_resolution(256), _terrain_size(256.0f), _noise_octaves(5), _noise_base_frequency(0.002f), _noise_lacunarity(2.0f), _noise_gain(0.5f), _clipmap_levels(6), _physics_range(64.0f), _physics_collision_layer(1), _physics_collision_mask(0), _temperature_frequency(0.0004f), _temperature_offset(10000.0f, -6000.0f), _temperature_noise_influence(0.4f), _temperature_altitude_reference(10.0f), _moisture_frequency(0.0006f), _moisture_offset(-4000.0f, 9000.0f), _pom_min_steps(8), _pom_max_steps(32), _pom_fade_start(40.0f), _pom_fade_end(120.0f), _triplanar_sharpness(4.0f) {
 	_internal_noise.instantiate();
 	_internal_noise->set_noise_type(FastNoiseLite::TYPE_PERLIN);
 	_internal_noise->set_fractal_type(FastNoiseLite::FRACTAL_FBM);
@@ -427,6 +433,17 @@ void TerrainConfiguration::set_pom_fade_start(const float p_distance) {
 
 float TerrainConfiguration::get_pom_fade_end() const {
 	return _pom_fade_end;
+}
+
+float TerrainConfiguration::get_triplanar_sharpness() const {
+	return _triplanar_sharpness;
+}
+
+void TerrainConfiguration::set_triplanar_sharpness(const float p_sharpness) {
+	if (_triplanar_sharpness != p_sharpness) {
+		_triplanar_sharpness = p_sharpness;
+		emit_changed();
+	}
 }
 
 void TerrainConfiguration::set_pom_fade_end(const float p_distance) {
