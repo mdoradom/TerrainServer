@@ -25,6 +25,9 @@ void TerrainBiomeLayer::_bind_methods() {
 	ClassDB::bind_method(D_METHOD("set_uv_scale", "scale"), &TerrainBiomeLayer::set_uv_scale);
 	ClassDB::bind_method(D_METHOD("get_uv_scale"), &TerrainBiomeLayer::get_uv_scale);
 
+	ClassDB::bind_method(D_METHOD("set_pom_depth", "depth"), &TerrainBiomeLayer::set_pom_depth);
+	ClassDB::bind_method(D_METHOD("get_pom_depth"), &TerrainBiomeLayer::get_pom_depth);
+
 	ClassDB::bind_method(D_METHOD("set_min_temperature", "temperature"), &TerrainBiomeLayer::set_min_temperature);
 	ClassDB::bind_method(D_METHOD("get_min_temperature"), &TerrainBiomeLayer::get_min_temperature);
 
@@ -50,6 +53,7 @@ void TerrainBiomeLayer::_bind_methods() {
 	ADD_PROPERTY(PropertyInfo(Variant::OBJECT, "height_texture", PROPERTY_HINT_RESOURCE_TYPE, "Texture2D"), "set_height_texture", "get_height_texture");
 	ADD_PROPERTY(PropertyInfo(Variant::OBJECT, "ao_texture", PROPERTY_HINT_RESOURCE_TYPE, "Texture2D"), "set_ao_texture", "get_ao_texture");
 	ADD_PROPERTY(PropertyInfo(Variant::FLOAT, "uv_scale", PROPERTY_HINT_RANGE, "0.001,2.0,0.001,or_greater"), "set_uv_scale", "get_uv_scale");
+	ADD_PROPERTY(PropertyInfo(Variant::FLOAT, "pom_depth", PROPERTY_HINT_RANGE, "0.0,0.25,0.001,or_greater"), "set_pom_depth", "get_pom_depth");
 
 	ADD_GROUP("Classification", "");
 	ADD_PROPERTY(PropertyInfo(Variant::FLOAT, "min_temperature", PROPERTY_HINT_RANGE, "-10.0,30.0"), "set_min_temperature", "get_min_temperature");
@@ -59,7 +63,7 @@ void TerrainBiomeLayer::_bind_methods() {
 }
 
 TerrainBiomeLayer::TerrainBiomeLayer() :
-		_uv_scale(0.1f), _min_temperature(-10.0f), _max_temperature(30.0f), _min_moisture(0.0f), _max_moisture(1.0f) {
+		_uv_scale(0.1f), _pom_depth(0.0f), _min_temperature(-10.0f), _max_temperature(30.0f), _min_moisture(0.0f), _max_moisture(1.0f) {
 }
 
 TerrainBiomeLayer::~TerrainBiomeLayer() = default;
@@ -113,6 +117,17 @@ float TerrainBiomeLayer::get_uv_scale() const {
 void TerrainBiomeLayer::set_uv_scale(const float p_scale) {
 	if (_uv_scale != p_scale) {
 		_uv_scale = p_scale;
+		emit_changed();
+	}
+}
+
+float TerrainBiomeLayer::get_pom_depth() const {
+	return _pom_depth;
+}
+
+void TerrainBiomeLayer::set_pom_depth(const float p_depth) {
+	if (_pom_depth != p_depth) {
+		_pom_depth = p_depth;
 		emit_changed();
 	}
 }
