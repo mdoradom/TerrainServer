@@ -176,6 +176,8 @@ const float WHITTAKER_MOIST_SOFTNESS_MIN = 0.02; // normalized [0,1]
 const float WHITTAKER_WEIGHT_FLOOR = 0.0001;
 const float POM_MIN_DEPTH = 0.00001;
 const int POM_REFINE_STEPS = 5;
+// Keeps the sweep finite when the view ray is near-parallel to the surface.
+const float POM_GRAZING_CLAMP = 0.1;
 const float TRIPLANAR_WEIGHT_EPSILON = 0.001;
 const float TRIPLANAR_WEIGHT_SUM_MIN = 0.00001;
 
@@ -316,16 +318,14 @@ void fragment()
 	float pom_fade = 1.0 - smoothstep(pom_fade_start, pom_fade_end, length(VERTEX));
 
 	if (pom_depth > POM_MIN_DEPTH && pom_fade > 0.0) {
-		vec3 axis_ref = abs(geo_normal_ws.x) < 0.9 ? vec3(1.0, 0.0, 0.0) : vec3(0.0, 0.0, 1.0);
-		vec3 t_ws = normalize(axis_ref - geo_normal_ws * dot(geo_normal_ws, axis_ref));
-		vec3 b_ws = cross(geo_normal_ws, t_ws);
-
 		vec3 view_ws = mat3(INV_VIEW_MATRIX) * normalize(-VERTEX);
-		vec3 view_ts = vec3(dot(view_ws, t_ws), dot(view_ws, b_ws), dot(view_ws, geo_normal_ws));
+		float n_dot_v = dot(view_ws, geo_normal_ws);
 
-		vec3 sweep = (t_ws * view_ts.x + b_ws * view_ts.y) / max(abs(view_ts.z), 0.1) * pom_depth * pom_fade;
+		// An orthonormal tangent basis cancels out of both terms below, so the sweep is just
+		// the view ray projected onto the tangent plane -- no basis needs building.
+		vec3 sweep = (view_ws - geo_normal_ws * n_dot_v) / max(abs(n_dot_v), POM_GRAZING_CLAMP) * pom_depth * pom_fade;
 
-		float step_count = max(1.0, floor(mix(float(pom_max_steps), float(pom_min_steps), abs(view_ts.z)) * pom_fade));
+		float step_count = max(1.0, floor(mix(float(pom_max_steps), float(pom_min_steps), abs(n_dot_v)) * pom_fade));
 		int steps = int(step_count);
 		float layer_step = 1.0 / step_count;
 		vec3 delta = sweep / step_count;
