@@ -179,11 +179,8 @@ void vertex() {
 const float WHITTAKER_TEMP_SOFTNESS_MIN = 0.5; // deg C
 const float WHITTAKER_MOIST_SOFTNESS_MIN = 0.02; // normalized [0,1]
 const float WHITTAKER_WEIGHT_FLOOR = 0.0001;
-// Below this blended depth the parallax march is skipped entirely.
 const float POM_MIN_DEPTH = 0.00001;
-// Triplanar planes contributing less than this are skipped outright. On level ground the Y
-// plane carries all the weight, so flat terrain costs the same single fetch per map that the
-// old top-down-only projection did -- only slopes pay for a second or third plane.
+const int POM_REFINE_STEPS = 5;
 const float TRIPLANAR_WEIGHT_EPSILON = 0.001;
 
 vec3 triplanar_weights(vec3 p_normal) {
@@ -191,9 +188,6 @@ vec3 triplanar_weights(vec3 p_normal) {
 	return w / max(w.x + w.y + w.z, 0.00001);
 }
 
-// Colour/scalar triplanar fetch. `p_pos` is the parallax-resolved world position; `p_ddx` and
-// `p_ddy` are derivatives of the *base* world position, taken once in uniform control flow so
-// the mip level stays stable inside the raymarch.
 vec4 triplanar_array(sampler2DArray p_tex, int p_layer, vec3 p_pos, vec3 p_ddx, vec3 p_ddy, float p_scale, vec3 p_w) {
 	vec4 acc = vec4(0.0);
 	if (p_w.x > TRIPLANAR_WEIGHT_EPSILON) {
@@ -222,9 +216,6 @@ vec4 triplanar_2d(sampler2D p_tex, vec3 p_pos, vec3 p_ddx, vec3 p_ddy, float p_s
 	return acc;
 }
 
-// Whiteout blend: each plane's tangent-space normal is folded into world space and summed
-// with the geometric normal's contribution before weighting. Blending the encoded normals
-// directly instead would let the dominant plane wash the other two flat.
 vec3 whiteout_x(vec3 p_t, vec3 p_n) { return vec3(abs(p_t.z) * p_n.x, p_t.y + p_n.y, p_t.x + p_n.z); }
 vec3 whiteout_y(vec3 p_t, vec3 p_n) { return vec3(p_t.x + p_n.x, abs(p_t.z) * p_n.y, p_t.y + p_n.z); }
 vec3 whiteout_z(vec3 p_t, vec3 p_n) { return vec3(p_t.x + p_n.x, p_t.y + p_n.y, abs(p_t.z) * p_n.z); }
@@ -263,26 +254,27 @@ vec3 triplanar_normal_2d(sampler2D p_tex, vec3 p_pos, vec3 p_ddx, vec3 p_ddy, fl
 	return acc;
 }
 
+float blended_height(vec3 p_pos, vec3 p_ddx, vec3 p_ddy, vec3 p_w, float p_weights[32], float p_rock_alpha) {
+	float h = 0.0;
+	for (int i = 0; i < biome_layer_count; i++) {
+		h += triplanar_array(biome_height_textures, i, p_pos, p_ddx, p_ddy, biome_uv_scale[i], p_w).r * p_weights[i];
+	}
+	if (rock_layer_enabled) {
+		h = mix(h, triplanar_2d(rock_height_texture, p_pos, p_ddx, p_ddy, rock_uv_scale, p_w).r, p_rock_alpha);
+	}
+	return h;
+}
+
 void fragment()
 {
 	vec3 geo_normal_ws = normalize(v_normal_ws);
 	vec3 base_pos = vec3(v_world_xz.x, v_world_y, v_world_xz.y);
 
-	// Derivatives of the *base* world position, taken once in uniform control flow. Every
-	// fetch below goes through textureGrad with these: sampling inside the raymarch leaves
-	// implicit derivatives undefined, and the parallax-resolved position is too discontinuous
-	// to derive a sane mip from anyway.
 	vec3 pos_ddx = dFdx(base_pos);
 	vec3 pos_ddy = dFdy(base_pos);
 
-	// Projecting on all three world planes rather than only top-down is what keeps steep
-	// terrain from smearing: a top-down-only projection stretches its texture by 1/cos(slope),
-	// and the rock layer's slope threshold means it only ever draws where that factor is
-	// already 2x or worse.
 	vec3 tri_w = triplanar_weights(geo_normal_ws);
 
-	// Rock coverage is resolved before the march so the height field being marched, and its
-	// depth, can be blended exactly the way the final material is mixed further down.
 	float rock_alpha = 0.0;
 	if (rock_layer_enabled) {
 		float slope = 1.0 - dot(geo_normal_ws, vec3(0.0, 1.0, 0.0));
@@ -290,10 +282,6 @@ void fragment()
 		rock_alpha = smoothstep(rock_slope_threshold - safe_blend_range, rock_slope_threshold + safe_blend_range, slope);
 	}
 
-	// Whittaker weights depend only on the climate fields, whose noise frequencies (0.002-0.01)
-	// are effectively constant across the few centimetres a parallax offset spans. So they are
-	// resolved once here, normalized, and reused by both the march and the final sampling --
-	// which is what keeps the march single-pass instead of one march per biome.
 	float weights[32];
 	if (biome_layer_count > 0) {
 		float t = temperature_at(v_world_xz, v_height);
@@ -318,11 +306,6 @@ void fragment()
 		}
 	}
 
-	// ---- Parallax occlusion mapping ------------------------------------------------------
-	// One steep raymarch over the weighted blend of every layer's height field, stepping
-	// through world space in metres. The offset stays a full 3D world vector so it feeds the
-	// triplanar projection directly, and pom_depth stays an authorable world quantity that is
-	// independent of each layer's tiling.
 	vec3 world_offset = vec3(0.0);
 
 	float pom_depth = 0.0;
@@ -334,9 +317,6 @@ void fragment()
 	float pom_fade = 1.0 - smoothstep(pom_fade_start, pom_fade_end, length(VERTEX));
 
 	if (pom_depth > POM_MIN_DEPTH && pom_fade > 0.0) {
-		// Any orthonormal frame around the geometric normal will do -- the march is no longer
-		// tied to a UV axis now that sampling is triplanar. Pick the world axis furthest from
-		// the normal so the Gram-Schmidt step never degenerates on near-vertical terrain.
 		vec3 axis_ref = abs(geo_normal_ws.x) < 0.9 ? vec3(1.0, 0.0, 0.0) : vec3(0.0, 0.0, 1.0);
 		vec3 t_ws = normalize(axis_ref - geo_normal_ws * dot(geo_normal_ws, axis_ref));
 		vec3 b_ws = cross(geo_normal_ws, t_ws);
@@ -344,12 +324,8 @@ void fragment()
 		vec3 view_ws = mat3(INV_VIEW_MATRIX) * normalize(-VERTEX);
 		vec3 view_ts = vec3(dot(view_ws, t_ws), dot(view_ws, b_ws), dot(view_ws, geo_normal_ws));
 
-		// Tangential sweep for a full depth range. The divisor is clamped so grazing views
-		// don't blow the offset up to infinity.
 		vec3 sweep = (t_ws * view_ts.x + b_ws * view_ts.y) / max(abs(view_ts.z), 0.1) * pom_depth * pom_fade;
 
-		// More steps at grazing angles, where each step covers more ground; fewer looking
-		// straight down. Scaled by the distance fade so far tiles stop paying before it ends.
 		float step_count = max(1.0, floor(mix(float(pom_max_steps), float(pom_min_steps), abs(view_ts.z)) * pom_fade));
 		int steps = int(step_count);
 		float layer_step = 1.0 / step_count;
@@ -361,22 +337,12 @@ void fragment()
 		vec3 prev_offset = vec3(0.0);
 		float prev_surface = 0.0;
 		float prev_ray_depth = 0.0;
+		bool hit = false;
 
-		// Walk down the ray until it passes below the height field. Sampling at the top of the
-		// body means the previous step's values are still live for the interpolation afterwards,
-		// so resolving the hit costs no extra blended fetch.
 		for (int s = 0; s <= steps; s++) {
-			vec3 p = base_pos + cur_offset;
-			float h = 0.0;
-			for (int i = 0; i < biome_layer_count; i++) {
-				h += triplanar_array(biome_height_textures, i, p, pos_ddx, pos_ddy, biome_uv_scale[i], tri_w).r * weights[i];
-			}
-			if (rock_layer_enabled) {
-				h = mix(h, triplanar_2d(rock_height_texture, p, pos_ddx, pos_ddy, rock_uv_scale, tri_w).r, rock_alpha);
-			}
-
-			cur_surface = 1.0 - h;
+			cur_surface = 1.0 - blended_height(base_pos + cur_offset, pos_ddx, pos_ddy, tri_w, weights, rock_alpha);
 			if (ray_depth >= cur_surface) {
+				hit = true;
 				break;
 			}
 
@@ -387,11 +353,37 @@ void fragment()
 			ray_depth += layer_step;
 		}
 
-		// Interpolate between the last two samples so the relief doesn't stair-step.
-		float after = cur_surface - ray_depth;
-		float before = prev_surface - prev_ray_depth;
-		float denom = after - before;
-		world_offset = abs(denom) > 1e-6 ? mix(cur_offset, prev_offset, clamp(after / denom, 0.0, 1.0)) : cur_offset;
+		world_offset = cur_offset;
+
+		if (hit) {
+			vec3 above_offset = prev_offset;
+			float above_surface = prev_surface;
+			float above_depth = prev_ray_depth;
+			vec3 below_offset = cur_offset;
+			float below_surface = cur_surface;
+			float below_depth = ray_depth;
+
+			for (int b = 0; b < POM_REFINE_STEPS; b++) {
+				vec3 mid_offset = mix(above_offset, below_offset, 0.5);
+				float mid_depth = mix(above_depth, below_depth, 0.5);
+				float mid_surface = 1.0 - blended_height(base_pos + mid_offset, pos_ddx, pos_ddy, tri_w, weights, rock_alpha);
+
+				if (mid_depth >= mid_surface) {
+					below_offset = mid_offset;
+					below_surface = mid_surface;
+					below_depth = mid_depth;
+				} else {
+					above_offset = mid_offset;
+					above_surface = mid_surface;
+					above_depth = mid_depth;
+				}
+			}
+
+			float after = below_surface - below_depth;
+			float before = above_surface - above_depth;
+			float denom = after - before;
+			world_offset = abs(denom) > 1e-6 ? mix(below_offset, above_offset, clamp(after / denom, 0.0, 1.0)) : below_offset;
+		}
 	}
 
 	vec3 sample_pos = base_pos + world_offset;
@@ -437,9 +429,5 @@ void fragment()
 		normal_ws = mix(normal_ws, rock_normal, rock_alpha);
 	}
 
-	// Triplanar produces a world-space normal directly, so it is written to NORMAL (view space
-	// in a Godot fragment shader) rather than handed to NORMAL_MAP -- which would re-apply it
-	// through the vertex TANGENT/BINORMAL frame, the same skewed finite-difference basis the
-	// parallax march deliberately avoids.
 	NORMAL = normalize((VIEW_MATRIX * vec4(normalize(normal_ws), 0.0)).xyz);
 }
