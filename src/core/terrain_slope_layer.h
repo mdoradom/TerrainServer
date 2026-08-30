@@ -20,6 +20,7 @@ private:
 	godot::Ref<godot::Texture2D> _height_texture;
 	godot::Ref<godot::Texture2D> _ao_texture;
 	float _uv_scale;
+	float _pom_depth;
 
 	float _slope_threshold;
 	float _slope_blend_range;
@@ -48,6 +49,9 @@ public:
 
 	float get_uv_scale() const;
 	void set_uv_scale(float p_scale);
+
+	float get_pom_depth() const;
+	void set_pom_depth(float p_depth);
 
 	float get_slope_threshold() const;
 	void set_slope_threshold(float p_threshold);

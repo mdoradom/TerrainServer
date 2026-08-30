@@ -24,6 +24,9 @@ void TerrainSlopeLayer::_bind_methods() {
 	ClassDB::bind_method(D_METHOD("set_uv_scale", "scale"), &TerrainSlopeLayer::set_uv_scale);
 	ClassDB::bind_method(D_METHOD("get_uv_scale"), &TerrainSlopeLayer::get_uv_scale);
 
+	ClassDB::bind_method(D_METHOD("set_pom_depth", "depth"), &TerrainSlopeLayer::set_pom_depth);
+	ClassDB::bind_method(D_METHOD("get_pom_depth"), &TerrainSlopeLayer::get_pom_depth);
+
 	ClassDB::bind_method(D_METHOD("set_slope_threshold", "threshold"), &TerrainSlopeLayer::set_slope_threshold);
 	ClassDB::bind_method(D_METHOD("get_slope_threshold"), &TerrainSlopeLayer::get_slope_threshold);
 
@@ -37,6 +40,7 @@ void TerrainSlopeLayer::_bind_methods() {
 	ADD_PROPERTY(PropertyInfo(Variant::OBJECT, "height_texture", PROPERTY_HINT_RESOURCE_TYPE, "Texture2D"), "set_height_texture", "get_height_texture");
 	ADD_PROPERTY(PropertyInfo(Variant::OBJECT, "ao_texture", PROPERTY_HINT_RESOURCE_TYPE, "Texture2D"), "set_ao_texture", "get_ao_texture");
 	ADD_PROPERTY(PropertyInfo(Variant::FLOAT, "uv_scale", PROPERTY_HINT_RANGE, "0.001,2.0,0.001,or_greater"), "set_uv_scale", "get_uv_scale");
+	ADD_PROPERTY(PropertyInfo(Variant::FLOAT, "pom_depth", PROPERTY_HINT_RANGE, "0.0,0.25,0.001,or_greater"), "set_pom_depth", "get_pom_depth");
 
 	ADD_GROUP("Slope", "slope_");
 	ADD_PROPERTY(PropertyInfo(Variant::FLOAT, "slope_threshold", PROPERTY_HINT_RANGE, "0.0,1.0"), "set_slope_threshold", "get_slope_threshold");
@@ -44,7 +48,7 @@ void TerrainSlopeLayer::_bind_methods() {
 }
 
 TerrainSlopeLayer::TerrainSlopeLayer() :
-		_uv_scale(0.1f), _slope_threshold(0.6f), _slope_blend_range(0.15f) {
+		_uv_scale(0.1f), _pom_depth(0.0f), _slope_threshold(0.6f), _slope_blend_range(0.15f) {
 }
 
 TerrainSlopeLayer::~TerrainSlopeLayer() = default;
@@ -98,6 +102,17 @@ float TerrainSlopeLayer::get_uv_scale() const {
 void TerrainSlopeLayer::set_uv_scale(const float p_scale) {
 	if (_uv_scale != p_scale) {
 		_uv_scale = p_scale;
+		emit_changed();
+	}
+}
+
+float TerrainSlopeLayer::get_pom_depth() const {
+	return _pom_depth;
+}
+
+void TerrainSlopeLayer::set_pom_depth(const float p_depth) {
+	if (_pom_depth != p_depth) {
+		_pom_depth = p_depth;
 		emit_changed();
 	}
 }
