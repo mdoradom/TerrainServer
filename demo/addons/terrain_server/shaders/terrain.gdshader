@@ -53,7 +53,6 @@ uniform float triplanar_sharpness = 4.0;
 varying vec2 v_world_xz;
 varying vec3 v_normal_ws;
 varying float v_height;
-varying float v_world_y;
 
 const vec2 GRADIENTS[8] = vec2[8](
 	vec2(1.0, 0.0), vec2(0.70710678, 0.70710678),
@@ -153,8 +152,6 @@ void vertex() {
 	float final_height = get_height_at(v_world_xz);
 	VERTEX.y = final_height / length(MODEL_MATRIX[1].xyz);
 	v_height = final_height;
-
-	v_world_y = (MODEL_MATRIX * vec4(VERTEX, 1.0)).y;
 
 	float lod_scale = length(MODEL_MATRIX[0].xyz);
 	float e = max(0.05, lod_scale * 0.5 / resolution);
@@ -268,7 +265,9 @@ float blended_height(vec3 p_pos, vec3 p_ddx, vec3 p_ddy, vec3 p_w, float p_weigh
 void fragment()
 {
 	vec3 geo_normal_ws = normalize(v_normal_ws);
-	vec3 base_pos = vec3(v_world_xz.x, v_world_y, v_world_xz.y);
+	// Every clipmap instance transform is diag(scale, 1, scale) with origin.y == 0, so the
+	// interpolated world height is exactly v_height.
+	vec3 base_pos = vec3(v_world_xz.x, v_height, v_world_xz.y);
 
 	vec3 pos_ddx = dFdx(base_pos);
 	vec3 pos_ddy = dFdy(base_pos);
