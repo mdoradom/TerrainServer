@@ -22,19 +22,25 @@ uniform vec2 moisture_offset = vec2(-4000.0, 9000.0);
 uniform sampler2DArray biome_albedo_textures : source_color;
 uniform sampler2DArray biome_normal_textures : hint_normal;
 uniform sampler2DArray biome_roughness_textures;
+uniform sampler2DArray biome_height_textures;
+uniform sampler2DArray biome_ao_textures;
 uniform int biome_layer_count = 0;
 
 uniform float biome_min_temperature[32];
 uniform float biome_max_temperature[32];
 uniform float biome_min_moisture[32];
 uniform float biome_max_moisture[32];
+uniform float biome_uv_scale[32];
 
 uniform sampler2D rock_albedo_texture : source_color;
 uniform sampler2D rock_normal_texture : hint_normal;
 uniform sampler2D rock_roughness_texture;
+uniform sampler2D rock_height_texture;
+uniform sampler2D rock_ao_texture;
 uniform bool rock_layer_enabled = false;
 uniform float rock_slope_threshold = 0.6;
 uniform float rock_slope_blend_range = 0.15;
+uniform float rock_uv_scale = 0.1;
 
 varying vec2 v_world_xz;
 varying vec3 v_normal_ws;
@@ -172,8 +178,8 @@ void fragment()
 		ALBEDO = vec3(1.0, 0.0, 1.0);
 		NORMAL_MAP = vec3(0.5, 0.5, 1.0);
 		ROUGHNESS = 0.8;
+		AO = 1.0;
 	} else {
-		vec2 uv = v_world_xz * 0.1;
 		float t = temperature_at(v_world_xz, v_height);
 		float m = moisture_at(v_world_xz);
 
@@ -181,6 +187,7 @@ void fragment()
 		vec3 albedo_biome = vec3(0.0);
 		vec3 normal_biome = vec3(0.0);
 		float roughness_biome = 0.0;
+		float ao_biome = 0.0;
 
 		for (int i = 0; i < biome_layer_count; i++) {
 			float softness_t = max(WHITTAKER_TEMP_SOFTNESS_MIN, (biome_max_temperature[i] - biome_min_temperature[i]) * 0.25);
@@ -194,34 +201,41 @@ void fragment()
 			float w = max(wt * wm, WHITTAKER_WEIGHT_FLOOR);
 			total_weight += w;
 
-			albedo_biome += texture(biome_albedo_textures, vec3(uv, float(i))).rgb * w;
-			normal_biome += texture(biome_normal_textures, vec3(uv, float(i))).rgb * w;
-			roughness_biome += texture(biome_roughness_textures, vec3(uv, float(i))).r * w;
+			vec2 layer_uv = v_world_xz * biome_uv_scale[i];
+			albedo_biome += texture(biome_albedo_textures, vec3(layer_uv, float(i))).rgb * w;
+			normal_biome += texture(biome_normal_textures, vec3(layer_uv, float(i))).rgb * w;
+			roughness_biome += texture(biome_roughness_textures, vec3(layer_uv, float(i))).r * w;
+			ao_biome += texture(biome_ao_textures, vec3(layer_uv, float(i))).r * w;
 		}
 
 		albedo_biome /= total_weight;
 		normal_biome /= total_weight;
 		roughness_biome /= total_weight;
+		ao_biome /= total_weight;
 
 		ALBEDO = albedo_biome;
 		NORMAL_MAP = normal_biome;
 		ROUGHNESS = roughness_biome;
+		AO = ao_biome;
 	}
 
 	// Rock/cliff slope overlay -- independent of the biome blend above, applied on top
 	// (including on top of the zero-biome-layers magenta debug guard).
 	if (rock_layer_enabled) {
+		vec2 rock_uv = v_world_xz * rock_uv_scale;
+
 		float slope = 1.0 - dot(normalize(v_normal_ws), vec3(0.0, 1.0, 0.0));
 		float safe_blend_range = max(rock_slope_blend_range, 0.001);
 		float rock_alpha = smoothstep(rock_slope_threshold - safe_blend_range, rock_slope_threshold + safe_blend_range, slope);
 
-		vec2 rock_uv = v_world_xz * 0.1;
 		vec3 rock_albedo = texture(rock_albedo_texture, rock_uv).rgb;
 		vec3 rock_normal = texture(rock_normal_texture, rock_uv).rgb;
 		float rock_roughness = texture(rock_roughness_texture, rock_uv).r;
+		float rock_ao = texture(rock_ao_texture, rock_uv).r;
 
 		ALBEDO = mix(ALBEDO, rock_albedo, rock_alpha);
 		NORMAL_MAP = mix(NORMAL_MAP, rock_normal, rock_alpha);
 		ROUGHNESS = mix(ROUGHNESS, rock_roughness, rock_alpha);
+		AO = mix(AO, rock_ao, rock_alpha);
 	}
 }

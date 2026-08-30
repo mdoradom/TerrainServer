@@ -9,6 +9,12 @@
 [ext_resource type="Texture2D" uid="uid://cnhqpxw7mmwyj" path="res://addons/terrain_server/assets/textures/dirt/forest_ground_05_diff_2k.png" id="7_sd1bb"]
 [ext_resource type="Texture2D" uid="uid://ctnvvgecsf2n5" path="res://addons/terrain_server/assets/textures/dirt/forest_ground_05_nor_gl_2k.png" id="8_f2rm2"]
 [ext_resource type="Texture2D" uid="uid://vuxovscylsxx" path="res://addons/terrain_server/assets/textures/dirt/forest_ground_05_rough_2k.png" id="9_47h3d"]
+[ext_resource type="Texture2D" uid="uid://cxio5av02p1vm" path="res://addons/terrain_server/assets/textures/mountain/rocks_ground_05_disp_2k.png" id="10_rock_h"]
+[ext_resource type="Texture2D" uid="uid://c2jkdefl0qagk" path="res://addons/terrain_server/assets/textures/mountain/rocks_ground_05_ao_2k.png" id="11_rock_ao"]
+[ext_resource type="Texture2D" uid="uid://dla4b3sdy3w0i" path="res://addons/terrain_server/assets/textures/grass/forrest_ground_01_disp_2k.png" id="12_grass_h"]
+[ext_resource type="Texture2D" uid="uid://00gcvmmygvo4" path="res://addons/terrain_server/assets/textures/grass/forrest_ground_01_ao_2k.png" id="13_grass_ao"]
+[ext_resource type="Texture2D" uid="uid://b2cross1hm2k" path="res://addons/terrain_server/assets/textures/dirt/forest_ground_05_disp_2k.png" id="14_dirt_h"]
+[ext_resource type="Texture2D" uid="uid://dnpildal8204f" path="res://addons/terrain_server/assets/textures/dirt/forest_ground_05_ao_2k.png" id="15_dirt_ao"]
 
 [sub_resource type="ProceduralSkyMaterial" id="ProceduralSkyMaterial_pt7ik"]
 sky_horizon_color = Color(0.66224277, 0.6717428, 0.6867428, 1)
@@ -31,6 +37,9 @@ biome_name = "Dirt"
 albedo_texture = ExtResource("7_sd1bb")
 normal_texture = ExtResource("8_f2rm2")
 roughness_texture = ExtResource("9_47h3d")
+height_texture = ExtResource("14_dirt_h")
+ao_texture = ExtResource("15_dirt_ao")
+uv_scale = 0.2
 min_temperature = 5.0
 max_moisture = 0.45
 
@@ -39,6 +48,9 @@ biome_name = "Grass"
 albedo_texture = ExtResource("4_lfcib")
 normal_texture = ExtResource("5_fcekq")
 roughness_texture = ExtResource("6_jtbiv")
+height_texture = ExtResource("12_grass_h")
+ao_texture = ExtResource("13_grass_ao")
+uv_scale = 0.3
 min_temperature = 5.0
 min_moisture = 0.45
 
@@ -46,12 +58,14 @@ min_moisture = 0.45
 albedo_texture = ExtResource("1_7s5li")
 normal_texture = ExtResource("2_pegvl")
 roughness_texture = ExtResource("3_8umr4")
+height_texture = ExtResource("10_rock_h")
+ao_texture = ExtResource("11_rock_ao")
 slope_threshold = 0.552
 slope_blend_range = 0.195
 
 [sub_resource type="TerrainConfiguration" id="TerrainConfiguration_b3x7c"]
-height_scale = 79.25999999999999
-noise_base_frequency = 0.0041
+height_scale = 76.946
+noise_base_frequency = 0.0071
 noise_lacunarity = 1.744
 noise_gain = 0.949
 physics_range = 128.0

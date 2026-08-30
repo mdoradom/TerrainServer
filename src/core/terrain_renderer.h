@@ -38,6 +38,8 @@ private:
 	godot::RID _biome_albedo_array_rid;
 	godot::RID _biome_normal_array_rid;
 	godot::RID _biome_roughness_array_rid;
+	godot::RID _biome_height_array_rid;
+	godot::RID _biome_ao_array_rid;
 	std::vector<uint64_t> _biome_texture_signature;
 	// Distinguishes "never built" from "built with zero layers" (both leave the RIDs/signature
 	// empty), so a zero-layer config doesn't get rebuilt every call.
@@ -47,6 +49,8 @@ private:
 	godot::RID _rock_albedo_rid;
 	godot::RID _rock_normal_rid;
 	godot::RID _rock_roughness_rid;
+	godot::RID _rock_height_rid;
+	godot::RID _rock_ao_rid;
 	std::vector<uint64_t> _rock_texture_signature;
 	// Same "never built" vs. "built with no rock layer" distinction as the biome arrays above.
 	bool _rock_textures_built = false;
