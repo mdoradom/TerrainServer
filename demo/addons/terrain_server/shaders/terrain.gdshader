@@ -161,16 +161,14 @@ void vertex() {
 	float hD = get_height_at(v_world_xz + vec2(0.0, -e));
 	float hU = get_height_at(v_world_xz + vec2(0.0,  e));
 
-	vec3 normal_ws   = normalize(vec3(hL - hR, 2.0 * e, hD - hU));
-	vec3 tangent_ws  = normalize(vec3(2.0 * e, hR - hL, 0.0));
-	vec3 binormal_ws = normalize(vec3(0.0, hU - hD, 2.0 * e));
+	vec3 normal_ws = normalize(vec3(hL - hR, 2.0 * e, hD - hU));
 
 	v_normal_ws = normal_ws;
 
+	// No TANGENT/BINORMAL: the triplanar whiteout blend has no single tangent frame, so
+	// fragment() writes NORMAL in view space directly instead of going through NORMAL_MAP.
 	mat3 inv_model = transpose(mat3(MODEL_MATRIX[0].xyz, MODEL_MATRIX[1].xyz, MODEL_MATRIX[2].xyz));
-	NORMAL   = inv_model * normal_ws;
-	TANGENT  = inv_model * tangent_ws;
-	BINORMAL = inv_model * binormal_ws;
+	NORMAL = inv_model * normal_ws;
 }
 
 const float WHITTAKER_TEMP_SOFTNESS_MIN = 0.5; // deg C
