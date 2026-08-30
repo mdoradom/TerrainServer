@@ -18,6 +18,16 @@ namespace ts {
 constexpr float HEIGHT_AABB_MARGIN = 1.25f;
 
 namespace {
+// Fallback dimensions and fill colours for a layer channel with no texture assigned.
+// Height is black rather than mid-grey: a missing height map must read as a flat surface
+// to the parallax raymarch instead of sitting half a depth-range below it.
+constexpr int DEFAULT_DIM = 4;
+const Color PLACEHOLDER_ALBEDO(0.5f, 0.5f, 0.5f, 1.0f);
+const Color PLACEHOLDER_NORMAL(0.5f, 0.5f, 1.0f, 1.0f);
+const Color PLACEHOLDER_ROUGHNESS(0.5f, 0.5f, 0.5f, 1.0f);
+const Color PLACEHOLDER_HEIGHT(0.0f, 0.0f, 0.0f, 1.0f);
+const Color PLACEHOLDER_AO(1.0f, 1.0f, 1.0f, 1.0f);
+
 void free_rid_if_valid(RenderingServer *p_rs, RID &p_rid) {
 	if (p_rid.is_valid()) {
 		p_rs->free_rid(p_rid);
@@ -227,7 +237,6 @@ int TerrainRenderer::_build_biome_texture_arrays(const TypedArray<TerrainBiomeLa
 		}
 	}
 
-	constexpr int DEFAULT_DIM = 4;
 	if (albedo_w == 0) {
 		albedo_w = albedo_h = DEFAULT_DIM;
 	}
@@ -265,13 +274,11 @@ int TerrainRenderer::_build_biome_texture_arrays(const TypedArray<TerrainBiomeLa
 		const Ref<Texture2D> ao_tex = layer.is_valid() ? layer->get_ao_texture() : Ref<Texture2D>();
 
 		bool layer_mismatch = false;
-		Ref<Image> a = _prepare_layer_image(albedo_tex, albedo_w, albedo_h, Color(0.5f, 0.5f, 0.5f, 1.0f), "albedo", i, layer_mismatch);
-		Ref<Image> n = _prepare_layer_image(normal_tex, normal_w, normal_h, Color(0.5f, 0.5f, 1.0f, 1.0f), "normal", i, layer_mismatch);
-		Ref<Image> r = _prepare_layer_image(roughness_tex, roughness_w, roughness_h, Color(0.5f, 0.5f, 0.5f, 1.0f), "roughness", i, layer_mismatch);
-		// Black, not mid-grey: a layer with no height map must read as a flat surface to the
-		// parallax raymarch rather than sitting half a depth-range below it.
-		Ref<Image> h = _prepare_layer_image(height_tex, height_w, height_h, Color(0.0f, 0.0f, 0.0f, 1.0f), "height", i, layer_mismatch);
-		Ref<Image> o = _prepare_layer_image(ao_tex, ao_w, ao_h, Color(1.0f, 1.0f, 1.0f, 1.0f), "ao", i, layer_mismatch);
+		Ref<Image> a = _prepare_layer_image(albedo_tex, albedo_w, albedo_h, PLACEHOLDER_ALBEDO, "albedo", i, layer_mismatch);
+		Ref<Image> n = _prepare_layer_image(normal_tex, normal_w, normal_h, PLACEHOLDER_NORMAL, "normal", i, layer_mismatch);
+		Ref<Image> r = _prepare_layer_image(roughness_tex, roughness_w, roughness_h, PLACEHOLDER_ROUGHNESS, "roughness", i, layer_mismatch);
+		Ref<Image> h = _prepare_layer_image(height_tex, height_w, height_h, PLACEHOLDER_HEIGHT, "height", i, layer_mismatch);
+		Ref<Image> o = _prepare_layer_image(ao_tex, ao_w, ao_h, PLACEHOLDER_AO, "ao", i, layer_mismatch);
 
 		mismatch = mismatch || layer_mismatch;
 		albedo_images.push_back(a);
@@ -364,7 +371,6 @@ void TerrainRenderer::_rebuild_rock_textures_if_dirty(const Ref<TerrainSlopeLaye
 void TerrainRenderer::_build_rock_textures(const Ref<TerrainSlopeLayer> &p_layer) {
 	RenderingServer *rs = RenderingServer::get_singleton();
 
-	constexpr int DEFAULT_DIM = 4;
 	bool unused_mismatch = false;
 
 	const Ref<Texture2D> albedo_tex = p_layer->get_albedo_texture();
@@ -384,13 +390,11 @@ void TerrainRenderer::_build_rock_textures(const Ref<TerrainSlopeLayer> &p_layer
 	const int ao_w = ao_tex.is_valid() ? ao_tex->get_width() : DEFAULT_DIM;
 	const int ao_h = ao_tex.is_valid() ? ao_tex->get_height() : DEFAULT_DIM;
 
-	const Ref<Image> albedo = _prepare_layer_image(albedo_tex, albedo_w, albedo_h, Color(0.5f, 0.5f, 0.5f, 1.0f), "rock albedo", 0, unused_mismatch);
-	const Ref<Image> normal = _prepare_layer_image(normal_tex, normal_w, normal_h, Color(0.5f, 0.5f, 1.0f, 1.0f), "rock normal", 0, unused_mismatch);
-	const Ref<Image> roughness = _prepare_layer_image(roughness_tex, roughness_w, roughness_h, Color(0.5f, 0.5f, 0.5f, 1.0f), "rock roughness", 0, unused_mismatch);
-	// Black, not mid-grey: a layer with no height map must read as a flat surface to the
-	// parallax raymarch rather than sitting half a depth-range below it.
-	const Ref<Image> height = _prepare_layer_image(height_tex, height_w, height_h, Color(0.0f, 0.0f, 0.0f, 1.0f), "rock height", 0, unused_mismatch);
-	const Ref<Image> ao = _prepare_layer_image(ao_tex, ao_w, ao_h, Color(1.0f, 1.0f, 1.0f, 1.0f), "rock ao", 0, unused_mismatch);
+	const Ref<Image> albedo = _prepare_layer_image(albedo_tex, albedo_w, albedo_h, PLACEHOLDER_ALBEDO, "rock albedo", 0, unused_mismatch);
+	const Ref<Image> normal = _prepare_layer_image(normal_tex, normal_w, normal_h, PLACEHOLDER_NORMAL, "rock normal", 0, unused_mismatch);
+	const Ref<Image> roughness = _prepare_layer_image(roughness_tex, roughness_w, roughness_h, PLACEHOLDER_ROUGHNESS, "rock roughness", 0, unused_mismatch);
+	const Ref<Image> height = _prepare_layer_image(height_tex, height_w, height_h, PLACEHOLDER_HEIGHT, "rock height", 0, unused_mismatch);
+	const Ref<Image> ao = _prepare_layer_image(ao_tex, ao_w, ao_h, PLACEHOLDER_AO, "rock ao", 0, unused_mismatch);
 
 	_rock_albedo_rid = rs->texture_2d_create(albedo);
 	_rock_normal_rid = rs->texture_2d_create(normal);
