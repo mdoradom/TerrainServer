@@ -435,12 +435,14 @@ void TerrainRenderer::rebuild_mesh(const float p_size, const int p_resolution) {
 	PackedFloat32Array biome_min_moisture;
 	PackedFloat32Array biome_max_moisture;
 	PackedFloat32Array biome_uv_scale;
+	PackedFloat32Array biome_pom_depth;
 
 	biome_min_temperature.resize(_biome_layer_count);
 	biome_max_temperature.resize(_biome_layer_count);
 	biome_min_moisture.resize(_biome_layer_count);
 	biome_max_moisture.resize(_biome_layer_count);
 	biome_uv_scale.resize(_biome_layer_count);
+	biome_pom_depth.resize(_biome_layer_count);
 
 	for (int i = 0; i < _biome_layer_count; i++) {
 		const Ref<TerrainBiomeLayer> layer = biome_layers[i];
@@ -449,6 +451,7 @@ void TerrainRenderer::rebuild_mesh(const float p_size, const int p_resolution) {
 		biome_min_moisture[i] = layer.is_valid() ? layer->get_min_moisture() : 0.0f;
 		biome_max_moisture[i] = layer.is_valid() ? layer->get_max_moisture() : 0.0f;
 		biome_uv_scale[i] = layer.is_valid() ? layer->get_uv_scale() : 0.1f;
+		biome_pom_depth[i] = layer.is_valid() ? layer->get_pom_depth() : 0.0f;
 	}
 
 	int num_levels = _config->get_clipmap_levels();
@@ -492,6 +495,7 @@ void TerrainRenderer::rebuild_mesh(const float p_size, const int p_resolution) {
 		rs->material_set_param(material, "biome_min_moisture", biome_min_moisture);
 		rs->material_set_param(material, "biome_max_moisture", biome_max_moisture);
 		rs->material_set_param(material, "biome_uv_scale", biome_uv_scale);
+		rs->material_set_param(material, "biome_pom_depth", biome_pom_depth);
 
 		// Temperature/moisture noise parameters
 		rs->material_set_param(material, "temperature_frequency", _config->get_temperature_frequency());
@@ -511,6 +515,14 @@ void TerrainRenderer::rebuild_mesh(const float p_size, const int p_resolution) {
 		rs->material_set_param(material, "rock_slope_threshold", rock_layer.is_valid() ? rock_layer->get_slope_threshold() : 0.0f);
 		rs->material_set_param(material, "rock_slope_blend_range", rock_layer.is_valid() ? rock_layer->get_slope_blend_range() : 1.0f);
 		rs->material_set_param(material, "rock_uv_scale", rock_layer.is_valid() ? rock_layer->get_uv_scale() : 0.1f);
+		rs->material_set_param(material, "rock_pom_depth", rock_layer.is_valid() ? rock_layer->get_pom_depth() : 0.0f);
+
+		// Parallax cost budget (shared by the single raymarch over the blended height field)
+		rs->material_set_param(material, "pom_min_steps", _config->get_pom_min_steps());
+		rs->material_set_param(material, "pom_max_steps", _config->get_pom_max_steps());
+		rs->material_set_param(material, "pom_fade_start", _config->get_pom_fade_start());
+		rs->material_set_param(material, "pom_fade_end", _config->get_pom_fade_end());
+		rs->material_set_param(material, "triplanar_sharpness", _config->get_triplanar_sharpness());
 
 		const float level_scale = p_size * powf(2.0f, static_cast<float>(i));
 		rs->instance_geometry_set_material_override(instance, material);
