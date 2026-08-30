@@ -177,74 +177,76 @@ const float WHITTAKER_WEIGHT_FLOOR = 0.0001;
 const float POM_MIN_DEPTH = 0.00001;
 const int POM_REFINE_STEPS = 5;
 const float TRIPLANAR_WEIGHT_EPSILON = 0.001;
+const float TRIPLANAR_WEIGHT_SUM_MIN = 0.00001;
+
+// Axis 0/1/2 project along world X/Y/Z; the UV is the remaining two components.
+vec2 axis_uv(vec3 p_v, int p_axis) {
+	return p_axis == 0 ? p_v.zy : (p_axis == 1 ? p_v.xz : p_v.xy);
+}
+
+float axis_weight(vec3 p_w, int p_axis) {
+	return p_axis == 0 ? p_w.x : (p_axis == 1 ? p_w.y : p_w.z);
+}
 
 vec3 triplanar_weights(vec3 p_normal) {
 	vec3 w = pow(abs(p_normal), vec3(triplanar_sharpness));
-	return w / max(w.x + w.y + w.z, 0.00001);
+	return w / max(w.x + w.y + w.z, TRIPLANAR_WEIGHT_SUM_MIN);
 }
 
+// Whiteout blend, per projection axis: the tangent-space normal is folded into the
+// geometric normal with the axis's own component ordering.
+vec3 whiteout_x(vec3 p_t, vec3 p_n) { return vec3(abs(p_t.z) * p_n.x, p_t.y + p_n.y, p_t.x + p_n.z); }
+vec3 whiteout_y(vec3 p_t, vec3 p_n) { return vec3(p_t.x + p_n.x, abs(p_t.z) * p_n.y, p_t.y + p_n.z); }
+vec3 whiteout_z(vec3 p_t, vec3 p_n) { return vec3(p_t.x + p_n.x, p_t.y + p_n.y, abs(p_t.z) * p_n.z); }
+
+vec3 whiteout(vec3 p_t, vec3 p_n, int p_axis) {
+	return p_axis == 0 ? whiteout_x(p_t, p_n) : (p_axis == 1 ? whiteout_y(p_t, p_n) : whiteout_z(p_t, p_n));
+}
+
+// The sampler2D / sampler2DArray split below is forced -- the shading language has no
+// generic sampler type -- but the three-axis projection body is shared via axis_uv().
 vec4 triplanar_array(sampler2DArray p_tex, int p_layer, vec3 p_pos, vec3 p_ddx, vec3 p_ddy, float p_scale, vec3 p_w) {
 	vec4 acc = vec4(0.0);
-	if (p_w.x > TRIPLANAR_WEIGHT_EPSILON) {
-		acc += p_w.x * textureGrad(p_tex, vec3(p_pos.zy * p_scale, float(p_layer)), p_ddx.zy * p_scale, p_ddy.zy * p_scale);
-	}
-	if (p_w.y > TRIPLANAR_WEIGHT_EPSILON) {
-		acc += p_w.y * textureGrad(p_tex, vec3(p_pos.xz * p_scale, float(p_layer)), p_ddx.xz * p_scale, p_ddy.xz * p_scale);
-	}
-	if (p_w.z > TRIPLANAR_WEIGHT_EPSILON) {
-		acc += p_w.z * textureGrad(p_tex, vec3(p_pos.xy * p_scale, float(p_layer)), p_ddx.xy * p_scale, p_ddy.xy * p_scale);
+	for (int a = 0; a < 3; a++) {
+		float w = axis_weight(p_w, a);
+		if (w > TRIPLANAR_WEIGHT_EPSILON) {
+			acc += w * textureGrad(p_tex, vec3(axis_uv(p_pos, a) * p_scale, float(p_layer)), axis_uv(p_ddx, a) * p_scale, axis_uv(p_ddy, a) * p_scale);
+		}
 	}
 	return acc;
 }
 
 vec4 triplanar_2d(sampler2D p_tex, vec3 p_pos, vec3 p_ddx, vec3 p_ddy, float p_scale, vec3 p_w) {
 	vec4 acc = vec4(0.0);
-	if (p_w.x > TRIPLANAR_WEIGHT_EPSILON) {
-		acc += p_w.x * textureGrad(p_tex, p_pos.zy * p_scale, p_ddx.zy * p_scale, p_ddy.zy * p_scale);
-	}
-	if (p_w.y > TRIPLANAR_WEIGHT_EPSILON) {
-		acc += p_w.y * textureGrad(p_tex, p_pos.xz * p_scale, p_ddx.xz * p_scale, p_ddy.xz * p_scale);
-	}
-	if (p_w.z > TRIPLANAR_WEIGHT_EPSILON) {
-		acc += p_w.z * textureGrad(p_tex, p_pos.xy * p_scale, p_ddx.xy * p_scale, p_ddy.xy * p_scale);
+	for (int a = 0; a < 3; a++) {
+		float w = axis_weight(p_w, a);
+		if (w > TRIPLANAR_WEIGHT_EPSILON) {
+			acc += w * textureGrad(p_tex, axis_uv(p_pos, a) * p_scale, axis_uv(p_ddx, a) * p_scale, axis_uv(p_ddy, a) * p_scale);
+		}
 	}
 	return acc;
 }
 
-vec3 whiteout_x(vec3 p_t, vec3 p_n) { return vec3(abs(p_t.z) * p_n.x, p_t.y + p_n.y, p_t.x + p_n.z); }
-vec3 whiteout_y(vec3 p_t, vec3 p_n) { return vec3(p_t.x + p_n.x, abs(p_t.z) * p_n.y, p_t.y + p_n.z); }
-vec3 whiteout_z(vec3 p_t, vec3 p_n) { return vec3(p_t.x + p_n.x, p_t.y + p_n.y, abs(p_t.z) * p_n.z); }
-
 vec3 triplanar_normal_array(sampler2DArray p_tex, int p_layer, vec3 p_pos, vec3 p_ddx, vec3 p_ddy, float p_scale, vec3 p_w, vec3 p_n) {
 	vec3 acc = vec3(0.0);
-	if (p_w.x > TRIPLANAR_WEIGHT_EPSILON) {
-		vec3 t = textureGrad(p_tex, vec3(p_pos.zy * p_scale, float(p_layer)), p_ddx.zy * p_scale, p_ddy.zy * p_scale).xyz * 2.0 - 1.0;
-		acc += p_w.x * whiteout_x(t, p_n);
-	}
-	if (p_w.y > TRIPLANAR_WEIGHT_EPSILON) {
-		vec3 t = textureGrad(p_tex, vec3(p_pos.xz * p_scale, float(p_layer)), p_ddx.xz * p_scale, p_ddy.xz * p_scale).xyz * 2.0 - 1.0;
-		acc += p_w.y * whiteout_y(t, p_n);
-	}
-	if (p_w.z > TRIPLANAR_WEIGHT_EPSILON) {
-		vec3 t = textureGrad(p_tex, vec3(p_pos.xy * p_scale, float(p_layer)), p_ddx.xy * p_scale, p_ddy.xy * p_scale).xyz * 2.0 - 1.0;
-		acc += p_w.z * whiteout_z(t, p_n);
+	for (int a = 0; a < 3; a++) {
+		float w = axis_weight(p_w, a);
+		if (w > TRIPLANAR_WEIGHT_EPSILON) {
+			vec3 t = textureGrad(p_tex, vec3(axis_uv(p_pos, a) * p_scale, float(p_layer)), axis_uv(p_ddx, a) * p_scale, axis_uv(p_ddy, a) * p_scale).xyz * 2.0 - 1.0;
+			acc += w * whiteout(t, p_n, a);
+		}
 	}
 	return acc;
 }
 
 vec3 triplanar_normal_2d(sampler2D p_tex, vec3 p_pos, vec3 p_ddx, vec3 p_ddy, float p_scale, vec3 p_w, vec3 p_n) {
 	vec3 acc = vec3(0.0);
-	if (p_w.x > TRIPLANAR_WEIGHT_EPSILON) {
-		vec3 t = textureGrad(p_tex, p_pos.zy * p_scale, p_ddx.zy * p_scale, p_ddy.zy * p_scale).xyz * 2.0 - 1.0;
-		acc += p_w.x * whiteout_x(t, p_n);
-	}
-	if (p_w.y > TRIPLANAR_WEIGHT_EPSILON) {
-		vec3 t = textureGrad(p_tex, p_pos.xz * p_scale, p_ddx.xz * p_scale, p_ddy.xz * p_scale).xyz * 2.0 - 1.0;
-		acc += p_w.y * whiteout_y(t, p_n);
-	}
-	if (p_w.z > TRIPLANAR_WEIGHT_EPSILON) {
-		vec3 t = textureGrad(p_tex, p_pos.xy * p_scale, p_ddx.xy * p_scale, p_ddy.xy * p_scale).xyz * 2.0 - 1.0;
-		acc += p_w.z * whiteout_z(t, p_n);
+	for (int a = 0; a < 3; a++) {
+		float w = axis_weight(p_w, a);
+		if (w > TRIPLANAR_WEIGHT_EPSILON) {
+			vec3 t = textureGrad(p_tex, axis_uv(p_pos, a) * p_scale, axis_uv(p_ddx, a) * p_scale, axis_uv(p_ddy, a) * p_scale).xyz * 2.0 - 1.0;
+			acc += w * whiteout(t, p_n, a);
+		}
 	}
 	return acc;
 }
