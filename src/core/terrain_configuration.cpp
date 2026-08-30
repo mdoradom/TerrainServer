@@ -435,6 +435,13 @@ float TerrainConfiguration::get_pom_fade_end() const {
 	return _pom_fade_end;
 }
 
+void TerrainConfiguration::set_pom_fade_end(const float p_distance) {
+	if (_pom_fade_end != p_distance) {
+		_pom_fade_end = p_distance;
+		emit_changed();
+	}
+}
+
 float TerrainConfiguration::get_triplanar_sharpness() const {
 	return _triplanar_sharpness;
 }
@@ -442,13 +449,6 @@ float TerrainConfiguration::get_triplanar_sharpness() const {
 void TerrainConfiguration::set_triplanar_sharpness(const float p_sharpness) {
 	if (_triplanar_sharpness != p_sharpness) {
 		_triplanar_sharpness = p_sharpness;
-		emit_changed();
-	}
-}
-
-void TerrainConfiguration::set_pom_fade_end(const float p_distance) {
-	if (_pom_fade_end != p_distance) {
-		_pom_fade_end = p_distance;
 		emit_changed();
 	}
 }
