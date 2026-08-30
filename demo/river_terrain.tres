@@ -1,0 +1,19 @@
+[gd_resource type="TerrainConfiguration" format=3 uid="uid://bfhumcw3dh5nl"]
+
+[ext_resource type="Texture2D" uid="uid://bvic7qt1mir42" path="res://addons/terrain_server/assets/textures/river/dry_river_pebbles_diff_2k.png" id="1_mnohj"]
+[ext_resource type="Texture2D" uid="uid://bp2rm1gwk5fpe" path="res://addons/terrain_server/assets/textures/river/dry_river_pebbles_ao_2k.png" id="2_orvh8"]
+[ext_resource type="Texture2D" uid="uid://dc3k0t76e8pwt" path="res://addons/terrain_server/assets/textures/river/dry_river_pebbles_disp_2k.png" id="3_osh2d"]
+[ext_resource type="Texture2D" uid="uid://dw2cyx0ujsmbw" path="res://addons/terrain_server/assets/textures/river/dry_river_pebbles_nor_gl_2k.png" id="4_ugfcx"]
+[ext_resource type="Texture2D" uid="uid://b2kibrbntvlhw" path="res://addons/terrain_server/assets/textures/river/dry_river_pebbles_rough_2k.png" id="5_2gcox"]
+
+[sub_resource type="TerrainBiomeLayer" id="TerrainBiomeLayer_omkw0"]
+albedo_texture = ExtResource("1_mnohj")
+normal_texture = ExtResource("4_ugfcx")
+roughness_texture = ExtResource("5_2gcox")
+height_texture = ExtResource("3_osh2d")
+ao_texture = ExtResource("2_orvh8")
+pom_depth = 0.19
+
+[resource]
+noise_base_frequency = 0.0411
+biome_layers = Array[TerrainBiomeLayer]([SubResource("TerrainBiomeLayer_omkw0")])
