@@ -176,13 +176,11 @@ const float WHITTAKER_MOIST_SOFTNESS_MIN = 0.02; // normalized [0,1]
 const float WHITTAKER_WEIGHT_FLOOR = 0.0001;
 const float POM_MIN_DEPTH = 0.00001;
 const int POM_REFINE_STEPS = 5;
-// Keeps the sweep finite when the view ray is near-parallel to the surface.
 const float POM_GRAZING_CLAMP = 0.1;
 const float POM_SECANT_EPSILON = 1e-6;
 const float TRIPLANAR_WEIGHT_EPSILON = 0.001;
 const float TRIPLANAR_WEIGHT_SUM_MIN = 0.00001;
 
-// Axis 0/1/2 project along world X/Y/Z; the UV is the remaining two components.
 vec2 axis_uv(vec3 p_v, int p_axis) {
 	return p_axis == 0 ? p_v.zy : (p_axis == 1 ? p_v.xz : p_v.xy);
 }
@@ -196,8 +194,6 @@ vec3 triplanar_weights(vec3 p_normal) {
 	return w / max(w.x + w.y + w.z, TRIPLANAR_WEIGHT_SUM_MIN);
 }
 
-// Whiteout blend, per projection axis: the tangent-space normal is folded into the
-// geometric normal with the axis's own component ordering.
 vec3 whiteout_x(vec3 p_t, vec3 p_n) { return vec3(abs(p_t.z) * p_n.x, p_t.y + p_n.y, p_t.x + p_n.z); }
 vec3 whiteout_y(vec3 p_t, vec3 p_n) { return vec3(p_t.x + p_n.x, abs(p_t.z) * p_n.y, p_t.y + p_n.z); }
 vec3 whiteout_z(vec3 p_t, vec3 p_n) { return vec3(p_t.x + p_n.x, p_t.y + p_n.y, abs(p_t.z) * p_n.z); }
@@ -206,8 +202,6 @@ vec3 whiteout(vec3 p_t, vec3 p_n, int p_axis) {
 	return p_axis == 0 ? whiteout_x(p_t, p_n) : (p_axis == 1 ? whiteout_y(p_t, p_n) : whiteout_z(p_t, p_n));
 }
 
-// The sampler2D / sampler2DArray split below is forced -- the shading language has no
-// generic sampler type -- but the three-axis projection body is shared via axis_uv().
 vec4 triplanar_array(sampler2DArray p_tex, int p_layer, vec3 p_pos, vec3 p_ddx, vec3 p_ddy, float p_scale, vec3 p_w) {
 	vec4 acc = vec4(0.0);
 	for (int a = 0; a < 3; a++) {
@@ -259,8 +253,7 @@ float blended_height(vec3 p_pos, vec3 p_ddx, vec3 p_ddy, vec3 p_w, float p_weigh
 	for (int i = 0; i < biome_layer_count; i++) {
 		h += triplanar_array(biome_height_textures, i, p_pos, p_ddx, p_ddy, biome_uv_scale[i], p_w).r * p_weights[i];
 	}
-	// rock_alpha is exactly 0 over all near-flat ground, where the mix is a no-op -- skipping
-	// it there drops three texture fetches from every step of the raymarch below.
+
 	if (rock_layer_enabled && p_rock_alpha > 0.0) {
 		h = mix(h, triplanar_2d(rock_height_texture, p_pos, p_ddx, p_ddy, rock_uv_scale, p_w).r, p_rock_alpha);
 	}
@@ -270,8 +263,6 @@ float blended_height(vec3 p_pos, vec3 p_ddx, vec3 p_ddy, vec3 p_w, float p_weigh
 void fragment()
 {
 	vec3 geo_normal_ws = normalize(v_normal_ws);
-	// Every clipmap instance transform is diag(scale, 1, scale) with origin.y == 0, so the
-	// interpolated world height is exactly v_height.
 	vec3 base_pos = vec3(v_world_xz.x, v_height, v_world_xz.y);
 
 	vec3 pos_ddx = dFdx(base_pos);
@@ -286,6 +277,7 @@ void fragment()
 		rock_alpha = smoothstep(rock_slope_threshold - safe_blend_range, rock_slope_threshold + safe_blend_range, slope);
 	}
 
+	float pom_depth = 0.0;
 	float weights[32];
 	if (biome_layer_count > 0) {
 		float t = temperature_at(v_world_xz, v_height);
@@ -305,18 +297,15 @@ void fragment()
 			weights[i] = w;
 			total_weight += w;
 		}
+		float inv_total = 1.0 / total_weight;
 		for (int i = 0; i < biome_layer_count; i++) {
-			weights[i] /= total_weight;
+			weights[i] *= inv_total;
+			pom_depth += weights[i] * biome_pom_depth[i];
 		}
 	}
+	pom_depth = mix(pom_depth, rock_pom_depth, rock_alpha);
 
 	vec3 world_offset = vec3(0.0);
-
-	float pom_depth = 0.0;
-	for (int i = 0; i < biome_layer_count; i++) {
-		pom_depth += weights[i] * biome_pom_depth[i];
-	}
-	pom_depth = mix(pom_depth, rock_pom_depth, rock_alpha);
 
 	float pom_fade = 1.0 - smoothstep(pom_fade_start, pom_fade_end, length(VERTEX));
 
@@ -324,16 +313,12 @@ void fragment()
 		vec3 view_ws = mat3(INV_VIEW_MATRIX) * normalize(-VERTEX);
 		float n_dot_v = dot(view_ws, geo_normal_ws);
 
-		// An orthonormal tangent basis cancels out of both terms below, so the sweep is just
-		// the view ray projected onto the tangent plane -- no basis needs building.
 		vec3 sweep = (view_ws - geo_normal_ws * n_dot_v) / max(abs(n_dot_v), POM_GRAZING_CLAMP) * pom_depth * pom_fade;
 
 		float step_count = max(1.0, floor(mix(float(pom_max_steps), float(pom_min_steps), abs(n_dot_v)) * pom_fade));
 		int steps = int(step_count);
 		float layer_step = 1.0 / step_count;
 
-		// The offset at any point along the ray is exactly -depth * sweep, so the march and the
-		// refinement below track the scalar depth alone and materialise the offset once, at the end.
 		float ray_depth = 0.0;
 		float cur_surface = 0.0;
 		float prev_ray_depth = 0.0;
@@ -425,5 +410,5 @@ void fragment()
 		normal_ws = mix(normal_ws, rock_normal, rock_alpha);
 	}
 
-	NORMAL = normalize((VIEW_MATRIX * vec4(normalize(normal_ws), 0.0)).xyz);
+	NORMAL = normalize((VIEW_MATRIX * vec4(normal_ws, 0.0)).xyz);
 }
