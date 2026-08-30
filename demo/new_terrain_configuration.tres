@@ -1,0 +1,60 @@
+[gd_resource type="TerrainConfiguration" format=3 uid="uid://dqpa6lvc7vs0d"]
+
+[ext_resource type="Texture2D" uid="uid://d3hsamxfldccu" path="res://addons/terrain_server/assets/textures/grass/forrest_ground_01_diff_2k.png" id="1_0yfmr"]
+[ext_resource type="Texture2D" uid="uid://00gcvmmygvo4" path="res://addons/terrain_server/assets/textures/grass/forrest_ground_01_ao_2k.png" id="2_y10dh"]
+[ext_resource type="Texture2D" uid="uid://dla4b3sdy3w0i" path="res://addons/terrain_server/assets/textures/grass/forrest_ground_01_disp_2k.png" id="3_gkddg"]
+[ext_resource type="Texture2D" uid="uid://4cp00c131uo5" path="res://addons/terrain_server/assets/textures/grass/forrest_ground_01_nor_gl_2k.png" id="4_6dfyt"]
+[ext_resource type="Texture2D" uid="uid://hbjijnci2ljk" path="res://addons/terrain_server/assets/textures/grass/forrest_ground_01_rough_2k.png" id="5_oxjnr"]
+[ext_resource type="Texture2D" uid="uid://cnhqpxw7mmwyj" path="res://addons/terrain_server/assets/textures/dirt/forest_ground_05_diff_2k.png" id="6_7hybv"]
+[ext_resource type="Texture2D" uid="uid://dnpildal8204f" path="res://addons/terrain_server/assets/textures/dirt/forest_ground_05_ao_2k.png" id="7_mqd5j"]
+[ext_resource type="Texture2D" uid="uid://b2cross1hm2k" path="res://addons/terrain_server/assets/textures/dirt/forest_ground_05_disp_2k.png" id="8_3tgxx"]
+[ext_resource type="Texture2D" uid="uid://ctnvvgecsf2n5" path="res://addons/terrain_server/assets/textures/dirt/forest_ground_05_nor_gl_2k.png" id="9_24ko5"]
+[ext_resource type="Texture2D" uid="uid://vuxovscylsxx" path="res://addons/terrain_server/assets/textures/dirt/forest_ground_05_rough_2k.png" id="10_trn4j"]
+[ext_resource type="Texture2D" uid="uid://br71omu3qqdqs" path="res://addons/terrain_server/assets/textures/mountain/rocks_ground_05_diff_2k.png" id="11_4d6c7"]
+[ext_resource type="Texture2D" uid="uid://c2jkdefl0qagk" path="res://addons/terrain_server/assets/textures/mountain/rocks_ground_05_ao_2k.png" id="12_o8b08"]
+[ext_resource type="Texture2D" uid="uid://cxio5av02p1vm" path="res://addons/terrain_server/assets/textures/mountain/rocks_ground_05_disp_2k.png" id="13_33ed5"]
+[ext_resource type="Texture2D" uid="uid://bee3kmfrq0qge" path="res://addons/terrain_server/assets/textures/mountain/rocks_ground_05_nor_gl_2k.png" id="14_ovtvk"]
+[ext_resource type="Texture2D" uid="uid://dicrlu4i4fm1d" path="res://addons/terrain_server/assets/textures/mountain/rocks_ground_05_rough_2k.png" id="15_fmu10"]
+
+[sub_resource type="TerrainBiomeLayer" id="TerrainBiomeLayer_wdrhs"]
+biome_name = "grass"
+albedo_texture = ExtResource("1_0yfmr")
+normal_texture = ExtResource("4_6dfyt")
+roughness_texture = ExtResource("5_oxjnr")
+height_texture = ExtResource("3_gkddg")
+ao_texture = ExtResource("2_y10dh")
+pom_depth = 0.1
+max_temperature = 11.127
+max_moisture = 0.28
+
+[sub_resource type="TerrainBiomeLayer" id="TerrainBiomeLayer_7d6gv"]
+biome_name = "dirt"
+albedo_texture = ExtResource("6_7hybv")
+normal_texture = ExtResource("9_24ko5")
+roughness_texture = ExtResource("10_trn4j")
+height_texture = ExtResource("8_3tgxx")
+ao_texture = ExtResource("7_mqd5j")
+pom_depth = 0.1
+max_temperature = 3.119
+
+[sub_resource type="TerrainSlopeLayer" id="TerrainSlopeLayer_rk1oc"]
+albedo_texture = ExtResource("11_4d6c7")
+normal_texture = ExtResource("14_ovtvk")
+roughness_texture = ExtResource("15_fmu10")
+height_texture = ExtResource("13_33ed5")
+ao_texture = ExtResource("12_o8b08")
+pom_depth = 0.06
+slope_threshold = 0.552
+slope_blend_range = 0.195
+
+[resource]
+height_scale = 76.946
+noise_base_frequency = 0.0071
+noise_lacunarity = 1.744
+noise_gain = 0.949
+physics_range = 128.0
+biome_layers = Array[TerrainBiomeLayer]([SubResource("TerrainBiomeLayer_wdrhs"), SubResource("TerrainBiomeLayer_7d6gv")])
+rock_layer = SubResource("TerrainSlopeLayer_rk1oc")
+temperature_frequency = 0.002
+temperature_altitude_reference = 60.0
+moisture_frequency = 0.01
