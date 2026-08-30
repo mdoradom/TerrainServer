@@ -259,7 +259,9 @@ float blended_height(vec3 p_pos, vec3 p_ddx, vec3 p_ddy, vec3 p_w, float p_weigh
 	for (int i = 0; i < biome_layer_count; i++) {
 		h += triplanar_array(biome_height_textures, i, p_pos, p_ddx, p_ddy, biome_uv_scale[i], p_w).r * p_weights[i];
 	}
-	if (rock_layer_enabled) {
+	// rock_alpha is exactly 0 over all near-flat ground, where the mix is a no-op -- skipping
+	// it there drops three texture fetches from every step of the raymarch below.
+	if (rock_layer_enabled && p_rock_alpha > 0.0) {
 		h = mix(h, triplanar_2d(rock_height_texture, p_pos, p_ddx, p_ddy, rock_uv_scale, p_w).r, p_rock_alpha);
 	}
 	return h;
@@ -411,7 +413,7 @@ void fragment()
 
 	// Rock/cliff slope overlay -- independent of the biome blend above, applied on top
 	// (including on top of the zero-biome-layers magenta debug guard).
-	if (rock_layer_enabled) {
+	if (rock_layer_enabled && rock_alpha > 0.0) {
 		vec3 rock_albedo = triplanar_2d(rock_albedo_texture, sample_pos, pos_ddx, pos_ddy, rock_uv_scale, tri_w).rgb;
 		float rock_roughness = triplanar_2d(rock_roughness_texture, sample_pos, pos_ddx, pos_ddy, rock_uv_scale, tri_w).r;
 		float rock_ao = triplanar_2d(rock_ao_texture, sample_pos, pos_ddx, pos_ddy, rock_uv_scale, tri_w).r;
