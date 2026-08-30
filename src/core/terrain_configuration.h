@@ -46,6 +46,11 @@ private:
 	float _moisture_frequency;
 	godot::Vector2 _moisture_offset;
 
+	int _pom_min_steps;
+	int _pom_max_steps;
+	float _pom_fade_start;
+	float _pom_fade_end;
+
 	godot::Ref<godot::FastNoiseLite> _internal_noise;
 	godot::Ref<godot::ImageTexture> _noise_preview;
 	void _update_preview();
@@ -113,6 +118,19 @@ public:
 
 	godot::Vector2 get_moisture_offset() const;
 	void set_moisture_offset(godot::Vector2 p_offset);
+
+	int get_pom_min_steps() const;
+	void set_pom_min_steps(int p_steps);
+
+	int get_pom_max_steps() const;
+	void set_pom_max_steps(int p_steps);
+
+	float get_pom_fade_start() const;
+	void set_pom_fade_start(float p_distance);
+
+	float get_pom_fade_end() const;
+	void set_pom_fade_end(float p_distance);
+
 
 	godot::Ref<godot::ImageTexture> get_noise_preview() const;
 };

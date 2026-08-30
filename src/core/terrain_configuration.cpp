@@ -66,6 +66,18 @@ void TerrainConfiguration::_bind_methods() {
 	ClassDB::bind_method(D_METHOD("set_moisture_offset", "offset"), &TerrainConfiguration::set_moisture_offset);
 	ClassDB::bind_method(D_METHOD("get_moisture_offset"), &TerrainConfiguration::get_moisture_offset);
 
+	ClassDB::bind_method(D_METHOD("set_pom_min_steps", "steps"), &TerrainConfiguration::set_pom_min_steps);
+	ClassDB::bind_method(D_METHOD("get_pom_min_steps"), &TerrainConfiguration::get_pom_min_steps);
+
+	ClassDB::bind_method(D_METHOD("set_pom_max_steps", "steps"), &TerrainConfiguration::set_pom_max_steps);
+	ClassDB::bind_method(D_METHOD("get_pom_max_steps"), &TerrainConfiguration::get_pom_max_steps);
+
+	ClassDB::bind_method(D_METHOD("set_pom_fade_start", "distance"), &TerrainConfiguration::set_pom_fade_start);
+	ClassDB::bind_method(D_METHOD("get_pom_fade_start"), &TerrainConfiguration::get_pom_fade_start);
+
+	ClassDB::bind_method(D_METHOD("set_pom_fade_end", "distance"), &TerrainConfiguration::set_pom_fade_end);
+	ClassDB::bind_method(D_METHOD("get_pom_fade_end"), &TerrainConfiguration::get_pom_fade_end);
+
 	ADD_GROUP("Terrain", "");
 	ADD_PROPERTY(PropertyInfo(Variant::FLOAT, "terrain_size", PROPERTY_HINT_RANGE, "1.0,10000.0"), "set_terrain_size", "get_terrain_size");
 	ADD_PROPERTY(PropertyInfo(Variant::FLOAT, "height_scale", PROPERTY_HINT_RANGE, "0.1,100.0"), "set_height_scale", "get_height_scale");
@@ -95,9 +107,15 @@ void TerrainConfiguration::_bind_methods() {
 	ADD_PROPERTY(PropertyInfo(Variant::FLOAT, "temperature_altitude_reference", PROPERTY_HINT_RANGE, "0.1,100.0"), "set_temperature_altitude_reference", "get_temperature_altitude_reference");
 	ADD_PROPERTY(PropertyInfo(Variant::FLOAT, "moisture_frequency", PROPERTY_HINT_RANGE, "0.0001,0.01"), "set_moisture_frequency", "get_moisture_frequency");
 	ADD_PROPERTY(PropertyInfo(Variant::VECTOR2, "moisture_offset"), "set_moisture_offset", "get_moisture_offset");
+
+	ADD_GROUP("Parallax", "pom_");
+	ADD_PROPERTY(PropertyInfo(Variant::INT, "pom_min_steps", PROPERTY_HINT_RANGE, "1,64,1"), "set_pom_min_steps", "get_pom_min_steps");
+	ADD_PROPERTY(PropertyInfo(Variant::INT, "pom_max_steps", PROPERTY_HINT_RANGE, "1,128,1"), "set_pom_max_steps", "get_pom_max_steps");
+	ADD_PROPERTY(PropertyInfo(Variant::FLOAT, "pom_fade_start", PROPERTY_HINT_RANGE, "0.0,1000.0,0.1,or_greater"), "set_pom_fade_start", "get_pom_fade_start");
+	ADD_PROPERTY(PropertyInfo(Variant::FLOAT, "pom_fade_end", PROPERTY_HINT_RANGE, "0.0,1000.0,0.1,or_greater"), "set_pom_fade_end", "get_pom_fade_end");
 }
 
-TerrainConfiguration::TerrainConfiguration() : _height_scale(10.0), _mesh_resolution(256), _terrain_size(256.0f), _noise_octaves(5), _noise_base_frequency(0.002f), _noise_lacunarity(2.0f), _noise_gain(0.5f), _clipmap_levels(6), _physics_range(64.0f), _physics_collision_layer(1), _physics_collision_mask(0), _temperature_frequency(0.0004f), _temperature_offset(10000.0f, -6000.0f), _temperature_noise_influence(0.4f), _temperature_altitude_reference(10.0f), _moisture_frequency(0.0006f), _moisture_offset(-4000.0f, 9000.0f) {
+TerrainConfiguration::TerrainConfiguration() : _height_scale(10.0), _mesh_resolution(256), _terrain_size(256.0f), _noise_octaves(5), _noise_base_frequency(0.002f), _noise_lacunarity(2.0f), _noise_gain(0.5f), _clipmap_levels(6), _physics_range(64.0f), _physics_collision_layer(1), _physics_collision_mask(0), _temperature_frequency(0.0004f), _temperature_offset(10000.0f, -6000.0f), _temperature_noise_influence(0.4f), _temperature_altitude_reference(10.0f), _moisture_frequency(0.0006f), _moisture_offset(-4000.0f, 9000.0f), _pom_min_steps(8), _pom_max_steps(32), _pom_fade_start(40.0f), _pom_fade_end(120.0f) {
 	_internal_noise.instantiate();
 	_internal_noise->set_noise_type(FastNoiseLite::TYPE_PERLIN);
 	_internal_noise->set_fractal_type(FastNoiseLite::FRACTAL_FBM);
@@ -370,6 +388,50 @@ Vector2 TerrainConfiguration::get_moisture_offset() const {
 void TerrainConfiguration::set_moisture_offset(const Vector2 p_offset) {
 	if (_moisture_offset != p_offset) {
 		_moisture_offset = p_offset;
+		emit_changed();
+	}
+}
+
+int TerrainConfiguration::get_pom_min_steps() const {
+	return _pom_min_steps;
+}
+
+void TerrainConfiguration::set_pom_min_steps(const int p_steps) {
+	if (_pom_min_steps != p_steps) {
+		_pom_min_steps = p_steps;
+		emit_changed();
+	}
+}
+
+int TerrainConfiguration::get_pom_max_steps() const {
+	return _pom_max_steps;
+}
+
+void TerrainConfiguration::set_pom_max_steps(const int p_steps) {
+	if (_pom_max_steps != p_steps) {
+		_pom_max_steps = p_steps;
+		emit_changed();
+	}
+}
+
+float TerrainConfiguration::get_pom_fade_start() const {
+	return _pom_fade_start;
+}
+
+void TerrainConfiguration::set_pom_fade_start(const float p_distance) {
+	if (_pom_fade_start != p_distance) {
+		_pom_fade_start = p_distance;
+		emit_changed();
+	}
+}
+
+float TerrainConfiguration::get_pom_fade_end() const {
+	return _pom_fade_end;
+}
+
+void TerrainConfiguration::set_pom_fade_end(const float p_distance) {
+	if (_pom_fade_end != p_distance) {
+		_pom_fade_end = p_distance;
 		emit_changed();
 	}
 }
