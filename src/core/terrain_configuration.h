@@ -5,11 +5,19 @@
 #include <godot_cpp/classes/image_texture.hpp>
 #include <godot_cpp/classes/resource.hpp>
 #include <godot_cpp/classes/texture2d.hpp>
+#include <godot_cpp/variant/typed_array.hpp>
+#include <godot_cpp/variant/vector2.hpp>
+
+#include "terrain_biome_layer.h"
+#include "terrain_slope_layer.h"
 
 namespace ts {
 
 class TerrainConfiguration : public godot::Resource {
 	GDCLASS(TerrainConfiguration, godot::Resource);
+
+public:
+	static constexpr int32_t MAX_BIOME_LAYERS = 32;
 
 private:
 	double _height_scale;
@@ -27,7 +35,22 @@ private:
 	int _physics_collision_layer;
 	int _physics_collision_mask;
 
-	godot::Ref<godot::Texture2D> _albedo_texture;
+	godot::TypedArray<TerrainBiomeLayer> _biome_layers;
+	godot::Ref<TerrainSlopeLayer> _rock_layer;
+
+	float _temperature_frequency;
+	godot::Vector2 _temperature_offset;
+	float _temperature_noise_influence;
+	float _temperature_altitude_reference;
+
+	float _moisture_frequency;
+	godot::Vector2 _moisture_offset;
+
+	int _pom_min_steps;
+	int _pom_max_steps;
+	float _pom_fade_start;
+	float _pom_fade_end;
+	float _triplanar_sharpness;
 
 	godot::Ref<godot::FastNoiseLite> _internal_noise;
 	godot::Ref<godot::ImageTexture> _noise_preview;
@@ -73,8 +96,44 @@ public:
 	int get_physics_collision_mask() const;
 	void set_physics_collision_mask(int p_mask);
 
-	godot::Ref<godot::Texture2D> get_albedo_texture() const;
-	void set_albedo_texture(const godot::Ref<godot::Texture2D> &p_texture);
+	godot::TypedArray<TerrainBiomeLayer> get_biome_layers() const;
+	void set_biome_layers(const godot::TypedArray<TerrainBiomeLayer> &p_layers);
+
+	godot::Ref<TerrainSlopeLayer> get_rock_layer() const;
+	void set_rock_layer(const godot::Ref<TerrainSlopeLayer> &p_layer);
+
+	float get_temperature_frequency() const;
+	void set_temperature_frequency(float p_frequency);
+
+	godot::Vector2 get_temperature_offset() const;
+	void set_temperature_offset(godot::Vector2 p_offset);
+
+	float get_temperature_noise_influence() const;
+	void set_temperature_noise_influence(float p_influence);
+
+	float get_temperature_altitude_reference() const;
+	void set_temperature_altitude_reference(float p_reference);
+
+	float get_moisture_frequency() const;
+	void set_moisture_frequency(float p_frequency);
+
+	godot::Vector2 get_moisture_offset() const;
+	void set_moisture_offset(godot::Vector2 p_offset);
+
+	int get_pom_min_steps() const;
+	void set_pom_min_steps(int p_steps);
+
+	int get_pom_max_steps() const;
+	void set_pom_max_steps(int p_steps);
+
+	float get_pom_fade_start() const;
+	void set_pom_fade_start(float p_distance);
+
+	float get_pom_fade_end() const;
+	void set_pom_fade_end(float p_distance);
+
+	float get_triplanar_sharpness() const;
+	void set_triplanar_sharpness(float p_sharpness);
 
 	godot::Ref<godot::ImageTexture> get_noise_preview() const;
 };

@@ -1,5 +1,6 @@
 #pragma once
 
+#include <algorithm>
 #include <cmath>
 #include <cstdint>
 #include <godot_cpp/variant/vector2.hpp>
@@ -16,6 +17,20 @@ struct FbmParams {
 	float gain = 0.5f;
 	float height_scale = 10.0f;
 };
+
+struct TemperatureMoistureParams {
+	float temperature_frequency = 0.0004f;
+	godot::Vector2 temperature_offset = { 10000.0f, -6000.0f };
+	float temperature_noise_influence = 0.4f;
+	float temperature_altitude_reference = 10.0f;
+	float moisture_frequency = 0.0006f;
+	godot::Vector2 moisture_offset = { -4000.0f, 9000.0f };
+};
+
+inline constexpr float NOISE_MAX_AMPLITUDE = 0.70710678f;
+
+inline constexpr float TEMPERATURE_MIN_C = -10.0f;
+inline constexpr float TEMPERATURE_MAX_C = 30.0f;
 
 inline constexpr float GRADIENTS[8][2] = {
 	{ 1.0f, 0.0f }, { 0.70710678f, 0.70710678f },
@@ -85,6 +100,22 @@ inline float get_height_at(const godot::Vector2 p_world_xz, const FbmParams &p_p
 	}
 
 	return (h / max_amplitude) * p_params.height_scale;
+}
+
+inline float temperature_at(const godot::Vector2 p_world_xz, const float p_height, const TemperatureMoistureParams &p_params) {
+	const float altitude_norm = 1.0f - std::clamp((p_height / p_params.temperature_altitude_reference) * 0.5f + 0.5f, 0.0f, 1.0f);
+
+	const float n = noise(p_world_xz * p_params.temperature_frequency + p_params.temperature_offset);
+	const float noise_norm = std::clamp(n / NOISE_MAX_AMPLITUDE, -1.0f, 1.0f) * 0.5f + 0.5f;
+
+	const float combined_norm = std::clamp(altitude_norm + (noise_norm - 0.5f) * p_params.temperature_noise_influence, 0.0f, 1.0f);
+
+	return TEMPERATURE_MIN_C + combined_norm * (TEMPERATURE_MAX_C - TEMPERATURE_MIN_C);
+}
+
+inline float moisture_at(const godot::Vector2 p_world_xz, const TemperatureMoistureParams &p_params) {
+	const float n = noise(p_world_xz * p_params.moisture_frequency + p_params.moisture_offset);
+	return std::clamp(n / NOISE_MAX_AMPLITUDE, -1.0f, 1.0f) * 0.5f + 0.5f;
 }
 
 } //namespace ts::TerrainNoise

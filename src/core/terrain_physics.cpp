@@ -4,10 +4,12 @@
 #include <cmath>
 #include <godot_cpp/classes/physics_server3d.hpp>
 #include <godot_cpp/classes/world3d.hpp>
+#include <godot_cpp/core/math.hpp>
 #include <godot_cpp/variant/callable_method_pointer.hpp>
 #include <godot_cpp/variant/dictionary.hpp>
 #include <godot_cpp/variant/packed_float32_array.hpp>
 #include <godot_cpp/variant/transform3d.hpp>
+#include <godot_cpp/variant/typed_array.hpp>
 #include <limits>
 
 using namespace godot;
@@ -16,6 +18,10 @@ namespace ts {
 
 constexpr int PHYSICS_MIN_GRID_RESOLUTION = 8;
 constexpr int PHYSICS_MAX_GRID_RESOLUTION = 256;
+
+// Mirrors WHITTAKER_TEMP_SOFTNESS_MIN / WHITTAKER_MOIST_SOFTNESS_MIN in terrain.gdshader fragment().
+constexpr float WHITTAKER_TEMP_SOFTNESS_MIN = 0.5f; // deg C
+constexpr float WHITTAKER_MOIST_SOFTNESS_MIN = 0.02f; // normalized [0,1]
 
 void TerrainPhysics::_bind_methods() {}
 
@@ -66,6 +72,13 @@ void TerrainPhysics::set_configuration(const Ref<TerrainConfiguration> &p_config
 	_noise_params.lacunarity = _config->get_noise_lacunarity();
 	_noise_params.gain = _config->get_noise_gain();
 	_noise_params.height_scale = static_cast<float>(_config->get_height_scale());
+
+	_temp_moist_params.temperature_frequency = _config->get_temperature_frequency();
+	_temp_moist_params.temperature_offset = _config->get_temperature_offset();
+	_temp_moist_params.temperature_noise_influence = _config->get_temperature_noise_influence();
+	_temp_moist_params.temperature_altitude_reference = _config->get_temperature_altitude_reference();
+	_temp_moist_params.moisture_frequency = _config->get_moisture_frequency();
+	_temp_moist_params.moisture_offset = _config->get_moisture_offset();
 
 	_range = _config->get_physics_range();
 	if (_range <= 0.0f) {
@@ -174,6 +187,51 @@ float TerrainPhysics::get_height_at(const Vector2 p_world_xz) const {
 	}
 
 	return TerrainNoise::get_height_at(p_world_xz, _noise_params);
+}
+
+Ref<TerrainBiomeLayer> TerrainPhysics::get_biome_at(const Vector2 p_world_xz) const {
+	if (!_config.is_valid()) {
+		return nullptr;
+	}
+
+	const TypedArray<TerrainBiomeLayer> layers = _config->get_biome_layers();
+	if (layers.is_empty()) {
+		return nullptr;
+	}
+
+	const float height = TerrainNoise::get_height_at(p_world_xz, _noise_params);
+	const float temperature = TerrainNoise::temperature_at(p_world_xz, height, _temp_moist_params);
+	const float moisture = TerrainNoise::moisture_at(p_world_xz, _temp_moist_params);
+
+	Ref<TerrainBiomeLayer> best_layer;
+	float best_weight = -1.0f;
+
+	for (const auto &i : layers) {
+		const Ref<TerrainBiomeLayer> layer = i;
+		if (!layer.is_valid()) {
+			continue;
+		}
+
+		const float min_t = layer->get_min_temperature();
+		const float max_t = layer->get_max_temperature();
+		const float min_m = layer->get_min_moisture();
+		const float max_m = layer->get_max_moisture();
+
+		const float softness_t = std::max(WHITTAKER_TEMP_SOFTNESS_MIN, (max_t - min_t) * 0.25f);
+		const float softness_m = std::max(WHITTAKER_MOIST_SOFTNESS_MIN, (max_m - min_m) * 0.25f);
+
+		const float wt = Math::smoothstep(min_t - softness_t, min_t, temperature) *
+				(1.0f - Math::smoothstep(max_t, max_t + softness_t, temperature));
+		const float wm = Math::smoothstep(min_m - softness_m, min_m, moisture) *
+				(1.0f - Math::smoothstep(max_m, max_m + softness_m, moisture));
+
+		if (const float weight = wt * wm; weight > best_weight) {
+			best_weight = weight;
+			best_layer = layer;
+		}
+	}
+
+	return best_layer;
 }
 
 void TerrainPhysics::_start_heightmap_rebuild(const float p_center_x, const float p_center_z) {

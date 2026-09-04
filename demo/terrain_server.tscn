@@ -1,6 +1,6 @@
 [gd_scene format=3 uid="uid://wynwhvbc4af1"]
 
-[ext_resource type="Texture2D" uid="uid://b4s88juxtecb7" path="res://addons/terrain_server/rocky_terrain_02_diff_4k.jpg" id="1_j1qb7"]
+[ext_resource type="TerrainConfiguration" uid="uid://dqpa6lvc7vs0d" path="res://new_terrain_configuration.tres" id="1_j1qb7"]
 
 [sub_resource type="ProceduralSkyMaterial" id="ProceduralSkyMaterial_pt7ik"]
 sky_horizon_color = Color(0.66224277, 0.6717428, 0.6867428, 1)
@@ -17,12 +17,6 @@ ssao_enabled = true
 glow_enabled = true
 fog_sky_affect = 0.0
 fog_height_density = 0.4077
-
-[sub_resource type="TerrainConfiguration" id="TerrainConfiguration_b3x7c"]
-height_scale = 79.25999999999999
-noise_base_frequency = 0.0121
-physics_range = 128.0
-albedo_texture = ExtResource("1_j1qb7")
 
 [sub_resource type="SphereShape3D" id="SphereShape3D_7s5li"]
 
@@ -43,7 +37,7 @@ shadow_blur = 10.0
 transform = Transform3D(0.9077775, 0.066339724, -0.41417277, 0, 0.9874138, 0.15815806, 0.41945207, -0.14357233, 0.89635205, -2.959343, 3.6941547, 9.376048)
 
 [node name="Terrain3D" type="Terrain3D" parent="." unique_id=1294411717]
-configuration = SubResource("TerrainConfiguration_b3x7c")
+configuration = ExtResource("1_j1qb7")
 focus_path = NodePath("../Camera3D")
 
 [node name="Node3D" type="Node3D" parent="." unique_id=2110923160]
@@ -55,156 +49,4 @@ transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 8.016816, 0)
 shape = SubResource("SphereShape3D_7s5li")
 
 [node name="MeshInstance3D" type="MeshInstance3D" parent="Node3D/RigidBody3D" unique_id=837949051]
-mesh = SubResource("SphereMesh_pegvl")
-
-[node name="RigidBody3D2" type="RigidBody3D" parent="Node3D" unique_id=1644846320]
-
-[node name="CollisionShape3D" type="CollisionShape3D" parent="Node3D/RigidBody3D2" unique_id=812491430]
-shape = SubResource("SphereShape3D_7s5li")
-
-[node name="MeshInstance3D" type="MeshInstance3D" parent="Node3D/RigidBody3D2" unique_id=239294143]
-mesh = SubResource("SphereMesh_pegvl")
-
-[node name="RigidBody3D3" type="RigidBody3D" parent="Node3D" unique_id=1566438399]
-
-[node name="CollisionShape3D" type="CollisionShape3D" parent="Node3D/RigidBody3D3" unique_id=2138143264]
-shape = SubResource("SphereShape3D_7s5li")
-
-[node name="MeshInstance3D" type="MeshInstance3D" parent="Node3D/RigidBody3D3" unique_id=1875691091]
-mesh = SubResource("SphereMesh_pegvl")
-
-[node name="RigidBody3D4" type="RigidBody3D" parent="Node3D" unique_id=1321077110]
-
-[node name="CollisionShape3D" type="CollisionShape3D" parent="Node3D/RigidBody3D4" unique_id=2116570333]
-shape = SubResource("SphereShape3D_7s5li")
-
-[node name="MeshInstance3D" type="MeshInstance3D" parent="Node3D/RigidBody3D4" unique_id=529185865]
-mesh = SubResource("SphereMesh_pegvl")
-
-[node name="RigidBody3D5" type="RigidBody3D" parent="Node3D" unique_id=1585487825]
-
-[node name="CollisionShape3D" type="CollisionShape3D" parent="Node3D/RigidBody3D5" unique_id=1973902645]
-shape = SubResource("SphereShape3D_7s5li")
-
-[node name="MeshInstance3D" type="MeshInstance3D" parent="Node3D/RigidBody3D5" unique_id=1496351313]
-mesh = SubResource("SphereMesh_pegvl")
-
-[node name="RigidBody3D6" type="RigidBody3D" parent="Node3D" unique_id=1174133681]
-
-[node name="CollisionShape3D" type="CollisionShape3D" parent="Node3D/RigidBody3D6" unique_id=798319812]
-shape = SubResource("SphereShape3D_7s5li")
-
-[node name="MeshInstance3D" type="MeshInstance3D" parent="Node3D/RigidBody3D6" unique_id=329293969]
-mesh = SubResource("SphereMesh_pegvl")
-
-[node name="RigidBody3D7" type="RigidBody3D" parent="Node3D" unique_id=1222141717]
-
-[node name="CollisionShape3D" type="CollisionShape3D" parent="Node3D/RigidBody3D7" unique_id=77973779]
-shape = SubResource("SphereShape3D_7s5li")
-
-[node name="MeshInstance3D" type="MeshInstance3D" parent="Node3D/RigidBody3D7" unique_id=1471802491]
-mesh = SubResource("SphereMesh_pegvl")
-
-[node name="RigidBody3D8" type="RigidBody3D" parent="Node3D" unique_id=2122736455]
-
-[node name="CollisionShape3D" type="CollisionShape3D" parent="Node3D/RigidBody3D8" unique_id=565482296]
-shape = SubResource("SphereShape3D_7s5li")
-
-[node name="MeshInstance3D" type="MeshInstance3D" parent="Node3D/RigidBody3D8" unique_id=1207156300]
-mesh = SubResource("SphereMesh_pegvl")
-
-[node name="RigidBody3D9" type="RigidBody3D" parent="Node3D" unique_id=98212771]
-
-[node name="CollisionShape3D" type="CollisionShape3D" parent="Node3D/RigidBody3D9" unique_id=2138287036]
-shape = SubResource("SphereShape3D_7s5li")
-
-[node name="MeshInstance3D" type="MeshInstance3D" parent="Node3D/RigidBody3D9" unique_id=1791002311]
-mesh = SubResource("SphereMesh_pegvl")
-
-[node name="RigidBody3D10" type="RigidBody3D" parent="Node3D" unique_id=1234941274]
-
-[node name="CollisionShape3D" type="CollisionShape3D" parent="Node3D/RigidBody3D10" unique_id=36243704]
-shape = SubResource("SphereShape3D_7s5li")
-
-[node name="MeshInstance3D" type="MeshInstance3D" parent="Node3D/RigidBody3D10" unique_id=1168466477]
-mesh = SubResource("SphereMesh_pegvl")
-
-[node name="RigidBody3D11" type="RigidBody3D" parent="Node3D" unique_id=1221393787]
-
-[node name="CollisionShape3D" type="CollisionShape3D" parent="Node3D/RigidBody3D11" unique_id=2035828663]
-shape = SubResource("SphereShape3D_7s5li")
-
-[node name="MeshInstance3D" type="MeshInstance3D" parent="Node3D/RigidBody3D11" unique_id=1811616648]
-mesh = SubResource("SphereMesh_pegvl")
-
-[node name="RigidBody3D12" type="RigidBody3D" parent="Node3D" unique_id=1368319245]
-
-[node name="CollisionShape3D" type="CollisionShape3D" parent="Node3D/RigidBody3D12" unique_id=721994259]
-shape = SubResource("SphereShape3D_7s5li")
-
-[node name="MeshInstance3D" type="MeshInstance3D" parent="Node3D/RigidBody3D12" unique_id=1275697244]
-mesh = SubResource("SphereMesh_pegvl")
-
-[node name="RigidBody3D13" type="RigidBody3D" parent="Node3D" unique_id=706637899]
-
-[node name="CollisionShape3D" type="CollisionShape3D" parent="Node3D/RigidBody3D13" unique_id=1262580687]
-shape = SubResource("SphereShape3D_7s5li")
-
-[node name="MeshInstance3D" type="MeshInstance3D" parent="Node3D/RigidBody3D13" unique_id=510116752]
-mesh = SubResource("SphereMesh_pegvl")
-
-[node name="RigidBody3D14" type="RigidBody3D" parent="Node3D" unique_id=1118515101]
-
-[node name="CollisionShape3D" type="CollisionShape3D" parent="Node3D/RigidBody3D14" unique_id=1302715496]
-shape = SubResource("SphereShape3D_7s5li")
-
-[node name="MeshInstance3D" type="MeshInstance3D" parent="Node3D/RigidBody3D14" unique_id=1424793397]
-mesh = SubResource("SphereMesh_pegvl")
-
-[node name="RigidBody3D15" type="RigidBody3D" parent="Node3D" unique_id=1749905656]
-
-[node name="CollisionShape3D" type="CollisionShape3D" parent="Node3D/RigidBody3D15" unique_id=1832264715]
-shape = SubResource("SphereShape3D_7s5li")
-
-[node name="MeshInstance3D" type="MeshInstance3D" parent="Node3D/RigidBody3D15" unique_id=37829696]
-mesh = SubResource("SphereMesh_pegvl")
-
-[node name="RigidBody3D16" type="RigidBody3D" parent="Node3D" unique_id=465166907]
-
-[node name="CollisionShape3D" type="CollisionShape3D" parent="Node3D/RigidBody3D16" unique_id=1249580238]
-shape = SubResource("SphereShape3D_7s5li")
-
-[node name="MeshInstance3D" type="MeshInstance3D" parent="Node3D/RigidBody3D16" unique_id=628828872]
-mesh = SubResource("SphereMesh_pegvl")
-
-[node name="RigidBody3D17" type="RigidBody3D" parent="Node3D" unique_id=1636895918]
-
-[node name="CollisionShape3D" type="CollisionShape3D" parent="Node3D/RigidBody3D17" unique_id=1977933387]
-shape = SubResource("SphereShape3D_7s5li")
-
-[node name="MeshInstance3D" type="MeshInstance3D" parent="Node3D/RigidBody3D17" unique_id=1930767478]
-mesh = SubResource("SphereMesh_pegvl")
-
-[node name="RigidBody3D18" type="RigidBody3D" parent="Node3D" unique_id=38290484]
-
-[node name="CollisionShape3D" type="CollisionShape3D" parent="Node3D/RigidBody3D18" unique_id=2125313300]
-shape = SubResource("SphereShape3D_7s5li")
-
-[node name="MeshInstance3D" type="MeshInstance3D" parent="Node3D/RigidBody3D18" unique_id=1322580284]
-mesh = SubResource("SphereMesh_pegvl")
-
-[node name="RigidBody3D19" type="RigidBody3D" parent="Node3D" unique_id=1734332994]
-
-[node name="CollisionShape3D" type="CollisionShape3D" parent="Node3D/RigidBody3D19" unique_id=1725782410]
-shape = SubResource("SphereShape3D_7s5li")
-
-[node name="MeshInstance3D" type="MeshInstance3D" parent="Node3D/RigidBody3D19" unique_id=901397009]
-mesh = SubResource("SphereMesh_pegvl")
-
-[node name="RigidBody3D20" type="RigidBody3D" parent="Node3D" unique_id=2106545381]
-
-[node name="CollisionShape3D" type="CollisionShape3D" parent="Node3D/RigidBody3D20" unique_id=1292671074]
-shape = SubResource("SphereShape3D_7s5li")
-
-[node name="MeshInstance3D" type="MeshInstance3D" parent="Node3D/RigidBody3D20" unique_id=1499510243]
 mesh = SubResource("SphereMesh_pegvl")
