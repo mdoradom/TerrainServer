@@ -37,6 +37,21 @@ public:
 	godot::Ref<TerrainConfiguration> get_configuration() const;
 	float get_height_at(godot::Vector2 p_world_xz) const;
 	godot::Ref<TerrainBiomeLayer> get_biome_at(godot::Vector2 p_world_xz) const;
+	float get_temperature_at(godot::Vector2 p_world_xz) const;
+	float get_moisture_at(godot::Vector2 p_world_xz) const;
+
+	int get_clipmap_level_count() const;
+	float get_clipmap_level_extent(int p_level) const;
+	godot::Vector2 get_clipmap_center() const;
+
+	float get_collision_range() const;
+	int get_collision_resolution() const;
+	godot::Vector2 get_collision_center() const;
+	float get_collision_built_range() const;
+	int get_collision_built_resolution() const;
+	godot::Vector2 get_collision_height_range() const;
+	bool is_collision_built() const;
+	bool is_collision_rebuild_pending() const;
 
 	void set_focus_path(const godot::NodePath &p_path);
 	godot::NodePath get_focus_path() const;

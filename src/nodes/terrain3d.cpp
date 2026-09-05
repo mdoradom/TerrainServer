@@ -14,6 +14,19 @@ void Terrain3D::_bind_methods() {
 	ClassDB::bind_method(D_METHOD("get_configuration"), &Terrain3D::get_configuration);
 	ClassDB::bind_method(D_METHOD("get_height_at", "world_xz"), &Terrain3D::get_height_at);
 	ClassDB::bind_method(D_METHOD("get_biome_at", "world_xz"), &Terrain3D::get_biome_at);
+	ClassDB::bind_method(D_METHOD("get_temperature_at", "world_xz"), &Terrain3D::get_temperature_at);
+	ClassDB::bind_method(D_METHOD("get_moisture_at", "world_xz"), &Terrain3D::get_moisture_at);
+	ClassDB::bind_method(D_METHOD("get_clipmap_level_count"), &Terrain3D::get_clipmap_level_count);
+	ClassDB::bind_method(D_METHOD("get_clipmap_level_extent", "level"), &Terrain3D::get_clipmap_level_extent);
+	ClassDB::bind_method(D_METHOD("get_clipmap_center"), &Terrain3D::get_clipmap_center);
+	ClassDB::bind_method(D_METHOD("get_collision_range"), &Terrain3D::get_collision_range);
+	ClassDB::bind_method(D_METHOD("get_collision_resolution"), &Terrain3D::get_collision_resolution);
+	ClassDB::bind_method(D_METHOD("get_collision_center"), &Terrain3D::get_collision_center);
+	ClassDB::bind_method(D_METHOD("get_collision_built_range"), &Terrain3D::get_collision_built_range);
+	ClassDB::bind_method(D_METHOD("get_collision_built_resolution"), &Terrain3D::get_collision_built_resolution);
+	ClassDB::bind_method(D_METHOD("get_collision_height_range"), &Terrain3D::get_collision_height_range);
+	ClassDB::bind_method(D_METHOD("is_collision_built"), &Terrain3D::is_collision_built);
+	ClassDB::bind_method(D_METHOD("is_collision_rebuild_pending"), &Terrain3D::is_collision_rebuild_pending);
 	ClassDB::bind_method(D_METHOD("set_focus_path", "path"), &Terrain3D::set_focus_path);
 	ClassDB::bind_method(D_METHOD("get_focus_path"), &Terrain3D::get_focus_path);
 	ClassDB::bind_method(D_METHOD("_on_config_changed"), &Terrain3D::_on_config_changed);
@@ -154,6 +167,110 @@ Ref<TerrainBiomeLayer> Terrain3D::get_biome_at(const Vector2 p_world_xz) const {
 	}
 
 	return _physics->get_biome_at(p_world_xz);
+}
+
+float Terrain3D::get_temperature_at(const Vector2 p_world_xz) const {
+	if (!_physics.is_valid()) {
+		return 0.0f;
+	}
+
+	return _physics->temperature_at(p_world_xz);
+}
+
+float Terrain3D::get_moisture_at(const Vector2 p_world_xz) const {
+	if (!_physics.is_valid()) {
+		return 0.0f;
+	}
+
+	return _physics->moisture_at(p_world_xz);
+}
+
+int Terrain3D::get_clipmap_level_count() const {
+	if (!_renderer.is_valid()) {
+		return 0;
+	}
+
+	return _renderer->get_clipmap_level_count();
+}
+
+float Terrain3D::get_clipmap_level_extent(const int p_level) const {
+	if (!_renderer.is_valid()) {
+		return 0.0f;
+	}
+
+	return _renderer->get_clipmap_level_scale(p_level);
+}
+
+Vector2 Terrain3D::get_clipmap_center() const {
+	if (!_renderer.is_valid()) {
+		return {};
+	}
+
+	return _renderer->get_snapped_focus_xz();
+}
+
+float Terrain3D::get_collision_range() const {
+	if (!_physics.is_valid()) {
+		return 0.0f;
+	}
+
+	return _physics->get_range();
+}
+
+int Terrain3D::get_collision_resolution() const {
+	if (!_physics.is_valid()) {
+		return 0;
+	}
+
+	return _physics->get_grid_resolution();
+}
+
+Vector2 Terrain3D::get_collision_center() const {
+	if (!_physics.is_valid()) {
+		return {};
+	}
+
+	return _physics->get_last_built_origin();
+}
+
+float Terrain3D::get_collision_built_range() const {
+	if (!_physics.is_valid()) {
+		return 0.0f;
+	}
+
+	return _physics->get_built_range();
+}
+
+int Terrain3D::get_collision_built_resolution() const {
+	if (!_physics.is_valid()) {
+		return 0;
+	}
+
+	return _physics->get_built_grid_resolution();
+}
+
+Vector2 Terrain3D::get_collision_height_range() const {
+	if (!_physics.is_valid()) {
+		return {};
+	}
+
+	return _physics->get_built_height_range();
+}
+
+bool Terrain3D::is_collision_built() const {
+	if (!_physics.is_valid()) {
+		return false;
+	}
+
+	return _physics->is_built();
+}
+
+bool Terrain3D::is_collision_rebuild_pending() const {
+	if (!_physics.is_valid()) {
+		return false;
+	}
+
+	return _physics->is_rebuild_in_flight();
 }
 
 void Terrain3D::set_focus_path(const NodePath &p_path) {
