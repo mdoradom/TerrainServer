@@ -110,10 +110,6 @@ jobs:
           macos.release = "res://addons/terrain_server/bin/libterrain_server.macos.template_release.framework"
           EOF
       
-          # Copy and update plugin.cfg with new version
-          cp demo/addons/${{ env.PLUGIN_NAME }}/plugin.cfg release/addons/${{ env.PLUGIN_NAME }}/plugin.cfg
-          sed -i 's/^version=.*/version="${{ steps.version.outputs.VERSION }}"/' release/addons/${{ env.PLUGIN_NAME }}/plugin.cfg
-      
           # Copy and update README.md with new version
           cp demo/addons/${{ env.PLUGIN_NAME }}/README.md release/README.md
           sed -i 's/Terrain Server vX/Terrain Server v${{ steps.version.outputs.VERSION }}/' release/README.md
