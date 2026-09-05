@@ -5,31 +5,36 @@
 #include "core/terrain_generator.h"
 #include "core/terrain_physics.h"
 #include "core/terrain_slope_layer.h"
+#include "editor/terrain_server_editor_plugin.h"
 #include "nodes/terrain3d.h"
 
 #include <gdextension_interface.h>
+#include <godot_cpp/classes/editor_plugin_registration.hpp>
 #include <godot_cpp/core/defs.hpp>
 #include <godot_cpp/godot.hpp>
 
 using namespace godot;
 
 void initialize_terrain_server_module(ModuleInitializationLevel p_level) {
-	if (p_level != MODULE_INITIALIZATION_LEVEL_SCENE) {
-		return;
+	if (p_level == MODULE_INITIALIZATION_LEVEL_SCENE) {
+		GDREGISTER_CLASS(ts::Terrain3D);
+		GDREGISTER_CLASS(ts::TerrainConfiguration);
+		GDREGISTER_CLASS(ts::TerrainBiomeLayer);
+		GDREGISTER_CLASS(ts::TerrainSlopeLayer);
+		GDREGISTER_CLASS(ts::TerrainGenerator);
+		GDREGISTER_CLASS(ts::TerrainRenderer);
+		GDREGISTER_CLASS(ts::TerrainPhysics);
 	}
 
-	GDREGISTER_CLASS(ts::Terrain3D);
-	GDREGISTER_CLASS(ts::TerrainConfiguration);
-	GDREGISTER_CLASS(ts::TerrainBiomeLayer);
-	GDREGISTER_CLASS(ts::TerrainSlopeLayer);
-	GDREGISTER_CLASS(ts::TerrainGenerator);
-	GDREGISTER_CLASS(ts::TerrainRenderer);
-	GDREGISTER_CLASS(ts::TerrainPhysics);
+	if (p_level == MODULE_INITIALIZATION_LEVEL_EDITOR) {
+		GDREGISTER_INTERNAL_CLASS(ts::TerrainServerEditorPlugin);
+		EditorPlugins::add_by_type<ts::TerrainServerEditorPlugin>();
+	}
 }
 
 void uninitialize_terrain_server_module(ModuleInitializationLevel p_level) {
-	if (p_level != MODULE_INITIALIZATION_LEVEL_SCENE) {
-		return;
+	if (p_level == MODULE_INITIALIZATION_LEVEL_EDITOR) {
+		EditorPlugins::remove_by_type<ts::TerrainServerEditorPlugin>();
 	}
 }
 
