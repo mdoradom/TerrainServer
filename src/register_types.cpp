@@ -17,13 +17,13 @@ using namespace godot;
 
 void initialize_terrain_server_module(ModuleInitializationLevel p_level) {
 	if (p_level == MODULE_INITIALIZATION_LEVEL_SCENE) {
-		GDREGISTER_CLASS(ts::Terrain3D);
-		GDREGISTER_CLASS(ts::TerrainConfiguration);
 		GDREGISTER_CLASS(ts::TerrainBiomeLayer);
 		GDREGISTER_CLASS(ts::TerrainSlopeLayer);
+		GDREGISTER_CLASS(ts::TerrainConfiguration);
 		GDREGISTER_CLASS(ts::TerrainGenerator);
 		GDREGISTER_CLASS(ts::TerrainRenderer);
 		GDREGISTER_CLASS(ts::TerrainPhysics);
+		GDREGISTER_CLASS(ts::Terrain3D);
 	}
 
 	if (p_level == MODULE_INITIALIZATION_LEVEL_EDITOR) {
