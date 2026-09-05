@@ -87,7 +87,7 @@ jobs:
 
       - name: Create Release Package
         run: |
-          mkdir -p release/addons/${{ env.PLUGIN_NAME }}/bin release/addons/${{ env.PLUGIN_NAME }}/icons
+          mkdir -p release/addons/${{ env.PLUGIN_NAME }}/bin release/addons/${{ env.PLUGIN_NAME }}/icons release/addons/${{ env.PLUGIN_NAME }}/shaders
       
           # Copy binaries from all platforms
           find artifacts -type f \( -name "*.so" -o -name "*.dll" \) -exec cp {} release/addons/${{ env.PLUGIN_NAME }}/bin/ \;
@@ -97,6 +97,9 @@ jobs:
       
           # Copy the editor icons mapped by the .gdextension [icons] section
           cp -r demo/addons/${{ env.PLUGIN_NAME }}/icons/. release/addons/${{ env.PLUGIN_NAME }}/icons/
+      
+          # TerrainRenderer loads the shader from res:// at runtime, so it must ship
+          cp -r demo/addons/${{ env.PLUGIN_NAME }}/shaders/. release/addons/${{ env.PLUGIN_NAME }}/shaders/
       
           # Create .gdextension with both debug and release entries
           cat > release/addons/${{ env.PLUGIN_NAME }}/${{ env.PLUGIN_NAME }}.gdextension << 'EOF'
