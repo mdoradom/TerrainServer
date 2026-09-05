@@ -17,3 +17,10 @@ windows.release.x86_64 = "res://addons/terrain_server/bin/libterrain_server.wind
 ; Linux
 linux.debug.x86_64 = "res://addons/terrain_server/bin/libterrain_server.linux.template_debug.x86_64.so"
 linux.release.x86_64 = "res://addons/terrain_server/bin/libterrain_server.linux.template_release.x86_64.so"
+
+[icons]
+
+Terrain3D = "res://addons/terrain_server/icons/Terrain3D.svg"
+TerrainConfiguration = "res://addons/terrain_server/icons/TerrainConfiguration.svg"
+TerrainBiomeLayer = "res://addons/terrain_server/icons/TerrainBiomeLayer.svg"
+TerrainSlopeLayer = "res://addons/terrain_server/icons/TerrainSlopeLayer.svg"

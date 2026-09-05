@@ -87,13 +87,16 @@ jobs:
 
       - name: Create Release Package
         run: |
-          mkdir -p release/addons/${{ env.PLUGIN_NAME }}/bin
+          mkdir -p release/addons/${{ env.PLUGIN_NAME }}/bin release/addons/${{ env.PLUGIN_NAME }}/icons
       
           # Copy binaries from all platforms
           find artifacts -type f \( -name "*.so" -o -name "*.dll" \) -exec cp {} release/addons/${{ env.PLUGIN_NAME }}/bin/ \;
           
           # Copy macOS frameworks (directories) with cp -r
           find artifacts -type d -name "*.framework" -exec cp -r {} release/addons/${{ env.PLUGIN_NAME }}/bin/ \;
+      
+          # Copy the editor icons mapped by the .gdextension [icons] section
+          cp -r demo/addons/${{ env.PLUGIN_NAME }}/icons/. release/addons/${{ env.PLUGIN_NAME }}/icons/
       
           # Create .gdextension with both debug and release entries
           cat > release/addons/${{ env.PLUGIN_NAME }}/${{ env.PLUGIN_NAME }}.gdextension << 'EOF'
@@ -108,6 +111,12 @@ jobs:
           windows.release.x86_64 = "res://addons/terrain_server/bin/libterrain_server.windows.template_release.x86_64.dll"
           macos.debug = "res://addons/terrain_server/bin/libterrain_server.macos.template_release.framework"
           macos.release = "res://addons/terrain_server/bin/libterrain_server.macos.template_release.framework"
+      
+          [icons]
+          Terrain3D = "res://addons/terrain_server/icons/Terrain3D.svg"
+          TerrainConfiguration = "res://addons/terrain_server/icons/TerrainConfiguration.svg"
+          TerrainBiomeLayer = "res://addons/terrain_server/icons/TerrainBiomeLayer.svg"
+          TerrainSlopeLayer = "res://addons/terrain_server/icons/TerrainSlopeLayer.svg"
           EOF
       
           # Copy and update README.md with new version
