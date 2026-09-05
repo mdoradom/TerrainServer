@@ -5,6 +5,7 @@
 #include <godot_cpp/classes/array_mesh.hpp>
 #include <godot_cpp/classes/file_access.hpp>
 #include <godot_cpp/classes/world3d.hpp>
+#include <godot_cpp/core/class_db.hpp>
 #include <godot_cpp/core/error_macros.hpp>
 #include <godot_cpp/variant/aabb.hpp>
 #include <godot_cpp/variant/packed_float32_array.hpp>
@@ -36,7 +37,11 @@ void free_rid_if_valid(RenderingServer *p_rs, RID &p_rid) {
 }
 } //namespace
 
-void TerrainRenderer::_bind_methods() {}
+void TerrainRenderer::_bind_methods() {
+	ClassDB::bind_method(D_METHOD("get_clipmap_level_count"), &TerrainRenderer::get_clipmap_level_count);
+	ClassDB::bind_method(D_METHOD("get_clipmap_level_scale", "level"), &TerrainRenderer::get_clipmap_level_scale);
+	ClassDB::bind_method(D_METHOD("get_snapped_focus_xz"), &TerrainRenderer::get_snapped_focus_xz);
+}
 
 TerrainRenderer::TerrainRenderer() = default;
 
@@ -84,6 +89,8 @@ void TerrainRenderer::cleanup() {
 		rs->free_rid(_internal_shader_rid);
 		_internal_shader_rid = RID();
 	}
+
+	_snapped_focus_xz = Vector2();
 }
 
 void TerrainRenderer::_free_biome_texture_arrays() {
@@ -563,6 +570,8 @@ void TerrainRenderer::update_focus_position(const Vector3 p_focus_pos) {
 	const float snapped_x = floorf(p_focus_pos.x / base_cell_size) * base_cell_size;
 	const float snapped_z = floorf(p_focus_pos.z / base_cell_size) * base_cell_size;
 
+	_snapped_focus_xz = Vector2(snapped_x, snapped_z);
+
 	for (const auto &level : _clipmap_levels) {
 		Transform3D xform;
 		xform.basis = xform.basis.scaled(Vector3(level.scale, 1.0, level.scale));
@@ -576,6 +585,20 @@ void TerrainRenderer::update_focus_position(const Vector3 p_focus_pos) {
 
 void TerrainRenderer::set_configuration(const Ref<TerrainConfiguration> &p_config) {
 	_config = p_config;
+}
+
+int TerrainRenderer::get_clipmap_level_count() const {
+	return static_cast<int>(_clipmap_levels.size());
+}
+
+float TerrainRenderer::get_clipmap_level_scale(const int p_level) const {
+	ERR_FAIL_INDEX_V(p_level, static_cast<int>(_clipmap_levels.size()), 0.0f);
+
+	return _clipmap_levels[p_level].scale;
+}
+
+Vector2 TerrainRenderer::get_snapped_focus_xz() const {
+	return _snapped_focus_xz;
 }
 
 } //namespace ts

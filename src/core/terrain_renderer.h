@@ -12,6 +12,7 @@
 #include <godot_cpp/classes/texture2d.hpp>
 #include <godot_cpp/variant/color.hpp>
 #include <godot_cpp/variant/typed_array.hpp>
+#include <godot_cpp/variant/vector2.hpp>
 #include <vector>
 
 namespace ts {
@@ -34,6 +35,8 @@ private:
 	};
 
 	std::vector<ClipmapLevel> _clipmap_levels;
+
+	godot::Vector2 _snapped_focus_xz;
 
 	godot::RID _biome_albedo_array_rid;
 	godot::RID _biome_normal_array_rid;
@@ -84,6 +87,10 @@ public:
 
 	void rebuild_mesh(float p_size, int p_resolution);
 	void update_focus_position(godot::Vector3 p_focus_pos);
+
+	int get_clipmap_level_count() const;
+	float get_clipmap_level_scale(int p_level) const;
+	godot::Vector2 get_snapped_focus_xz() const;
 };
 
 } //namespace ts
