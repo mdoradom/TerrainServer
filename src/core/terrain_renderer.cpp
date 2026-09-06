@@ -17,6 +17,7 @@ using namespace godot;
 namespace ts {
 
 constexpr float HEIGHT_AABB_MARGIN = 1.25f;
+constexpr const char *SHADER_PATH = "res://addons/terrain_server/shaders/terrain.gdshader";
 
 namespace {
 // Fallback dimensions and fill colours for a layer channel with no texture assigned.
@@ -41,6 +42,7 @@ void TerrainRenderer::_bind_methods() {
 	ClassDB::bind_method(D_METHOD("get_clipmap_level_count"), &TerrainRenderer::get_clipmap_level_count);
 	ClassDB::bind_method(D_METHOD("get_clipmap_level_scale", "level"), &TerrainRenderer::get_clipmap_level_scale);
 	ClassDB::bind_method(D_METHOD("get_snapped_focus_xz"), &TerrainRenderer::get_snapped_focus_xz);
+	ClassDB::bind_method(D_METHOD("request_shader_reload"), &TerrainRenderer::request_shader_reload);
 }
 
 TerrainRenderer::TerrainRenderer() = default;
@@ -414,13 +416,23 @@ void TerrainRenderer::rebuild_mesh(const float p_size, const int p_resolution) {
 	RenderingServer *rs = RenderingServer::get_singleton();
 	_free_mesh_instances();
 
+	if (_shader_reload_pending) {
+		_shader_reload_pending = false;
+
+		if (_internal_shader_rid.is_valid()) {
+			rs->free_rid(_internal_shader_rid);
+			_internal_shader_rid = RID();
+		}
+	}
+
 	if (!_config.is_valid()) {
 		return;
 	}
 
 	if (!_internal_shader_rid.is_valid()) {
-		const String shader_code = FileAccess::get_file_as_string("res://addons/terrain_server/shaders/terrain.gdshader");
+		const String shader_code = FileAccess::get_file_as_string(SHADER_PATH);
 		if (shader_code.is_empty()) {
+			UtilityFunctions::push_warning("TerrainServer: could not read the terrain shader at ", SHADER_PATH, "; the terrain will not be drawn.");
 			return;
 		}
 		_internal_shader_rid = rs->shader_create();
@@ -585,6 +597,10 @@ void TerrainRenderer::update_focus_position(const Vector3 p_focus_pos) {
 
 void TerrainRenderer::set_configuration(const Ref<TerrainConfiguration> &p_config) {
 	_config = p_config;
+}
+
+void TerrainRenderer::request_shader_reload() {
+	_shader_reload_pending = true;
 }
 
 int TerrainRenderer::get_clipmap_level_count() const {

@@ -24,6 +24,7 @@ private:
 	godot::RID _mesh_rid;
 	godot::RID _mesh_ring_rid;
 	godot::RID _internal_shader_rid;
+	bool _shader_reload_pending = false;
 	godot::Node3D *_parent_node = nullptr;
 
 	godot::Ref<TerrainConfiguration> _config;
@@ -86,6 +87,7 @@ public:
 	void set_configuration(const godot::Ref<TerrainConfiguration> &p_config);
 
 	void rebuild_mesh(float p_size, int p_resolution);
+	void request_shader_reload();
 	void update_focus_position(godot::Vector3 p_focus_pos);
 
 	int get_clipmap_level_count() const;
