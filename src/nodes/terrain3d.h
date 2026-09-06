@@ -9,6 +9,8 @@
 #include <godot_cpp/classes/node3d.hpp>
 #include <godot_cpp/variant/node_path.hpp>
 
+#include <vector>
+
 namespace ts {
 
 class Terrain3D : public godot::Node3D {
@@ -20,6 +22,11 @@ private:
 	godot::Ref<TerrainGenerator> _generator;
 	godot::Ref<TerrainPhysics> _physics;
 	godot::NodePath _focus_path;
+
+	godot::Vector3 _editor_focus_override;
+	bool _has_editor_focus_override = false;
+
+	static std::vector<Terrain3D *> _editor_instances;
 
 protected:
 	static void _bind_methods();
@@ -55,6 +62,11 @@ public:
 
 	void set_focus_path(const godot::NodePath &p_path);
 	godot::NodePath get_focus_path() const;
+
+	void set_editor_focus_override(godot::Vector3 p_world_position);
+	void clear_editor_focus_override();
+
+	static const std::vector<Terrain3D *> &get_editor_instances();
 };
 
 } //namespace ts

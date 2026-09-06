@@ -5,9 +5,13 @@
 #include <godot_cpp/classes/viewport.hpp>
 #include <godot_cpp/variant/utility_functions.hpp>
 
+#include <algorithm>
+
 using namespace godot;
 
 namespace ts {
+
+std::vector<Terrain3D *> Terrain3D::_editor_instances;
 
 void Terrain3D::_bind_methods() {
 	ClassDB::bind_method(D_METHOD("set_configuration", "config"), &Terrain3D::set_configuration);
@@ -29,6 +33,8 @@ void Terrain3D::_bind_methods() {
 	ClassDB::bind_method(D_METHOD("is_collision_rebuild_pending"), &Terrain3D::is_collision_rebuild_pending);
 	ClassDB::bind_method(D_METHOD("set_focus_path", "path"), &Terrain3D::set_focus_path);
 	ClassDB::bind_method(D_METHOD("get_focus_path"), &Terrain3D::get_focus_path);
+	ClassDB::bind_method(D_METHOD("set_editor_focus_override", "world_position"), &Terrain3D::set_editor_focus_override);
+	ClassDB::bind_method(D_METHOD("clear_editor_focus_override"), &Terrain3D::clear_editor_focus_override);
 	ClassDB::bind_method(D_METHOD("_on_config_changed"), &Terrain3D::_on_config_changed);
 
 	ADD_PROPERTY(PropertyInfo(Variant::OBJECT, "configuration", PROPERTY_HINT_RESOURCE_TYPE, "TerrainConfiguration"), "set_configuration", "get_configuration");
@@ -43,6 +49,8 @@ Terrain3D::Terrain3D() {
 }
 
 Terrain3D::~Terrain3D() {
+	_editor_instances.erase(std::remove(_editor_instances.begin(), _editor_instances.end(), this), _editor_instances.end());
+
 	if (_config.is_valid()) {
 		_config->disconnect("changed", Callable(this, "_on_config_changed"));
 	}
@@ -66,9 +74,6 @@ void Terrain3D::_process(double delta) {
 		return;
 	}
 
-	const Viewport *viewport = get_viewport();
-	const Camera3D *camera = viewport != nullptr ? viewport->get_camera_3d() : nullptr;
-
 	Vector3 focus_pos;
 	bool has_focus = false;
 
@@ -79,9 +84,17 @@ void Terrain3D::_process(double delta) {
 		}
 	}
 
-	if (!has_focus && camera != nullptr) {
-		focus_pos = camera->get_global_position();
+	if (!has_focus && _has_editor_focus_override) {
+		focus_pos = _editor_focus_override;
 		has_focus = true;
+	}
+
+	if (!has_focus) {
+		const Viewport *viewport = get_viewport();
+		if (const Camera3D *camera = viewport != nullptr ? viewport->get_camera_3d() : nullptr) {
+			focus_pos = camera->get_global_position();
+			has_focus = true;
+		}
 	}
 
 	if (!has_focus) {
@@ -100,6 +113,8 @@ void Terrain3D::_process(double delta) {
 void Terrain3D::_notification(const int p_what) {
 	switch (p_what) {
 		case NOTIFICATION_EXIT_TREE: {
+			_editor_instances.erase(std::remove(_editor_instances.begin(), _editor_instances.end(), this), _editor_instances.end());
+
 			if (_physics.is_valid()) {
 				_physics->cleanup();
 			}
@@ -109,6 +124,11 @@ void Terrain3D::_notification(const int p_what) {
 		} break;
 
 		case NOTIFICATION_ENTER_TREE: {
+			if (Engine::get_singleton()->is_editor_hint() &&
+					std::find(_editor_instances.begin(), _editor_instances.end(), this) == _editor_instances.end()) {
+				_editor_instances.push_back(this);
+			}
+
 			if (_physics.is_valid()) {
 				_physics->initialize(this);
 			}
@@ -279,6 +299,20 @@ void Terrain3D::set_focus_path(const NodePath &p_path) {
 
 NodePath Terrain3D::get_focus_path() const {
 	return _focus_path;
+}
+
+void Terrain3D::set_editor_focus_override(const Vector3 p_world_position) {
+	_editor_focus_override = p_world_position;
+	_has_editor_focus_override = true;
+}
+
+void Terrain3D::clear_editor_focus_override() {
+	_editor_focus_override = Vector3();
+	_has_editor_focus_override = false;
+}
+
+const std::vector<Terrain3D *> &Terrain3D::get_editor_instances() {
+	return _editor_instances;
 }
 
 } //namespace ts
