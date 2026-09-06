@@ -12,9 +12,13 @@ protected:
 	static void _bind_methods();
 
 public:
+	TerrainServerEditorPlugin();
+
 	godot::String _get_plugin_name() const override;
 
 	void _enter_tree() override;
+	void _exit_tree() override;
+	void _process(double delta) override;
 };
 
 } //namespace ts
