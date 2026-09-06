@@ -39,6 +39,8 @@ void Terrain3D::_bind_methods() {
 	ClassDB::bind_method(D_METHOD("get_editor_preview"), &Terrain3D::get_editor_preview);
 	ClassDB::bind_method(D_METHOD("set_editor_preview_physics", "enabled"), &Terrain3D::set_editor_preview_physics);
 	ClassDB::bind_method(D_METHOD("get_editor_preview_physics"), &Terrain3D::get_editor_preview_physics);
+	ClassDB::bind_method(D_METHOD("reload_shader"), &Terrain3D::reload_shader);
+	ClassDB::bind_method(D_METHOD("rebuild"), &Terrain3D::rebuild);
 	ClassDB::bind_method(D_METHOD("_on_config_changed"), &Terrain3D::_on_config_changed);
 
 	ADD_PROPERTY(PropertyInfo(Variant::OBJECT, "configuration", PROPERTY_HINT_RESOURCE_TYPE, "TerrainConfiguration"), "set_configuration", "get_configuration");
@@ -372,6 +374,18 @@ void Terrain3D::set_editor_preview_physics(const bool p_enabled) {
 
 bool Terrain3D::get_editor_preview_physics() const {
 	return _editor_preview_physics;
+}
+
+void Terrain3D::reload_shader() {
+	if (_renderer.is_valid()) {
+		_renderer->request_shader_reload();
+	}
+
+	_on_config_changed();
+}
+
+void Terrain3D::rebuild() {
+	_on_config_changed();
 }
 
 const std::vector<Terrain3D *> &Terrain3D::get_editor_instances() {

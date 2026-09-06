@@ -73,6 +73,9 @@ public:
 	void set_editor_preview_physics(bool p_enabled);
 	bool get_editor_preview_physics() const;
 
+	void reload_shader();
+	void rebuild();
+
 	static const std::vector<Terrain3D *> &get_editor_instances();
 };
 
