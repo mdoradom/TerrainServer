@@ -25,6 +25,8 @@ private:
 
 	godot::Vector3 _editor_focus_override;
 	bool _has_editor_focus_override = false;
+	bool _editor_preview = true;
+	bool _editor_preview_physics = false;
 
 	static std::vector<Terrain3D *> _editor_instances;
 
@@ -65,6 +67,11 @@ public:
 
 	void set_editor_focus_override(godot::Vector3 p_world_position);
 	void clear_editor_focus_override();
+
+	void set_editor_preview(bool p_enabled);
+	bool get_editor_preview() const;
+	void set_editor_preview_physics(bool p_enabled);
+	bool get_editor_preview_physics() const;
 
 	static const std::vector<Terrain3D *> &get_editor_instances();
 };

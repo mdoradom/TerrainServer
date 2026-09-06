@@ -35,10 +35,18 @@ void Terrain3D::_bind_methods() {
 	ClassDB::bind_method(D_METHOD("get_focus_path"), &Terrain3D::get_focus_path);
 	ClassDB::bind_method(D_METHOD("set_editor_focus_override", "world_position"), &Terrain3D::set_editor_focus_override);
 	ClassDB::bind_method(D_METHOD("clear_editor_focus_override"), &Terrain3D::clear_editor_focus_override);
+	ClassDB::bind_method(D_METHOD("set_editor_preview", "enabled"), &Terrain3D::set_editor_preview);
+	ClassDB::bind_method(D_METHOD("get_editor_preview"), &Terrain3D::get_editor_preview);
+	ClassDB::bind_method(D_METHOD("set_editor_preview_physics", "enabled"), &Terrain3D::set_editor_preview_physics);
+	ClassDB::bind_method(D_METHOD("get_editor_preview_physics"), &Terrain3D::get_editor_preview_physics);
 	ClassDB::bind_method(D_METHOD("_on_config_changed"), &Terrain3D::_on_config_changed);
 
 	ADD_PROPERTY(PropertyInfo(Variant::OBJECT, "configuration", PROPERTY_HINT_RESOURCE_TYPE, "TerrainConfiguration"), "set_configuration", "get_configuration");
 	ADD_PROPERTY(PropertyInfo(Variant::NODE_PATH, "focus_path", PROPERTY_HINT_NODE_PATH_VALID_TYPES, "Node3D"), "set_focus_path", "get_focus_path");
+
+	ADD_GROUP("Editor", "editor_");
+	ADD_PROPERTY(PropertyInfo(Variant::BOOL, "editor_preview"), "set_editor_preview", "get_editor_preview");
+	ADD_PROPERTY(PropertyInfo(Variant::BOOL, "editor_preview_physics"), "set_editor_preview_physics", "get_editor_preview_physics");
 }
 
 Terrain3D::Terrain3D() {
@@ -74,6 +82,11 @@ void Terrain3D::_process(double delta) {
 		return;
 	}
 
+	const bool editing = Engine::get_singleton()->is_editor_hint();
+	if (editing && !_editor_preview) {
+		return;
+	}
+
 	Vector3 focus_pos;
 	bool has_focus = false;
 
@@ -105,7 +118,7 @@ void Terrain3D::_process(double delta) {
 		_renderer->update_focus_position(focus_pos);
 	}
 
-	if (_physics.is_valid()) {
+	if (_physics.is_valid() && (!editing || _editor_preview_physics)) {
 		_physics->update_focus_position(focus_pos);
 	}
 }
@@ -148,6 +161,11 @@ void Terrain3D::_on_config_changed() {
 	_generator->setup(_config);
 	_physics->set_configuration(_config);
 	_renderer->set_configuration(_config);
+
+	if (Engine::get_singleton()->is_editor_hint() && !_editor_preview) {
+		return;
+	}
+
 	_renderer->rebuild_mesh(_config->get_terrain_size(), _config->get_mesh_resolution());
 }
 
@@ -309,6 +327,51 @@ void Terrain3D::set_editor_focus_override(const Vector3 p_world_position) {
 void Terrain3D::clear_editor_focus_override() {
 	_editor_focus_override = Vector3();
 	_has_editor_focus_override = false;
+}
+
+void Terrain3D::set_editor_preview(const bool p_enabled) {
+	if (_editor_preview == p_enabled) {
+		return;
+	}
+
+	_editor_preview = p_enabled;
+
+	if (!Engine::get_singleton()->is_editor_hint() || !_renderer.is_valid()) {
+		return;
+	}
+
+	if (_editor_preview) {
+		_renderer->initialize(this);
+		_on_config_changed();
+	} else {
+		_renderer->cleanup();
+	}
+}
+
+bool Terrain3D::get_editor_preview() const {
+	return _editor_preview;
+}
+
+void Terrain3D::set_editor_preview_physics(const bool p_enabled) {
+	if (_editor_preview_physics == p_enabled) {
+		return;
+	}
+
+	_editor_preview_physics = p_enabled;
+
+	if (!Engine::get_singleton()->is_editor_hint() || !_physics.is_valid()) {
+		return;
+	}
+
+	if (_editor_preview_physics) {
+		_physics->initialize(this);
+	} else {
+		_physics->cleanup();
+	}
+}
+
+bool Terrain3D::get_editor_preview_physics() const {
+	return _editor_preview_physics;
 }
 
 const std::vector<Terrain3D *> &Terrain3D::get_editor_instances() {
