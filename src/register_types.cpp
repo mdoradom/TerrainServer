@@ -5,6 +5,7 @@
 #include "core/terrain_generator.h"
 #include "core/terrain_physics.h"
 #include "core/terrain_slope_layer.h"
+#include "editor/terrain_gizmo_plugins.h"
 #include "editor/terrain_server_editor_plugin.h"
 #include "nodes/terrain3d.h"
 
@@ -27,6 +28,10 @@ void initialize_terrain_server_module(ModuleInitializationLevel p_level) {
 	}
 
 	if (p_level == MODULE_INITIALIZATION_LEVEL_EDITOR) {
+		GDREGISTER_INTERNAL_CLASS(ts::TerrainClipmapGizmoPlugin);
+		GDREGISTER_INTERNAL_CLASS(ts::TerrainCollisionGizmoPlugin);
+		GDREGISTER_INTERNAL_CLASS(ts::TerrainFocusGizmoPlugin);
+		GDREGISTER_INTERNAL_CLASS(ts::TerrainMorphGizmoPlugin);
 		GDREGISTER_INTERNAL_CLASS(ts::TerrainServerEditorPlugin);
 		EditorPlugins::add_by_type<ts::TerrainServerEditorPlugin>();
 	}
