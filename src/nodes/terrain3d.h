@@ -23,6 +23,8 @@ private:
 	godot::Ref<TerrainPhysics> _physics;
 	godot::NodePath _focus_path;
 
+	godot::Vector3 _focus_position;
+
 	godot::Vector3 _editor_focus_override;
 	bool _has_editor_focus_override = false;
 	bool _editor_preview = true;
@@ -48,6 +50,8 @@ public:
 	godot::Ref<TerrainBiomeLayer> get_biome_at(godot::Vector2 p_world_xz) const;
 	float get_temperature_at(godot::Vector2 p_world_xz) const;
 	float get_moisture_at(godot::Vector2 p_world_xz) const;
+
+	godot::Vector3 get_focus_position() const;
 
 	int get_clipmap_level_count() const;
 	float get_clipmap_level_extent(int p_level) const;

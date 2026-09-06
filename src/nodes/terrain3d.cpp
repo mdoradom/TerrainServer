@@ -20,6 +20,7 @@ void Terrain3D::_bind_methods() {
 	ClassDB::bind_method(D_METHOD("get_biome_at", "world_xz"), &Terrain3D::get_biome_at);
 	ClassDB::bind_method(D_METHOD("get_temperature_at", "world_xz"), &Terrain3D::get_temperature_at);
 	ClassDB::bind_method(D_METHOD("get_moisture_at", "world_xz"), &Terrain3D::get_moisture_at);
+	ClassDB::bind_method(D_METHOD("get_focus_position"), &Terrain3D::get_focus_position);
 	ClassDB::bind_method(D_METHOD("get_clipmap_level_count"), &Terrain3D::get_clipmap_level_count);
 	ClassDB::bind_method(D_METHOD("get_clipmap_level_extent", "level"), &Terrain3D::get_clipmap_level_extent);
 	ClassDB::bind_method(D_METHOD("get_clipmap_center"), &Terrain3D::get_clipmap_center);
@@ -115,6 +116,8 @@ void Terrain3D::_process(double delta) {
 	if (!has_focus) {
 		return;
 	}
+
+	_focus_position = focus_pos;
 
 	if (_renderer.is_valid()) {
 		_renderer->update_focus_position(focus_pos);
@@ -223,6 +226,10 @@ float Terrain3D::get_moisture_at(const Vector2 p_world_xz) const {
 	}
 
 	return _physics->moisture_at(p_world_xz);
+}
+
+Vector3 Terrain3D::get_focus_position() const {
+	return _focus_position;
 }
 
 int Terrain3D::get_clipmap_level_count() const {
