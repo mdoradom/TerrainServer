@@ -8,6 +8,10 @@ namespace ts {
 class TerrainServerEditorPlugin : public godot::EditorPlugin {
 	GDCLASS(TerrainServerEditorPlugin, godot::EditorPlugin);
 
+private:
+	void _on_reload_shader_pressed();
+	void _on_rebuild_pressed();
+
 protected:
 	static void _bind_methods();
 
