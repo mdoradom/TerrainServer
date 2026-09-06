@@ -17,6 +17,7 @@ namespace {
 
 constexpr float MORPH_BAND_START = 0.8f;
 constexpr float REBUILD_MARGIN_FRACTION = 0.25f;
+constexpr float FOCUS_MARKER_ARM = 1.0f;
 
 Terrain3D *terrain_from_gizmo(const Ref<EditorNode3DGizmo> &p_gizmo, Transform3D &r_to_local) {
 	if (p_gizmo.is_null()) {
@@ -103,19 +104,6 @@ std::vector<Ref<StandardMaterial3D>> make_level_materials(const Color &p_near, c
 	}
 
 	return materials;
-}
-
-float base_cell_size(const Terrain3D *p_terrain) {
-	if (p_terrain->get_clipmap_level_count() <= 0) {
-		return 0.0f;
-	}
-
-	const Ref<TerrainConfiguration> config = p_terrain->get_configuration();
-	if (config.is_null() || config->get_mesh_resolution() <= 0) {
-		return 0.0f;
-	}
-
-	return p_terrain->get_clipmap_level_extent(0) / static_cast<float>(config->get_mesh_resolution());
 }
 
 } //namespace
@@ -233,16 +221,11 @@ void TerrainFocusGizmoPlugin::_redraw(const Ref<EditorNode3DGizmo> &p_gizmo) {
 		return;
 	}
 
-	const float cell = base_cell_size(terrain);
-	if (cell <= 0.0f) {
-		return;
-	}
-
 	const Vector3 focus = terrain->get_focus_position();
 	const Vector2 focus_xz(focus.x, focus.z);
 
 	PackedVector3Array focus_lines;
-	append_cross_xz(focus_lines, to_local, focus_xz, cell * 0.5f, 0.0f);
+	append_cross_xz(focus_lines, to_local, focus_xz, FOCUS_MARKER_ARM, 0.0f);
 	p_gizmo->add_lines(focus_lines, _raw_material);
 }
 
