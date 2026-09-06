@@ -1,6 +1,7 @@
 #include "terrain_server_editor_plugin.h"
 
 #include "nodes/terrain3d.h"
+#include "terrain_dock.h"
 #include "terrain_gizmo_plugins.h"
 
 #include <godot_cpp/classes/camera3d.hpp>
@@ -55,6 +56,10 @@ void TerrainServerEditorPlugin::_enter_tree() {
 	}
 	_attach_gizmos_to_open_scene();
 
+	// TODO: add_control_to_bottom_panel is deprecated in favor of add_dock() with EditorDock.default_slot = DOCK_SLOT_BOTTOM, but EditorDock isn't in this project's pinned godot-cpp (branch 4.5) yet. Migrate both this call and remove_control_from_bottom_panel() in _exit_tree() once the vendored godot-cpp version exposes it.
+	_dock = memnew(TerrainDock);
+	add_control_to_bottom_panel(_dock, "Terrain");
+
 	UtilityFunctions::print_verbose("TerrainServer: editor plugin ready.");
 }
 
@@ -66,6 +71,12 @@ void TerrainServerEditorPlugin::_exit_tree() {
 		remove_node_3d_gizmo_plugin(gizmo_plugin);
 	}
 	_gizmo_plugins.clear();
+
+	if (_dock != nullptr) {
+		remove_control_from_bottom_panel(_dock);
+		_dock->queue_free();
+		_dock = nullptr;
+	}
 
 	for (Terrain3D *terrain : Terrain3D::get_editor_instances()) {
 		terrain->clear_editor_focus_override();

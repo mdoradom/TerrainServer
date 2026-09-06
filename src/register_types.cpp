@@ -5,8 +5,10 @@
 #include "core/terrain_generator.h"
 #include "core/terrain_physics.h"
 #include "core/terrain_slope_layer.h"
+#include "editor/terrain_dock.h"
 #include "editor/terrain_gizmo_plugins.h"
 #include "editor/terrain_server_editor_plugin.h"
+#include "editor/whittaker_chart.h"
 #include "nodes/terrain3d.h"
 
 #include <gdextension_interface.h>
@@ -32,6 +34,8 @@ void initialize_terrain_server_module(ModuleInitializationLevel p_level) {
 		GDREGISTER_INTERNAL_CLASS(ts::TerrainCollisionGizmoPlugin);
 		GDREGISTER_INTERNAL_CLASS(ts::TerrainFocusGizmoPlugin);
 		GDREGISTER_INTERNAL_CLASS(ts::TerrainMorphGizmoPlugin);
+		GDREGISTER_INTERNAL_CLASS(ts::WhittakerChart);
+		GDREGISTER_INTERNAL_CLASS(ts::TerrainDock);
 		GDREGISTER_INTERNAL_CLASS(ts::TerrainServerEditorPlugin);
 		EditorPlugins::add_by_type<ts::TerrainServerEditorPlugin>();
 	}

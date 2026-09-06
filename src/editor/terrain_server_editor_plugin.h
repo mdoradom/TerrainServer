@@ -8,12 +8,14 @@
 namespace ts {
 
 class Terrain3D;
+class TerrainDock;
 
 class TerrainServerEditorPlugin : public godot::EditorPlugin {
 	GDCLASS(TerrainServerEditorPlugin, godot::EditorPlugin);
 
 private:
 	std::vector<godot::Ref<godot::EditorNode3DGizmoPlugin>> _gizmo_plugins;
+	TerrainDock *_dock = nullptr;
 	void _attach_gizmos_to_open_scene();
 
 	void _on_reload_shader_pressed();
