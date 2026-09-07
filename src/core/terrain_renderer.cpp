@@ -101,8 +101,6 @@ void TerrainRenderer::cleanup() {
 		rs->free_rid(_internal_shader_rid);
 		_internal_shader_rid = RID();
 	}
-
-	_snapped_focus_xz = Vector2();
 }
 
 void TerrainRenderer::_free_biome_texture_arrays() {
@@ -605,37 +603,30 @@ void TerrainRenderer::update_focus_position(const Vector3 p_focus_pos) {
 		resolution = 64;
 	}
 
-	std::vector<Vector2> origins(_clipmap_levels.size());
 	for (size_t i = 0; i < _clipmap_levels.size(); i++) {
-		const float cell = _clipmap_levels[i].scale / static_cast<float>(resolution);
+		ClipmapLevel &level = _clipmap_levels[i];
+
+		const float cell = level.scale / static_cast<float>(resolution);
 		const float step = 2.0f * cell;
-		origins[i] = Vector2(floorf(p_focus_pos.x / step) * step, floorf(p_focus_pos.z / step) * step);
-	}
-
-	_snapped_focus_xz = origins[0];
-
-	for (size_t i = 0; i < _clipmap_levels.size(); i++) {
-		const ClipmapLevel &level = _clipmap_levels[i];
+		level.origin = Vector2(floorf(p_focus_pos.x / step) * step, floorf(p_focus_pos.z / step) * step);
 
 		Transform3D xform;
 		xform.basis = xform.basis.scaled(Vector3(level.scale, 1.0, level.scale));
-		xform.origin = Vector3(origins[i].x, 0.0f, origins[i].y);
+		xform.origin = Vector3(level.origin.x, 0.0f, level.origin.y);
 
 		rs->instance_set_transform(level.instance_rid, xform);
-		_clipmap_levels[i].origin = origins[i];
 
 		if (!level.trim_instance_rid.is_valid()) {
 			continue;
 		}
 
-		const float cell = level.scale / static_cast<float>(resolution);
-		const Vector2 delta = origins[i - 1] - origins[i];
+		const Vector2 delta = _clipmap_levels[i - 1].origin - level.origin;
 		const int dx = static_cast<int>(roundf(delta.x / cell)) & 1;
 		const int dz = static_cast<int>(roundf(delta.y / cell)) & 1;
 		const int variant = dz * 2 + dx;
 
-		if (_clipmap_levels[i].trim_variant != variant) {
-			_clipmap_levels[i].trim_variant = variant;
+		if (level.trim_variant != variant) {
+			level.trim_variant = variant;
 			rs->instance_set_base(level.trim_instance_rid, _mesh_trim_rids[variant]);
 		}
 
@@ -664,7 +655,11 @@ float TerrainRenderer::get_clipmap_level_scale(const int p_level) const {
 }
 
 Vector2 TerrainRenderer::get_snapped_focus_xz() const {
-	return _snapped_focus_xz;
+	if (_clipmap_levels.empty()) {
+		return {};
+	}
+
+	return _clipmap_levels[0].origin;
 }
 
 Vector2 TerrainRenderer::get_clipmap_level_origin(const int p_level) const {

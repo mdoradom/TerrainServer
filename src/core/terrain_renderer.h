@@ -41,8 +41,6 @@ private:
 
 	std::vector<ClipmapLevel> _clipmap_levels;
 
-	godot::Vector2 _snapped_focus_xz;
-
 	godot::RID _biome_albedo_array_rid;
 	godot::RID _biome_normal_array_rid;
 	godot::RID _biome_roughness_array_rid;
