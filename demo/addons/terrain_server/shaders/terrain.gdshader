@@ -4,6 +4,7 @@ render_mode cull_back;
 // Physics parameters
 uniform float height_scale = 100.0;
 uniform float resolution = 64.0;
+uniform float morph_band_start = 0.33;
 
 // Noise parameters
 uniform int octaves = 5;
@@ -132,29 +133,33 @@ float moisture_at(vec2 world_xz) {
 }
 
 void vertex() {
-	// Local x/z morphing
 	vec2 local_xz = VERTEX.xz;
 	float max_abs = max(abs(local_xz.x), abs(local_xz.y));
-
-	// Detect if we are in the outermost 20% of the ring
-	float morph_factor = smoothstep(0.4, 0.5, max_abs);
-
-	// Calculate where the upper LOD grid is
-	float coarser_step = 2.0 / resolution;
-	vec2 morphed_local_xz = round(local_xz / coarser_step) * coarser_step;
-
-	VERTEX.xz = mix(local_xz, morphed_local_xz, morph_factor);
+	float morph_factor = smoothstep(morph_band_start, 0.5, max_abs);
 
 	// Height in World Space
 	vec3 world_pos = (MODEL_MATRIX * vec4(VERTEX, 1.0)).xyz;
 	v_world_xz = world_pos.xz;
 
+	float lod_scale = length(MODEL_MATRIX[0].xyz);
 	float final_height = get_height_at(v_world_xz);
+
+	if (morph_factor > 0.0) {
+		float coarse_step = 2.0 * lod_scale / resolution;
+		vec2 c0 = floor(v_world_xz / coarse_step) * coarse_step;
+		vec2 t = (v_world_xz - c0) / coarse_step;
+		float h00 = get_height_at(c0);
+		float h10 = get_height_at(c0 + vec2(coarse_step, 0.0));
+		float h01 = get_height_at(c0 + vec2(0.0, coarse_step));
+		float h11 = get_height_at(c0 + vec2(coarse_step, coarse_step));
+		float coarse_height = mix(mix(h00, h10, t.x), mix(h01, h11, t.x), t.y);
+		final_height = mix(final_height, coarse_height, morph_factor);
+	}
+
 	VERTEX.y = final_height / length(MODEL_MATRIX[1].xyz);
 	v_height = final_height;
 
-	float lod_scale = length(MODEL_MATRIX[0].xyz);
-	float e = max(0.05, lod_scale * 0.5 / resolution);
+	float e = max(0.05, lod_scale * mix(0.5, 1.0, morph_factor) / resolution);
 
 	float hL = get_height_at(v_world_xz + vec2(-e, 0.0));
 	float hR = get_height_at(v_world_xz + vec2( e, 0.0));
