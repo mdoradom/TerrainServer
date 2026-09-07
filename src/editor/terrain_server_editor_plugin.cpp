@@ -17,20 +17,6 @@ namespace ts {
 constexpr const char *RELOAD_SHADER_MENU_ITEM = "Reload Terrain Shader";
 constexpr const char *REBUILD_MENU_ITEM = "Rebuild Terrain";
 
-namespace {
-
-void collect_terrains(Node *p_node, std::vector<Terrain3D *> &r_terrains) {
-	if (Terrain3D *terrain = Object::cast_to<Terrain3D>(p_node)) {
-		r_terrains.push_back(terrain);
-	}
-
-	for (int i = 0; i < p_node->get_child_count(); i++) {
-		collect_terrains(p_node->get_child(i), r_terrains);
-	}
-}
-
-} //namespace
-
 void TerrainServerEditorPlugin::_bind_methods() {}
 
 TerrainServerEditorPlugin::TerrainServerEditorPlugin() {
@@ -107,16 +93,7 @@ void TerrainServerEditorPlugin::_process(double delta) {
 }
 
 void TerrainServerEditorPlugin::_attach_gizmos_to_open_scene() {
-	const EditorInterface *editor_interface = EditorInterface::get_singleton();
-	Node *root = editor_interface != nullptr ? editor_interface->get_edited_scene_root() : nullptr;
-	if (root == nullptr) {
-		return;
-	}
-
-	std::vector<Terrain3D *> terrains;
-	collect_terrains(root, terrains);
-
-	for (Terrain3D *terrain : terrains) {
+	for (Terrain3D *terrain : Terrain3D::get_editor_instances()) {
 		terrain->clear_gizmos();
 		terrain->update_gizmos();
 	}
