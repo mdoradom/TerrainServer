@@ -23,6 +23,7 @@ class TerrainRenderer : public godot::RefCounted {
 private:
 	godot::RID _mesh_rid;
 	godot::RID _mesh_ring_rid;
+	godot::RID _mesh_trim_rids[4];
 	godot::RID _internal_shader_rid;
 	bool _shader_reload_pending = false;
 	godot::Node3D *_parent_node = nullptr;
@@ -33,6 +34,9 @@ private:
 		godot::RID instance_rid;
 		godot::RID material_rid;
 		float scale;
+		godot::RID trim_instance_rid;
+		int trim_variant = -1;
+		godot::Vector2 origin;
 	};
 
 	std::vector<ClipmapLevel> _clipmap_levels;
@@ -93,6 +97,10 @@ public:
 	int get_clipmap_level_count() const;
 	float get_clipmap_level_scale(int p_level) const;
 	godot::Vector2 get_snapped_focus_xz() const;
+	godot::Vector2 get_clipmap_level_origin(int p_level) const;
+	static float get_morph_band_start();
+
+	static const float MORPH_BAND_START;
 };
 
 } //namespace ts
