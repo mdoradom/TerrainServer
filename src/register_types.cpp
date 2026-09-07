@@ -33,7 +33,6 @@ void initialize_terrain_server_module(ModuleInitializationLevel p_level) {
 		GDREGISTER_INTERNAL_CLASS(ts::TerrainClipmapGizmoPlugin);
 		GDREGISTER_INTERNAL_CLASS(ts::TerrainCollisionGizmoPlugin);
 		GDREGISTER_INTERNAL_CLASS(ts::TerrainFocusGizmoPlugin);
-		GDREGISTER_INTERNAL_CLASS(ts::TerrainMorphGizmoPlugin);
 		GDREGISTER_INTERNAL_CLASS(ts::WhittakerChart);
 		GDREGISTER_INTERNAL_CLASS(ts::TerrainDock);
 		GDREGISTER_INTERNAL_CLASS(ts::TerrainServerEditorPlugin);

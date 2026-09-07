@@ -49,7 +49,6 @@ void TerrainServerEditorPlugin::_enter_tree() {
 	_gizmo_plugins.emplace_back(Ref(memnew(TerrainClipmapGizmoPlugin)));
 	_gizmo_plugins.emplace_back(Ref(memnew(TerrainCollisionGizmoPlugin)));
 	_gizmo_plugins.emplace_back(Ref(memnew(TerrainFocusGizmoPlugin)));
-	_gizmo_plugins.emplace_back(Ref(memnew(TerrainMorphGizmoPlugin)));
 
 	for (const Ref<EditorNode3DGizmoPlugin> &gizmo_plugin : _gizmo_plugins) {
 		add_node_3d_gizmo_plugin(gizmo_plugin);

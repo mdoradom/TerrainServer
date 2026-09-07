@@ -15,7 +15,6 @@ namespace ts {
 
 namespace {
 
-constexpr float MORPH_BAND_START = 0.8f;
 constexpr float REBUILD_MARGIN_FRACTION = 0.25f;
 constexpr float FOCUS_MARKER_ARM = 1.0f;
 
@@ -227,45 +226,6 @@ void TerrainFocusGizmoPlugin::_redraw(const Ref<EditorNode3DGizmo> &p_gizmo) {
 	PackedVector3Array focus_lines;
 	append_cross_xz(focus_lines, to_local, focus_xz, FOCUS_MARKER_ARM, 0.0f);
 	p_gizmo->add_lines(focus_lines, _raw_material);
-}
-
-// ============== LOD morph band ==============
-
-void TerrainMorphGizmoPlugin::_bind_methods() {}
-
-TerrainMorphGizmoPlugin::TerrainMorphGizmoPlugin() {
-	_level_materials = make_level_materials(Color(1.0f, 0.72f, 0.25f, 0.7f), Color(0.95f, 0.35f, 0.15f, 0.7f));
-}
-
-bool TerrainMorphGizmoPlugin::_has_gizmo(Node3D *p_for_node_3d) const {
-	return cast_to<Terrain3D>(p_for_node_3d) != nullptr;
-}
-
-String TerrainMorphGizmoPlugin::_get_gizmo_name() const {
-	return "Terrain LOD Morph";
-}
-
-void TerrainMorphGizmoPlugin::_redraw(const Ref<EditorNode3DGizmo> &p_gizmo) {
-	p_gizmo->clear();
-
-	Transform3D to_local;
-	const Terrain3D *terrain = terrain_from_gizmo(p_gizmo, to_local);
-	if (terrain == nullptr) {
-		return;
-	}
-
-	const int level_count = terrain->get_clipmap_level_count();
-	if (level_count <= 0) {
-		return;
-	}
-
-	const Vector2 center = terrain->get_clipmap_center();
-
-	for (int level = 0; level < level_count; level++) {
-		PackedVector3Array lines;
-		append_centered_square_xz(lines, to_local, center, terrain->get_clipmap_level_extent(level) * MORPH_BAND_START, 0.0f);
-		p_gizmo->add_lines(lines, _level_materials[std::min(level, LEVEL_MATERIAL_POOL - 1)]);
-	}
 }
 
 } //namespace ts

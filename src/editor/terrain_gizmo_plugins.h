@@ -67,21 +67,5 @@ public:
 };
 
 // Where each level's vertex morph starts blending toward the coarser grid.
-class TerrainMorphGizmoPlugin : public godot::EditorNode3DGizmoPlugin {
-	GDCLASS(TerrainMorphGizmoPlugin, godot::EditorNode3DGizmoPlugin);
-
-private:
-	std::vector<godot::Ref<godot::StandardMaterial3D>> _level_materials;
-
-protected:
-	static void _bind_methods();
-
-public:
-	TerrainMorphGizmoPlugin();
-
-	bool _has_gizmo(godot::Node3D *p_for_node_3d) const override;
-	godot::String _get_gizmo_name() const override;
-	void _redraw(const godot::Ref<godot::EditorNode3DGizmo> &p_gizmo) override;
-};
 
 } //namespace ts
