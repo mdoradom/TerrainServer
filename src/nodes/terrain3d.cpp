@@ -267,7 +267,7 @@ Vector2 Terrain3D::get_clipmap_level_origin(const int p_level) const {
 }
 
 float Terrain3D::get_morph_band_start() const {
-	return TerrainRenderer::get_morph_band_start();
+	return TerrainRenderer::MORPH_BAND_START;
 }
 
 float Terrain3D::get_collision_range() const {

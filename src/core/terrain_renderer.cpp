@@ -18,7 +18,6 @@ namespace ts {
 
 constexpr float HEIGHT_AABB_MARGIN = 1.25f;
 constexpr const char *SHADER_PATH = "res://addons/terrain_server/shaders/terrain.gdshader";
-const float TerrainRenderer::MORPH_BAND_START = 0.33f;
 
 namespace {
 // Fallback dimensions and fill colours for a layer channel with no texture assigned.
@@ -666,10 +665,6 @@ Vector2 TerrainRenderer::get_clipmap_level_origin(const int p_level) const {
 	ERR_FAIL_INDEX_V(p_level, static_cast<int>(_clipmap_levels.size()), Vector2());
 
 	return _clipmap_levels[p_level].origin;
-}
-
-float TerrainRenderer::get_morph_band_start() {
-	return MORPH_BAND_START;
 }
 
 } //namespace ts

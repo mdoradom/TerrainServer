@@ -96,9 +96,8 @@ public:
 	float get_clipmap_level_scale(int p_level) const;
 	godot::Vector2 get_snapped_focus_xz() const;
 	godot::Vector2 get_clipmap_level_origin(int p_level) const;
-	static float get_morph_band_start();
 
-	static const float MORPH_BAND_START;
+	static constexpr float MORPH_BAND_START = 0.33f;
 };
 
 } //namespace ts
