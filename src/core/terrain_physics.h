@@ -60,6 +60,8 @@ protected:
 	static void _bind_methods();
 
 public:
+	static constexpr float REBUILD_MARGIN_FRACTION = 0.25f;
+
 	TerrainPhysics();
 	~TerrainPhysics() override;
 	void initialize(godot::Node3D *p_parent);

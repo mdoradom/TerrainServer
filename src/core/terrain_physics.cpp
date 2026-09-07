@@ -185,7 +185,7 @@ void TerrainPhysics::update_focus_position(const Vector3 p_focus_pos) {
 	const float snapped_x = floorf(p_focus_pos.x / cell_size) * cell_size;
 	const float snapped_z = floorf(p_focus_pos.z / cell_size) * cell_size;
 
-	const float rebuild_margin = _range * 0.25f;
+	const float rebuild_margin = _range * REBUILD_MARGIN_FRACTION;
 	const bool need_rebuild = !_has_built ||
 			fabsf(snapped_x - _last_built_origin.x) >= rebuild_margin ||
 			fabsf(snapped_z - _last_built_origin.y) >= rebuild_margin;

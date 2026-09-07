@@ -1,5 +1,6 @@
 #include "terrain_gizmo_plugins.h"
 
+#include "core/terrain_physics.h"
 #include "nodes/terrain3d.h"
 
 #include <godot_cpp/core/math.hpp>
@@ -15,7 +16,6 @@ namespace ts {
 
 namespace {
 
-constexpr float REBUILD_MARGIN_FRACTION = 0.25f;
 constexpr float FOCUS_MARKER_ARM = 1.0f;
 
 Terrain3D *terrain_from_gizmo(const Ref<EditorNode3DGizmo> &p_gizmo, Transform3D &r_to_local) {
@@ -185,7 +185,7 @@ void TerrainCollisionGizmoPlugin::_redraw(const Ref<EditorNode3DGizmo> &p_gizmo)
 		p_gizmo->add_lines(lines, _volume_material);
 	}
 
-	const float margin = terrain->get_collision_range() * REBUILD_MARGIN_FRACTION;
+	const float margin = terrain->get_collision_range() * TerrainPhysics::REBUILD_MARGIN_FRACTION;
 	if (margin > 0.0f) {
 		PackedVector3Array lines;
 		append_centered_square_xz(lines, to_local, center, margin * 2.0f, 0.0f);
