@@ -18,6 +18,10 @@ namespace {
 
 constexpr float FOCUS_MARKER_ARM = 1.0f;
 
+bool has_terrain_gizmo(Node3D *p_for_node_3d) {
+	return Object::cast_to<Terrain3D>(p_for_node_3d) != nullptr;
+}
+
 Terrain3D *terrain_from_gizmo(const Ref<EditorNode3DGizmo> &p_gizmo, Transform3D &r_to_local) {
 	if (p_gizmo.is_null()) {
 		return nullptr;
@@ -116,7 +120,7 @@ TerrainClipmapGizmoPlugin::TerrainClipmapGizmoPlugin() {
 }
 
 bool TerrainClipmapGizmoPlugin::_has_gizmo(Node3D *p_for_node_3d) const {
-	return cast_to<Terrain3D>(p_for_node_3d) != nullptr;
+	return has_terrain_gizmo(p_for_node_3d);
 }
 
 String TerrainClipmapGizmoPlugin::_get_gizmo_name() const {
@@ -156,7 +160,7 @@ TerrainCollisionGizmoPlugin::TerrainCollisionGizmoPlugin() {
 }
 
 bool TerrainCollisionGizmoPlugin::_has_gizmo(Node3D *p_for_node_3d) const {
-	return cast_to<Terrain3D>(p_for_node_3d) != nullptr;
+	return has_terrain_gizmo(p_for_node_3d);
 }
 
 String TerrainCollisionGizmoPlugin::_get_gizmo_name() const {
@@ -203,7 +207,7 @@ TerrainFocusGizmoPlugin::TerrainFocusGizmoPlugin() {
 }
 
 bool TerrainFocusGizmoPlugin::_has_gizmo(Node3D *p_for_node_3d) const {
-	return cast_to<Terrain3D>(p_for_node_3d) != nullptr;
+	return has_terrain_gizmo(p_for_node_3d);
 }
 
 String TerrainFocusGizmoPlugin::_get_gizmo_name() const {
