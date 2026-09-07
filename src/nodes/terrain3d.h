@@ -36,6 +36,9 @@ protected:
 	static void _bind_methods();
 	void _on_config_changed();
 
+	bool _should_run_renderer() const;
+	bool _should_run_physics() const;
+
 public:
 	Terrain3D();
 	~Terrain3D();

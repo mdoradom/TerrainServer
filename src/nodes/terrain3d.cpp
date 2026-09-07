@@ -81,13 +81,20 @@ void Terrain3D::_ready() {
 	_physics->initialize(this);
 }
 
+bool Terrain3D::_should_run_renderer() const {
+	return !Engine::get_singleton()->is_editor_hint() || _editor_preview;
+}
+
+bool Terrain3D::_should_run_physics() const {
+	return !Engine::get_singleton()->is_editor_hint() || (_editor_preview && _editor_preview_physics);
+}
+
 void Terrain3D::_process(double delta) {
 	if (!is_inside_tree()) {
 		return;
 	}
 
-	const bool editing = Engine::get_singleton()->is_editor_hint();
-	if (editing && !_editor_preview) {
+	if (!_should_run_renderer()) {
 		return;
 	}
 
@@ -124,7 +131,7 @@ void Terrain3D::_process(double delta) {
 		_renderer->update_focus_position(focus_pos);
 	}
 
-	if (_physics.is_valid() && (!editing || _editor_preview_physics)) {
+	if (_physics.is_valid() && _should_run_physics()) {
 		_physics->update_focus_position(focus_pos);
 	}
 }
@@ -168,7 +175,7 @@ void Terrain3D::_on_config_changed() {
 	_physics->set_configuration(_config);
 	_renderer->set_configuration(_config);
 
-	if (Engine::get_singleton()->is_editor_hint() && !_editor_preview) {
+	if (!_should_run_renderer()) {
 		return;
 	}
 
