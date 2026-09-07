@@ -4,6 +4,7 @@
 #include <cmath>
 #include <godot_cpp/classes/physics_server3d.hpp>
 #include <godot_cpp/classes/world3d.hpp>
+#include <godot_cpp/core/class_db.hpp>
 #include <godot_cpp/core/math.hpp>
 #include <godot_cpp/variant/callable_method_pointer.hpp>
 #include <godot_cpp/variant/dictionary.hpp>
@@ -23,7 +24,19 @@ constexpr int PHYSICS_MAX_GRID_RESOLUTION = 256;
 constexpr float WHITTAKER_TEMP_SOFTNESS_MIN = 0.5f; // deg C
 constexpr float WHITTAKER_MOIST_SOFTNESS_MIN = 0.02f; // normalized [0,1]
 
-void TerrainPhysics::_bind_methods() {}
+void TerrainPhysics::_bind_methods() {
+	ClassDB::bind_method(D_METHOD("get_height_at", "world_xz"), &TerrainPhysics::get_height_at);
+	ClassDB::bind_method(D_METHOD("get_biome_at", "world_xz"), &TerrainPhysics::get_biome_at);
+	ClassDB::bind_method(D_METHOD("temperature_at", "world_xz"), &TerrainPhysics::temperature_at);
+	ClassDB::bind_method(D_METHOD("moisture_at", "world_xz"), &TerrainPhysics::moisture_at);
+	ClassDB::bind_method(D_METHOD("get_range"), &TerrainPhysics::get_range);
+	ClassDB::bind_method(D_METHOD("get_grid_resolution"), &TerrainPhysics::get_grid_resolution);
+	ClassDB::bind_method(D_METHOD("get_built_range"), &TerrainPhysics::get_built_range);
+	ClassDB::bind_method(D_METHOD("get_built_height_range"), &TerrainPhysics::get_built_height_range);
+	ClassDB::bind_method(D_METHOD("get_last_built_origin"), &TerrainPhysics::get_last_built_origin);
+	ClassDB::bind_method(D_METHOD("is_built"), &TerrainPhysics::is_built);
+	ClassDB::bind_method(D_METHOD("is_rebuild_in_flight"), &TerrainPhysics::is_rebuild_in_flight);
+}
 
 TerrainPhysics::TerrainPhysics() = default;
 
@@ -171,7 +184,7 @@ void TerrainPhysics::update_focus_position(const Vector3 p_focus_pos) {
 	const float snapped_x = floorf(p_focus_pos.x / cell_size) * cell_size;
 	const float snapped_z = floorf(p_focus_pos.z / cell_size) * cell_size;
 
-	const float rebuild_margin = _range * 0.25f;
+	const float rebuild_margin = _range * REBUILD_MARGIN_FRACTION;
 	const bool need_rebuild = !_has_built ||
 			fabsf(snapped_x - _last_built_origin.x) >= rebuild_margin ||
 			fabsf(snapped_z - _last_built_origin.y) >= rebuild_margin;
@@ -232,6 +245,24 @@ Ref<TerrainBiomeLayer> TerrainPhysics::get_biome_at(const Vector2 p_world_xz) co
 	}
 
 	return best_layer;
+}
+
+float TerrainPhysics::temperature_at(const Vector2 p_world_xz) const {
+	if (!_config.is_valid()) {
+		return 0.0f;
+	}
+
+	const float height = TerrainNoise::get_height_at(p_world_xz, _noise_params);
+
+	return TerrainNoise::temperature_at(p_world_xz, height, _temp_moist_params);
+}
+
+float TerrainPhysics::moisture_at(const Vector2 p_world_xz) const {
+	if (!_config.is_valid()) {
+		return 0.0f;
+	}
+
+	return TerrainNoise::moisture_at(p_world_xz, _temp_moist_params);
 }
 
 void TerrainPhysics::_start_heightmap_rebuild(const float p_center_x, const float p_center_z) {
@@ -296,6 +327,38 @@ void TerrainPhysics::_apply_heightmap() {
 	xform.basis = xform.basis.scaled(Vector3(cell_size, 1.0f, cell_size));
 	xform.origin = Vector3(_job_center_x, 0.0f, _job_center_z);
 	ps->body_set_state(_body_rid, PhysicsServer3D::BODY_STATE_TRANSFORM, xform);
+
+	_built_range = _job_range;
+	_built_min_h = _job_min_h;
+	_built_max_h = _job_max_h;
+}
+
+float TerrainPhysics::get_range() const {
+	return _range;
+}
+
+int TerrainPhysics::get_grid_resolution() const {
+	return _grid_resolution;
+}
+
+float TerrainPhysics::get_built_range() const {
+	return _built_range;
+}
+
+Vector2 TerrainPhysics::get_built_height_range() const {
+	return { _built_min_h, _built_max_h };
+}
+
+Vector2 TerrainPhysics::get_last_built_origin() const {
+	return _last_built_origin;
+}
+
+bool TerrainPhysics::is_built() const {
+	return _has_built;
+}
+
+bool TerrainPhysics::is_rebuild_in_flight() const {
+	return _rebuild_in_flight;
 }
 
 } // namespace ts

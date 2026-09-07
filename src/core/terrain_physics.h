@@ -42,6 +42,14 @@ private:
 	float _job_min_h = 0.0f;
 	float _job_max_h = 0.0f;
 
+	// Snapshot of what _apply_heightmap() actually pushed to PhysicsServer3D. The _job_* values
+	// above belong to a possibly in-flight rebuild, and _range / _grid_resolution follow the
+	// configuration the instant it is edited, so neither describes the collision surface that
+	// currently exists.
+	float _built_range = 0.0f;
+	float _built_min_h = 0.0f;
+	float _built_max_h = 0.0f;
+
 	void _ensure_body_created();
 	void _start_heightmap_rebuild(float p_center_x, float p_center_z);
 	void _compute_heightmap_task();
@@ -51,6 +59,8 @@ protected:
 	static void _bind_methods();
 
 public:
+	static constexpr float REBUILD_MARGIN_FRACTION = 0.25f;
+
 	TerrainPhysics();
 	~TerrainPhysics() override;
 	void initialize(godot::Node3D *p_parent);
@@ -59,5 +69,15 @@ public:
 	void update_focus_position(godot::Vector3 p_focus_pos);
 	float get_height_at(godot::Vector2 p_world_xz) const;
 	godot::Ref<TerrainBiomeLayer> get_biome_at(godot::Vector2 p_world_xz) const;
+	float temperature_at(godot::Vector2 p_world_xz) const;
+	float moisture_at(godot::Vector2 p_world_xz) const;
+
+	float get_range() const;
+	int get_grid_resolution() const;
+	float get_built_range() const;
+	godot::Vector2 get_built_height_range() const;
+	godot::Vector2 get_last_built_origin() const;
+	bool is_built() const;
+	bool is_rebuild_in_flight() const;
 };
 } //namespace ts

@@ -9,6 +9,8 @@
 #include <godot_cpp/classes/node3d.hpp>
 #include <godot_cpp/variant/node_path.hpp>
 
+#include <vector>
+
 namespace ts {
 
 class Terrain3D : public godot::Node3D {
@@ -21,9 +23,21 @@ private:
 	godot::Ref<TerrainPhysics> _physics;
 	godot::NodePath _focus_path;
 
+	godot::Vector3 _focus_position;
+
+	godot::Vector3 _editor_focus_override;
+	bool _has_editor_focus_override = false;
+	bool _editor_preview = true;
+	bool _editor_preview_physics = false;
+
+	static std::vector<Terrain3D *> _editor_instances;
+
 protected:
 	static void _bind_methods();
 	void _on_config_changed();
+
+	bool _should_run_renderer() const;
+	bool _should_run_physics() const;
 
 public:
 	Terrain3D();
@@ -37,9 +51,40 @@ public:
 	godot::Ref<TerrainConfiguration> get_configuration() const;
 	float get_height_at(godot::Vector2 p_world_xz) const;
 	godot::Ref<TerrainBiomeLayer> get_biome_at(godot::Vector2 p_world_xz) const;
+	float get_temperature_at(godot::Vector2 p_world_xz) const;
+	float get_moisture_at(godot::Vector2 p_world_xz) const;
+
+	godot::Vector3 get_focus_position() const;
+
+	int get_clipmap_level_count() const;
+	float get_clipmap_level_extent(int p_level) const;
+	godot::Vector2 get_clipmap_center() const;
+	godot::Vector2 get_clipmap_level_origin(int p_level) const;
+	float get_morph_band_start() const;
+
+	float get_collision_range() const;
+	int get_collision_resolution() const;
+	godot::Vector2 get_collision_center() const;
+	float get_collision_built_range() const;
+	godot::Vector2 get_collision_height_range() const;
+	bool is_collision_built() const;
+	bool is_collision_rebuild_pending() const;
 
 	void set_focus_path(const godot::NodePath &p_path);
 	godot::NodePath get_focus_path() const;
+
+	void set_editor_focus_override(godot::Vector3 p_world_position);
+	void clear_editor_focus_override();
+
+	void set_editor_preview(bool p_enabled);
+	bool get_editor_preview() const;
+	void set_editor_preview_physics(bool p_enabled);
+	bool get_editor_preview_physics() const;
+
+	void reload_shader();
+	void rebuild();
+
+	static const std::vector<Terrain3D *> &get_editor_instances();
 };
 
 } //namespace ts

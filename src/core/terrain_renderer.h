@@ -12,6 +12,7 @@
 #include <godot_cpp/classes/texture2d.hpp>
 #include <godot_cpp/variant/color.hpp>
 #include <godot_cpp/variant/typed_array.hpp>
+#include <godot_cpp/variant/vector2.hpp>
 #include <vector>
 
 namespace ts {
@@ -22,7 +23,9 @@ class TerrainRenderer : public godot::RefCounted {
 private:
 	godot::RID _mesh_rid;
 	godot::RID _mesh_ring_rid;
+	godot::RID _mesh_trim_rids[4];
 	godot::RID _internal_shader_rid;
+	bool _shader_reload_pending = false;
 	godot::Node3D *_parent_node = nullptr;
 
 	godot::Ref<TerrainConfiguration> _config;
@@ -31,6 +34,9 @@ private:
 		godot::RID instance_rid;
 		godot::RID material_rid;
 		float scale;
+		godot::RID trim_instance_rid;
+		int trim_variant = -1;
+		godot::Vector2 origin;
 	};
 
 	std::vector<ClipmapLevel> _clipmap_levels;
@@ -83,7 +89,15 @@ public:
 	void set_configuration(const godot::Ref<TerrainConfiguration> &p_config);
 
 	void rebuild_mesh(float p_size, int p_resolution);
+	void request_shader_reload();
 	void update_focus_position(godot::Vector3 p_focus_pos);
+
+	int get_clipmap_level_count() const;
+	float get_clipmap_level_scale(int p_level) const;
+	godot::Vector2 get_snapped_focus_xz() const;
+	godot::Vector2 get_clipmap_level_origin(int p_level) const;
+
+	static constexpr float MORPH_BAND_START = 0.33f;
 };
 
 } //namespace ts

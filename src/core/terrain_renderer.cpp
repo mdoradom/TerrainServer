@@ -5,6 +5,7 @@
 #include <godot_cpp/classes/array_mesh.hpp>
 #include <godot_cpp/classes/file_access.hpp>
 #include <godot_cpp/classes/world3d.hpp>
+#include <godot_cpp/core/class_db.hpp>
 #include <godot_cpp/core/error_macros.hpp>
 #include <godot_cpp/variant/aabb.hpp>
 #include <godot_cpp/variant/packed_float32_array.hpp>
@@ -16,6 +17,7 @@ using namespace godot;
 namespace ts {
 
 constexpr float HEIGHT_AABB_MARGIN = 1.25f;
+constexpr const char *SHADER_PATH = "res://addons/terrain_server/shaders/terrain.gdshader";
 
 namespace {
 // Fallback dimensions and fill colours for a layer channel with no texture assigned.
@@ -36,7 +38,13 @@ void free_rid_if_valid(RenderingServer *p_rs, RID &p_rid) {
 }
 } //namespace
 
-void TerrainRenderer::_bind_methods() {}
+void TerrainRenderer::_bind_methods() {
+	ClassDB::bind_method(D_METHOD("get_clipmap_level_count"), &TerrainRenderer::get_clipmap_level_count);
+	ClassDB::bind_method(D_METHOD("get_clipmap_level_scale", "level"), &TerrainRenderer::get_clipmap_level_scale);
+	ClassDB::bind_method(D_METHOD("get_snapped_focus_xz"), &TerrainRenderer::get_snapped_focus_xz);
+	ClassDB::bind_method(D_METHOD("get_clipmap_level_origin", "level"), &TerrainRenderer::get_clipmap_level_origin);
+	ClassDB::bind_method(D_METHOD("request_shader_reload"), &TerrainRenderer::request_shader_reload);
+}
 
 TerrainRenderer::TerrainRenderer() = default;
 
@@ -56,6 +64,10 @@ void TerrainRenderer::_free_mesh_instances() {
 			rs->free_rid(level.instance_rid);
 		}
 
+		if (level.trim_instance_rid.is_valid()) {
+			rs->free_rid(level.trim_instance_rid);
+		}
+
 		if (level.material_rid.is_valid()) {
 			rs->free_rid(level.material_rid);
 		}
@@ -71,6 +83,10 @@ void TerrainRenderer::_free_mesh_instances() {
 	if (_mesh_ring_rid.is_valid()) {
 		rs->free_rid(_mesh_ring_rid);
 		_mesh_ring_rid = RID();
+	}
+
+	for (RID &trim_rid : _mesh_trim_rids) {
+		free_rid_if_valid(rs, trim_rid);
 	}
 }
 
@@ -407,13 +423,23 @@ void TerrainRenderer::rebuild_mesh(const float p_size, const int p_resolution) {
 	RenderingServer *rs = RenderingServer::get_singleton();
 	_free_mesh_instances();
 
+	if (_shader_reload_pending) {
+		_shader_reload_pending = false;
+
+		if (_internal_shader_rid.is_valid()) {
+			rs->free_rid(_internal_shader_rid);
+			_internal_shader_rid = RID();
+		}
+	}
+
 	if (!_config.is_valid()) {
 		return;
 	}
 
 	if (!_internal_shader_rid.is_valid()) {
-		const String shader_code = FileAccess::get_file_as_string("res://addons/terrain_server/shaders/terrain.gdshader");
+		const String shader_code = FileAccess::get_file_as_string(SHADER_PATH);
 		if (shader_code.is_empty()) {
+			UtilityFunctions::push_warning("TerrainServer: could not read the terrain shader at ", SHADER_PATH, "; the terrain will not be drawn.");
 			return;
 		}
 		_internal_shader_rid = rs->shader_create();
@@ -427,6 +453,15 @@ void TerrainRenderer::rebuild_mesh(const float p_size, const int p_resolution) {
 	const Ref<ArrayMesh> ring_mesh = TerrainGenerator::create_ring_fixup_mesh(p_resolution);
 	_mesh_ring_rid = rs->mesh_create();
 	rs->mesh_add_surface_from_arrays(_mesh_ring_rid, RenderingServer::PRIMITIVE_TRIANGLES, ring_mesh->surface_get_arrays(0));
+
+	for (int dz = 0; dz < 2; dz++) {
+		for (int dx = 0; dx < 2; dx++) {
+			const Ref<ArrayMesh> trim_mesh = TerrainGenerator::create_trim_mesh(p_resolution, dx, dz);
+			RID &trim_rid = _mesh_trim_rids[dz * 2 + dx];
+			trim_rid = rs->mesh_create();
+			rs->mesh_add_surface_from_arrays(trim_rid, RenderingServer::PRIMITIVE_TRIANGLES, trim_mesh->surface_get_arrays(0));
+		}
+	}
 
 	const TypedArray<TerrainBiomeLayer> biome_layers = _config->get_biome_layers();
 	_rebuild_biome_texture_arrays_if_dirty(biome_layers);
@@ -478,6 +513,7 @@ void TerrainRenderer::rebuild_mesh(const float p_size, const int p_resolution) {
 		// Physics parameters
 		rs->material_set_param(material, "height_scale", static_cast<float>(_config->get_height_scale()));
 		rs->material_set_param(material, "resolution", static_cast<float>(p_resolution));
+		rs->material_set_param(material, "morph_band_start", MORPH_BAND_START);
 
 		// Noise parameters
 		rs->material_set_param(material, "octaves", _config->get_noise_octaves());
@@ -540,6 +576,16 @@ void TerrainRenderer::rebuild_mesh(const float p_size, const int p_resolution) {
 		level.material_rid = material;
 		level.scale = level_scale;
 
+		if (i > 0) {
+			level.trim_instance_rid = rs->instance_create();
+			rs->instance_set_custom_aabb(level.trim_instance_rid, custom_aabb);
+			rs->instance_geometry_set_material_override(level.trim_instance_rid, material);
+
+			if (_parent_node && _parent_node->is_inside_tree()) {
+				rs->instance_set_scenario(level.trim_instance_rid, _parent_node->get_world_3d()->get_scenario());
+			}
+		}
+
 		_clipmap_levels.push_back(level);
 	}
 }
@@ -556,19 +602,34 @@ void TerrainRenderer::update_focus_position(const Vector3 p_focus_pos) {
 		resolution = 64;
 	}
 
-	// Shared snapping
-	// We use the finest grid's resolution to snap ALL levels in unison.
-	// This prevents the rings from sliding and misaligning.
-	const float base_cell_size = _clipmap_levels[0].scale / static_cast<float>(resolution);
-	const float snapped_x = floorf(p_focus_pos.x / base_cell_size) * base_cell_size;
-	const float snapped_z = floorf(p_focus_pos.z / base_cell_size) * base_cell_size;
+	for (size_t i = 0; i < _clipmap_levels.size(); i++) {
+		ClipmapLevel &level = _clipmap_levels[i];
 
-	for (const auto &level : _clipmap_levels) {
+		const float cell = level.scale / static_cast<float>(resolution);
+		const float step = 2.0f * cell;
+		level.origin = Vector2(floorf(p_focus_pos.x / step) * step, floorf(p_focus_pos.z / step) * step);
+
 		Transform3D xform;
 		xform.basis = xform.basis.scaled(Vector3(level.scale, 1.0, level.scale));
-		xform.origin = Vector3(snapped_x, 0.0f, snapped_z);
+		xform.origin = Vector3(level.origin.x, 0.0f, level.origin.y);
 
 		rs->instance_set_transform(level.instance_rid, xform);
+
+		if (!level.trim_instance_rid.is_valid()) {
+			continue;
+		}
+
+		const Vector2 delta = _clipmap_levels[i - 1].origin - level.origin;
+		const int dx = static_cast<int>(roundf(delta.x / cell)) & 1;
+		const int dz = static_cast<int>(roundf(delta.y / cell)) & 1;
+		const int variant = dz * 2 + dx;
+
+		if (level.trim_variant != variant) {
+			level.trim_variant = variant;
+			rs->instance_set_base(level.trim_instance_rid, _mesh_trim_rids[variant]);
+		}
+
+		rs->instance_set_transform(level.trim_instance_rid, xform);
 	}
 }
 
@@ -576,6 +637,34 @@ void TerrainRenderer::update_focus_position(const Vector3 p_focus_pos) {
 
 void TerrainRenderer::set_configuration(const Ref<TerrainConfiguration> &p_config) {
 	_config = p_config;
+}
+
+void TerrainRenderer::request_shader_reload() {
+	_shader_reload_pending = true;
+}
+
+int TerrainRenderer::get_clipmap_level_count() const {
+	return static_cast<int>(_clipmap_levels.size());
+}
+
+float TerrainRenderer::get_clipmap_level_scale(const int p_level) const {
+	ERR_FAIL_INDEX_V(p_level, static_cast<int>(_clipmap_levels.size()), 0.0f);
+
+	return _clipmap_levels[p_level].scale;
+}
+
+Vector2 TerrainRenderer::get_snapped_focus_xz() const {
+	if (_clipmap_levels.empty()) {
+		return {};
+	}
+
+	return _clipmap_levels[0].origin;
+}
+
+Vector2 TerrainRenderer::get_clipmap_level_origin(const int p_level) const {
+	ERR_FAIL_INDEX_V(p_level, static_cast<int>(_clipmap_levels.size()), Vector2());
+
+	return _clipmap_levels[p_level].origin;
 }
 
 } //namespace ts
