@@ -28,6 +28,16 @@ void TerrainGenerator::setup(const Ref<TerrainConfiguration> &p_config) {
 	}
 }
 
+static void add_grid_vertex(SurfaceTool *st, int resolution, int x, int z) {
+	constexpr float offset = 0.5f;
+	const float u = static_cast<float>(x) / resolution;
+	const float v = static_cast<float>(z) / resolution;
+
+	st->set_uv(Vector2(u, v));
+	st->set_normal(Vector3(0, 1, 0));
+	st->add_vertex(Vector3(u - offset, 0.0f, v - offset));
+}
+
 // Create two triangles for a quad, alternating the diagonal direction
 //
 // tl--tr  tl--tr
@@ -69,13 +79,7 @@ Ref<ArrayMesh> TerrainGenerator::create_block_mesh(const int resolution) {
 
 	for (int z = 0; z < vertex_count; z++) {
 		for (int x = 0; x < vertex_count; x++) {
-			const float offset = 0.5f;
-			float x_pos = (static_cast<float>(x) / resolution) - offset;
-			float z_pos = (static_cast<float>(z) / resolution) - offset;
-
-			st->set_uv(Vector2(static_cast<float>(x) / resolution, static_cast<float>(z) / resolution));
-			st->set_normal(Vector3(0, 1, 0));
-			st->add_vertex(Vector3(x_pos, 0.0f, z_pos));
+			add_grid_vertex(st.ptr(), resolution, x, z);
 		}
 	}
 
@@ -104,13 +108,7 @@ Ref<ArrayMesh> TerrainGenerator::create_ring_fixup_mesh(int resolution) {
 
 	for (int z = 0; z < vertex_count; z++) {
 		for (int x = 0; x < vertex_count; x++) {
-			constexpr float offset = 0.5f;
-			float x_pos = (static_cast<float>(x) / resolution) - offset;
-			float z_pos = (static_cast<float>(z) / resolution) - offset;
-
-			st->set_uv(Vector2(static_cast<float>(x) / resolution, static_cast<float>(z) / resolution));
-			st->set_normal(Vector3(0, 1, 0));
-			st->add_vertex(Vector3(x_pos, 0.0f, z_pos));
+			add_grid_vertex(st.ptr(), resolution, x, z);
 		}
 	}
 
@@ -150,13 +148,7 @@ Ref<ArrayMesh> TerrainGenerator::create_trim_mesh(const int resolution, const in
 	auto vertex_at = [&](const int x, const int z) {
 		int &slot = remap[z * vertex_count + x];
 		if (slot < 0) {
-			constexpr float offset = 0.5f;
-			const float x_pos = (static_cast<float>(x) / resolution) - offset;
-			const float z_pos = (static_cast<float>(z) / resolution) - offset;
-
-			st->set_uv(Vector2(static_cast<float>(x) / resolution, static_cast<float>(z) / resolution));
-			st->set_normal(Vector3(0, 1, 0));
-			st->add_vertex(Vector3(x_pos, 0.0f, z_pos));
+			add_grid_vertex(st.ptr(), resolution, x, z);
 			slot = next_index++;
 		}
 		return slot;
