@@ -30,7 +30,6 @@ void Terrain3D::_bind_methods() {
 	ClassDB::bind_method(D_METHOD("get_collision_resolution"), &Terrain3D::get_collision_resolution);
 	ClassDB::bind_method(D_METHOD("get_collision_center"), &Terrain3D::get_collision_center);
 	ClassDB::bind_method(D_METHOD("get_collision_built_range"), &Terrain3D::get_collision_built_range);
-	ClassDB::bind_method(D_METHOD("get_collision_built_resolution"), &Terrain3D::get_collision_built_resolution);
 	ClassDB::bind_method(D_METHOD("get_collision_height_range"), &Terrain3D::get_collision_height_range);
 	ClassDB::bind_method(D_METHOD("is_collision_built"), &Terrain3D::is_collision_built);
 	ClassDB::bind_method(D_METHOD("is_collision_rebuild_pending"), &Terrain3D::is_collision_rebuild_pending);
@@ -300,14 +299,6 @@ float Terrain3D::get_collision_built_range() const {
 	}
 
 	return _physics->get_built_range();
-}
-
-int Terrain3D::get_collision_built_resolution() const {
-	if (!_physics.is_valid()) {
-		return 0;
-	}
-
-	return _physics->get_built_grid_resolution();
 }
 
 Vector2 Terrain3D::get_collision_height_range() const {

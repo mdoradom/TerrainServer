@@ -32,7 +32,6 @@ void TerrainPhysics::_bind_methods() {
 	ClassDB::bind_method(D_METHOD("get_range"), &TerrainPhysics::get_range);
 	ClassDB::bind_method(D_METHOD("get_grid_resolution"), &TerrainPhysics::get_grid_resolution);
 	ClassDB::bind_method(D_METHOD("get_built_range"), &TerrainPhysics::get_built_range);
-	ClassDB::bind_method(D_METHOD("get_built_grid_resolution"), &TerrainPhysics::get_built_grid_resolution);
 	ClassDB::bind_method(D_METHOD("get_built_height_range"), &TerrainPhysics::get_built_height_range);
 	ClassDB::bind_method(D_METHOD("get_last_built_origin"), &TerrainPhysics::get_last_built_origin);
 	ClassDB::bind_method(D_METHOD("is_built"), &TerrainPhysics::is_built);
@@ -330,7 +329,6 @@ void TerrainPhysics::_apply_heightmap() {
 	ps->body_set_state(_body_rid, PhysicsServer3D::BODY_STATE_TRANSFORM, xform);
 
 	_built_range = _job_range;
-	_built_grid_resolution = _job_grid_resolution;
 	_built_min_h = _job_min_h;
 	_built_max_h = _job_max_h;
 }
@@ -345,10 +343,6 @@ int TerrainPhysics::get_grid_resolution() const {
 
 float TerrainPhysics::get_built_range() const {
 	return _built_range;
-}
-
-int TerrainPhysics::get_built_grid_resolution() const {
-	return _built_grid_resolution;
 }
 
 Vector2 TerrainPhysics::get_built_height_range() const {

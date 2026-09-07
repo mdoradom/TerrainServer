@@ -63,7 +63,6 @@ public:
 	int get_collision_resolution() const;
 	godot::Vector2 get_collision_center() const;
 	float get_collision_built_range() const;
-	int get_collision_built_resolution() const;
 	godot::Vector2 get_collision_height_range() const;
 	bool is_collision_built() const;
 	bool is_collision_rebuild_pending() const;

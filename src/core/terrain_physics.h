@@ -47,7 +47,6 @@ private:
 	// configuration the instant it is edited, so neither describes the collision surface that
 	// currently exists.
 	float _built_range = 0.0f;
-	int _built_grid_resolution = 0;
 	float _built_min_h = 0.0f;
 	float _built_max_h = 0.0f;
 
@@ -76,7 +75,6 @@ public:
 	float get_range() const;
 	int get_grid_resolution() const;
 	float get_built_range() const;
-	int get_built_grid_resolution() const;
 	godot::Vector2 get_built_height_range() const;
 	godot::Vector2 get_last_built_origin() const;
 	bool is_built() const;
