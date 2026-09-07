@@ -66,6 +66,4 @@ public:
 	void _redraw(const godot::Ref<godot::EditorNode3DGizmo> &p_gizmo) override;
 };
 
-// Where each level's vertex morph starts blending toward the coarser grid.
-
 } //namespace ts
