@@ -9,6 +9,7 @@
 namespace godot {
 class Label;
 class Button;
+class HBoxContainer;
 class TextureRect;
 class Timer;
 class Control;
@@ -48,7 +49,8 @@ private:
 	std::vector<godot::Label *> _section_headers;
 
 	void _build_ui();
-	godot::Label *_add_section_header(Control *p_parent, const godot::String &p_text);
+	void _add_section_header(Control *p_parent, const godot::String &p_text);
+	godot::VBoxContainer *_add_stat_column(godot::HBoxContainer *p_row, const godot::String &p_title);
 	void _pull_theme() const;
 
 	Terrain3D *_resolve_current_terrain() const;

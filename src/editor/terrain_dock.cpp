@@ -52,12 +52,18 @@ TerrainDock::TerrainDock() {
 	_build_ui();
 }
 
-Label *TerrainDock::_add_section_header(Control *p_parent, const String &p_text) {
+void TerrainDock::_add_section_header(Control *p_parent, const String &p_text) {
 	Label *header = memnew(Label);
 	header->set_text(p_text);
 	p_parent->add_child(header);
 	_section_headers.push_back(header);
-	return header;
+}
+
+VBoxContainer *TerrainDock::_add_stat_column(HBoxContainer *p_row, const String &p_title) {
+	VBoxContainer *column = memnew(VBoxContainer);
+	p_row->add_child(column);
+	_add_section_header(column, p_title);
+	return column;
 }
 
 void TerrainDock::_build_ui() {
@@ -76,38 +82,24 @@ void TerrainDock::_build_ui() {
 	stats_row->add_theme_constant_override("separation", 24);
 	_content_root->add_child(stats_row);
 
-	VBoxContainer *clipmap_column = memnew(VBoxContainer);
-	stats_row->add_child(clipmap_column);
-	_add_section_header(clipmap_column, "Clipmap");
 	_clipmap_label = memnew(Label);
-	clipmap_column->add_child(_clipmap_label);
+	_add_stat_column(stats_row, "Clipmap")->add_child(_clipmap_label);
 
-	VBoxContainer *collision_column = memnew(VBoxContainer);
-	stats_row->add_child(collision_column);
-	_add_section_header(collision_column, "Collision");
 	_collision_label = memnew(Label);
-	collision_column->add_child(_collision_label);
+	_add_stat_column(stats_row, "Collision")->add_child(_collision_label);
 
-	VBoxContainer *configuration_column = memnew(VBoxContainer);
-	stats_row->add_child(configuration_column);
-	_add_section_header(configuration_column, "Configuration");
 	_configuration_label = memnew(Label);
-	configuration_column->add_child(_configuration_label);
+	_add_stat_column(stats_row, "Configuration")->add_child(_configuration_label);
 
-	VBoxContainer *height_column = memnew(VBoxContainer);
-	stats_row->add_child(height_column);
-	_add_section_header(height_column, "Local height sample");
+	VBoxContainer *height_column = _add_stat_column(stats_row, "Local height sample");
 	_height_preview = memnew(TextureRect);
 	_height_preview->set_custom_minimum_size(Vector2(128.0f, 128.0f));
 	_height_preview->set_expand_mode(TextureRect::EXPAND_IGNORE_SIZE);
 	_height_preview->set_stretch_mode(TextureRect::STRETCH_KEEP_ASPECT_CENTERED);
 	height_column->add_child(_height_preview);
 
-	VBoxContainer *probe_column = memnew(VBoxContainer);
-	stats_row->add_child(probe_column);
-	_add_section_header(probe_column, "Live probe");
 	_probe_label = memnew(Label);
-	probe_column->add_child(_probe_label);
+	_add_stat_column(stats_row, "Live probe")->add_child(_probe_label);
 
 	_content_root->add_child(memnew(HSeparator));
 
