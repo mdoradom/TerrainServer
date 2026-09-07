@@ -86,9 +86,17 @@ void TerrainServerEditorPlugin::_process(double delta) {
 	}
 
 	const Vector3 camera_position = camera->get_global_position();
+	const bool camera_moved = !_has_last_camera_position || !camera_position.is_equal_approx(_last_camera_position);
+
+	_last_camera_position = camera_position;
+	_has_last_camera_position = true;
+
 	for (Terrain3D *terrain : terrains) {
 		terrain->set_editor_focus_override(camera_position);
-		terrain->update_gizmos();
+
+		if (camera_moved) {
+			terrain->update_gizmos();
+		}
 	}
 }
 

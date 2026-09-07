@@ -3,6 +3,7 @@
 #include <godot_cpp/classes/editor_node3d_gizmo_plugin.hpp>
 #include <godot_cpp/classes/editor_plugin.hpp>
 #include <godot_cpp/variant/string.hpp>
+#include <godot_cpp/variant/vector3.hpp>
 #include <vector>
 
 namespace ts {
@@ -16,6 +17,10 @@ class TerrainServerEditorPlugin : public godot::EditorPlugin {
 private:
 	std::vector<godot::Ref<godot::EditorNode3DGizmoPlugin>> _gizmo_plugins;
 	TerrainDock *_dock = nullptr;
+
+	godot::Vector3 _last_camera_position;
+	bool _has_last_camera_position = false;
+
 	void _attach_gizmos_to_open_scene();
 
 	void _on_reload_shader_pressed();
