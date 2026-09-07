@@ -123,7 +123,7 @@ void WhittakerChart::_draw() {
 			const Vector2 bottom_right = _to_plot(layer->get_max_temperature(), layer->get_min_moisture());
 			const Rect2 rect(top_left, bottom_right - top_left);
 
-			const Color fill = Color::from_hsv(count > 0 ? static_cast<float>(i) / count : 0.0f, 0.55f, 0.85f, 0.35f);
+			const Color fill = Color::from_hsv(static_cast<float>(i) / count, 0.55f, 0.85f, 0.35f);
 			draw_rect(rect, fill, true);
 			draw_rect(rect, Color(fill, 1.0f), false, 1.0f);
 			draw_string(_font, top_left + Vector2(4.0f, 12.0f) * _editor_scale, layer->get_biome_name(), HORIZONTAL_ALIGNMENT_LEFT, rect.size.x - 4.0f, _font_size, _text_color);
