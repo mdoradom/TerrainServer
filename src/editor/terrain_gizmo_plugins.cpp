@@ -137,10 +137,9 @@ void TerrainClipmapGizmoPlugin::_redraw(const Ref<EditorNode3DGizmo> &p_gizmo) {
 		return;
 	}
 
-	const Vector2 center = terrain->get_clipmap_center();
-
 	for (int level = 0; level < level_count; level++) {
 		PackedVector3Array lines;
+		const Vector2 center = terrain->get_clipmap_level_origin(level);
 		append_centered_square_xz(lines, to_local, center, terrain->get_clipmap_level_extent(level), 0.0f);
 		p_gizmo->add_lines(lines, _level_materials[std::min(level, LEVEL_MATERIAL_POOL - 1)]);
 	}

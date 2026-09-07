@@ -233,7 +233,7 @@ void TerrainDock::_refresh_stats() const {
 		}
 		levels += String::num(_current_terrain->get_clipmap_level_extent(i), 0);
 	}
-	_clipmap_label->set_text(vformat("Levels (%d): %s\nCenter: %s", level_count, levels, _current_terrain->get_clipmap_center()));
+	_clipmap_label->set_text(vformat("Levels (%d): %s\nCenter (L0): %s\nMorph band: %.2f-0.50 of each ring", level_count, levels, _current_terrain->get_clipmap_center(), _current_terrain->get_morph_band_start()));
 
 	_collision_label->set_text(vformat("Range: %.0f  Resolution: %d\nCenter: %s\nRebuild pending: %s",
 			_current_terrain->get_collision_range(), _current_terrain->get_collision_resolution(),

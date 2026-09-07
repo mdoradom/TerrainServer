@@ -24,6 +24,8 @@ void Terrain3D::_bind_methods() {
 	ClassDB::bind_method(D_METHOD("get_clipmap_level_count"), &Terrain3D::get_clipmap_level_count);
 	ClassDB::bind_method(D_METHOD("get_clipmap_level_extent", "level"), &Terrain3D::get_clipmap_level_extent);
 	ClassDB::bind_method(D_METHOD("get_clipmap_center"), &Terrain3D::get_clipmap_center);
+	ClassDB::bind_method(D_METHOD("get_clipmap_level_origin", "level"), &Terrain3D::get_clipmap_level_origin);
+	ClassDB::bind_method(D_METHOD("get_morph_band_start"), &Terrain3D::get_morph_band_start);
 	ClassDB::bind_method(D_METHOD("get_collision_range"), &Terrain3D::get_collision_range);
 	ClassDB::bind_method(D_METHOD("get_collision_resolution"), &Terrain3D::get_collision_resolution);
 	ClassDB::bind_method(D_METHOD("get_collision_center"), &Terrain3D::get_collision_center);
@@ -254,6 +256,18 @@ Vector2 Terrain3D::get_clipmap_center() const {
 	}
 
 	return _renderer->get_snapped_focus_xz();
+}
+
+Vector2 Terrain3D::get_clipmap_level_origin(const int p_level) const {
+	if (!_renderer.is_valid()) {
+		return {};
+	}
+
+	return _renderer->get_clipmap_level_origin(p_level);
+}
+
+float Terrain3D::get_morph_band_start() const {
+	return TerrainRenderer::get_morph_band_start();
 }
 
 float Terrain3D::get_collision_range() const {

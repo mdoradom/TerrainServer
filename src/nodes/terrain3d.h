@@ -56,6 +56,8 @@ public:
 	int get_clipmap_level_count() const;
 	float get_clipmap_level_extent(int p_level) const;
 	godot::Vector2 get_clipmap_center() const;
+	godot::Vector2 get_clipmap_level_origin(int p_level) const;
+	float get_morph_band_start() const;
 
 	float get_collision_range() const;
 	int get_collision_resolution() const;
