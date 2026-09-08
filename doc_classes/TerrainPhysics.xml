@@ -1,0 +1,74 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<class name="TerrainPhysics" inherits="RefCounted" api_type="extension" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:noNamespaceSchemaLocation="https://raw.githubusercontent.com/godotengine/godot/master/doc/class.xsd">
+	<brief_description>
+		Maintains the terrain's collision surface and backs its sampling API.
+	</brief_description>
+	<description>
+		Owns a single static [PhysicsServer3D] heightmap body covering a [member TerrainConfiguration.physics_range]-sized square centered on the focus point. Once the focus point moves past a rebuild margin, the heightmap is recomputed on a [WorkerThreadPool] task and pushed to the physics server when that task completes. At most one regrid is in flight at a time, so the collision surface can lag the focus point by a frame or two, this is by design.
+		The sampling methods ([method get_height_at], [method get_biome_at], [method temperature_at], [method moisture_at]) do not read the collision grid. They evaluate on the CPU the same noise the shader evaluates on the GPU, so they agree with the rendered surface and stay valid outside the collision range.
+		Owned and driven by [Terrain3D], which re-exposes the same sampling methods. Prefer those over reaching for this class directly.
+	</description>
+	<tutorials>
+	</tutorials>
+	<methods>
+		<method name="get_biome_at" qualifiers="const">
+			<return type="TerrainBiomeLayer" />
+			<param index="0" name="world_xz" type="Vector2" />
+			<description>
+			</description>
+		</method>
+		<method name="get_built_height_range" qualifiers="const">
+			<return type="Vector2" />
+			<description>
+			</description>
+		</method>
+		<method name="get_built_range" qualifiers="const">
+			<return type="float" />
+			<description>
+			</description>
+		</method>
+		<method name="get_grid_resolution" qualifiers="const">
+			<return type="int" />
+			<description>
+			</description>
+		</method>
+		<method name="get_height_at" qualifiers="const">
+			<return type="float" />
+			<param index="0" name="world_xz" type="Vector2" />
+			<description>
+			</description>
+		</method>
+		<method name="get_last_built_origin" qualifiers="const">
+			<return type="Vector2" />
+			<description>
+			</description>
+		</method>
+		<method name="get_range" qualifiers="const">
+			<return type="float" />
+			<description>
+			</description>
+		</method>
+		<method name="is_built" qualifiers="const">
+			<return type="bool" />
+			<description>
+			</description>
+		</method>
+		<method name="is_rebuild_in_flight" qualifiers="const">
+			<return type="bool" />
+			<description>
+			</description>
+		</method>
+		<method name="moisture_at" qualifiers="const">
+			<return type="float" />
+			<param index="0" name="world_xz" type="Vector2" />
+			<description>
+			</description>
+		</method>
+		<method name="temperature_at" qualifiers="const">
+			<return type="float" />
+			<param index="0" name="world_xz" type="Vector2" />
+			<description>
+			</description>
+		</method>
+	</methods>
+</class>

@@ -1,0 +1,42 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<class name="TerrainRenderer" inherits="RefCounted" api_type="extension" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:noNamespaceSchemaLocation="https://raw.githubusercontent.com/godotengine/godot/master/doc/class.xsd">
+	<brief_description>
+		Draws the clipmap directly through the [RenderingServer].
+	</brief_description>
+	<description>
+		Owns the mesh, shader, and per-level instance and material RIDs itself rather than going through scene nodes, and builds the nested ring hierarchy from [member TerrainConfiguration.clipmap_levels]. Every frame it re-snaps and re-scales each level around the focus point [Terrain3D] hands it, so the finest geometry always sits under the viewer.
+		The terrain shader is read from [code]res://addons/terrain_server/shaders/terrain.gdshader[/code] at runtime rather than compiled into the extension, so shader edits need no rebuild. The loaded shader RID is reused across ordinary configuration edits; [method Terrain3D.reload_shader] forces a re-read from disk.
+		Owned and driven by [Terrain3D]. Because it holds raw [RenderingServer] RIDs that are not freed automatically, it should not be instantiated or torn down by hand.
+	</description>
+	<tutorials>
+	</tutorials>
+	<methods>
+		<method name="get_clipmap_level_count" qualifiers="const">
+			<return type="int" />
+			<description>
+			</description>
+		</method>
+		<method name="get_clipmap_level_origin" qualifiers="const">
+			<return type="Vector2" />
+			<param index="0" name="level" type="int" />
+			<description>
+			</description>
+		</method>
+		<method name="get_clipmap_level_scale" qualifiers="const">
+			<return type="float" />
+			<param index="0" name="level" type="int" />
+			<description>
+			</description>
+		</method>
+		<method name="get_snapped_focus_xz" qualifiers="const">
+			<return type="Vector2" />
+			<description>
+			</description>
+		</method>
+		<method name="request_shader_reload">
+			<return type="void" />
+			<description>
+			</description>
+		</method>
+	</methods>
+</class>

@@ -21,6 +21,10 @@ for root, dirs, files in os.walk(source_path):
         if file.endswith(".cpp"):
             sources.append(os.path.join(root, file))
 
+# Class reference XML, compiled in so the editor can show it (F1)
+if env["target"] in ["editor", "template_debug"]:
+    sources.append(env.GodotCPPDocData("gen/doc_data.gen.cpp", source=Glob("doc_classes/*.xml")))
+
 # Platform specific build configuration
 if env["platform"] == "macos":
     # In macOS, we build a .framework
