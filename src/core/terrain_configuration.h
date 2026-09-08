@@ -1,6 +1,5 @@
 #pragma once
 
-#include <godot_cpp/classes/fast_noise_lite.hpp>
 #include <godot_cpp/classes/image.hpp>
 #include <godot_cpp/classes/image_texture.hpp>
 #include <godot_cpp/classes/resource.hpp>
@@ -9,6 +8,7 @@
 #include <godot_cpp/variant/vector2.hpp>
 
 #include "terrain_biome_layer.h"
+#include "terrain_noise.h"
 #include "terrain_slope_layer.h"
 
 namespace ts {
@@ -20,6 +20,10 @@ public:
 	static constexpr int32_t MAX_BIOME_LAYERS = 32;
 
 private:
+	static constexpr int PREVIEW_RESOLUTION = 256;
+	static constexpr float PREVIEW_BASE_WAVELENGTHS = 12.0f;
+	static constexpr float PREVIEW_CONTINENT_WAVELENGTHS = 2.0f;
+
 	double _height_scale;
 	int _mesh_resolution;
 	float _terrain_size;
@@ -68,7 +72,6 @@ private:
 	float _pom_fade_end;
 	float _triplanar_sharpness;
 
-	godot::Ref<godot::FastNoiseLite> _internal_noise;
 	godot::Ref<godot::ImageTexture> _noise_preview;
 	void _update_preview();
 
@@ -188,6 +191,8 @@ public:
 	void set_triplanar_sharpness(float p_sharpness);
 
 	godot::Ref<godot::ImageTexture> get_noise_preview() const;
+
+	TerrainNoise::FbmParams build_noise_params() const;
 };
 
 } //namespace ts

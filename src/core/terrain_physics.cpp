@@ -80,23 +80,7 @@ void TerrainPhysics::set_configuration(const Ref<TerrainConfiguration> &p_config
 	const float previous_range = _range;
 	const int previous_grid_resolution = _grid_resolution;
 
-	_noise_params.octaves = _config->get_noise_octaves();
-	_noise_params.base_frequency = _config->get_noise_base_frequency();
-	_noise_params.lacunarity = _config->get_noise_lacunarity();
-	_noise_params.gain = _config->get_noise_gain();
-	_noise_params.height_scale = static_cast<float>(_config->get_height_scale());
-	_noise_params.ridge_amount = _config->get_noise_ridge_amount();
-	_noise_params.ridge_offset = _config->get_noise_ridge_offset();
-	_noise_params.ridge_weight_gain = _config->get_noise_ridge_weight_gain();
-	_noise_params.warp_amount = _config->get_noise_warp_amount();
-	_noise_params.warp_frequency = _config->get_noise_warp_frequency();
-	_noise_params.continent_frequency = _config->get_noise_continent_frequency();
-	_noise_params.continent_influence = _config->get_noise_continent_influence();
-	_noise_params.continent_contrast = _config->get_noise_continent_contrast();
-	_noise_params.continent_elevation = _config->get_noise_continent_elevation();
-	_noise_params.continent_sea_level = _config->get_noise_continent_sea_level();
-	_noise_params.relief_floor = _config->get_noise_relief_floor();
-	_noise_params.redistribution = _config->get_noise_redistribution();
+	_noise_params = _config->build_noise_params();
 
 	_temp_moist_params.temperature_frequency = _config->get_temperature_frequency();
 	_temp_moist_params.temperature_offset = _config->get_temperature_offset();

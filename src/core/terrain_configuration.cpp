@@ -2,6 +2,9 @@
 #include <godot_cpp/core/class_db.hpp>
 #include <godot_cpp/variant/utility_functions.hpp>
 
+#include <limits>
+#include <vector>
+
 using namespace godot;
 
 namespace ts {
@@ -170,31 +173,75 @@ void TerrainConfiguration::_bind_methods() {
 }
 
 TerrainConfiguration::TerrainConfiguration() : _height_scale(10.0), _mesh_resolution(256), _terrain_size(256.0f), _noise_octaves(5), _noise_base_frequency(0.002f), _noise_lacunarity(2.0f), _noise_gain(0.5f), _noise_ridge_amount(0.0f), _noise_ridge_offset(1.0f), _noise_ridge_weight_gain(1.5f), _noise_warp_amount(0.0f), _noise_warp_frequency(0.001f), _noise_continent_frequency(0.00025f), _noise_continent_influence(0.0f), _noise_continent_contrast(0.2f), _noise_continent_elevation(0.0f), _noise_continent_sea_level(0.4f), _noise_relief_floor(1.0f), _noise_redistribution(1.0f), _clipmap_levels(6), _physics_range(64.0f), _physics_collision_layer(1), _physics_collision_mask(0), _temperature_frequency(0.0004f), _temperature_offset(10000.0f, -6000.0f), _temperature_noise_influence(0.4f), _temperature_altitude_reference(10.0f), _moisture_frequency(0.0006f), _moisture_offset(-4000.0f, 9000.0f), _pom_min_steps(8), _pom_max_steps(32), _pom_fade_start(40.0f), _pom_fade_end(120.0f), _triplanar_sharpness(4.0f) {
-	_internal_noise.instantiate();
-	_internal_noise->set_noise_type(FastNoiseLite::TYPE_PERLIN);
-	_internal_noise->set_fractal_type(FastNoiseLite::FRACTAL_FBM);
+	_update_preview();
 }
 
 TerrainConfiguration::~TerrainConfiguration() = default;
 
+TerrainNoise::FbmParams TerrainConfiguration::build_noise_params() const {
+	TerrainNoise::FbmParams params;
+	params.octaves = _noise_octaves;
+	params.base_frequency = _noise_base_frequency;
+	params.lacunarity = _noise_lacunarity;
+	params.gain = _noise_gain;
+	params.height_scale = static_cast<float>(_height_scale);
+	params.ridge_amount = _noise_ridge_amount;
+	params.ridge_offset = _noise_ridge_offset;
+	params.ridge_weight_gain = _noise_ridge_weight_gain;
+	params.warp_amount = _noise_warp_amount;
+	params.warp_frequency = _noise_warp_frequency;
+	params.continent_frequency = _noise_continent_frequency;
+	params.continent_influence = _noise_continent_influence;
+	params.continent_contrast = _noise_continent_contrast;
+	params.continent_elevation = _noise_continent_elevation;
+	params.continent_sea_level = _noise_continent_sea_level;
+	params.relief_floor = _noise_relief_floor;
+	params.redistribution = _noise_redistribution;
+	return params;
+}
+
 void TerrainConfiguration::_update_preview() {
-	if (!_internal_noise.is_valid()) {
+	TerrainNoise::FbmParams params = build_noise_params();
+	params.height_scale = 1.0f; // Normalized below, so the vertical scale is irrelevant here.
+
+	float extent = PREVIEW_BASE_WAVELENGTHS / std::max(_noise_base_frequency, 1e-6f);
+	if (_noise_continent_influence > 0.0f) {
+		extent = std::max(extent, PREVIEW_CONTINENT_WAVELENGTHS / std::max(_noise_continent_frequency, 1e-6f));
+	}
+
+	PackedByteArray pixels;
+	pixels.resize(PREVIEW_RESOLUTION * PREVIEW_RESOLUTION);
+	uint8_t *pixel_write = pixels.ptrw();
+
+	std::vector<float> heights(static_cast<size_t>(PREVIEW_RESOLUTION) * PREVIEW_RESOLUTION);
+	const float step = extent / static_cast<float>(PREVIEW_RESOLUTION - 1);
+	const float origin = -extent * 0.5f;
+
+	float lowest = std::numeric_limits<float>::max();
+	float highest = std::numeric_limits<float>::lowest();
+
+	for (int y = 0; y < PREVIEW_RESOLUTION; y++) {
+		for (int x = 0; x < PREVIEW_RESOLUTION; x++) {
+			const Vector2 world_xz(origin + static_cast<float>(x) * step, origin + static_cast<float>(y) * step);
+			const float h = TerrainNoise::get_height_at(world_xz, params);
+			heights[static_cast<size_t>(y) * PREVIEW_RESOLUTION + x] = h;
+			lowest = std::min(lowest, h);
+			highest = std::max(highest, h);
+		}
+	}
+
+	const float span = highest - lowest;
+	const float inv_span = span > 1e-6f ? 1.0f / span : 0.0f;
+	for (size_t i = 0; i < heights.size(); i++) {
+		const float normalized = (heights[i] - lowest) * inv_span;
+		pixel_write[i] = static_cast<uint8_t>(std::clamp(normalized, 0.0f, 1.0f) * 255.0f + 0.5f);
+	}
+
+	const Ref<Image> image = Image::create_from_data(PREVIEW_RESOLUTION, PREVIEW_RESOLUTION, false, Image::FORMAT_L8, pixels);
+	if (!image.is_valid()) {
 		return;
 	}
-
-	if (!_noise_preview.is_valid()) {
-		_noise_preview.instantiate();
-	}
-
-	_internal_noise->set_fractal_octaves(_noise_octaves);
-	_internal_noise->set_frequency(_noise_base_frequency);
-	_internal_noise->set_fractal_lacunarity(_noise_lacunarity);
-	_internal_noise->set_fractal_gain(_noise_gain);
-
-	const Ref<Image> noise_image = _internal_noise->get_seamless_image(512, 512);
-	if (noise_image.is_valid()) {
-		_noise_preview->set_image(noise_image);
-	}
+	_noise_preview = ImageTexture::create_from_image(image);
 }
 
 // ============== Getters and setters ==============
@@ -280,6 +327,7 @@ float TerrainConfiguration::get_noise_ridge_amount() const {
 void TerrainConfiguration::set_noise_ridge_amount(const float p_amount) {
 	if (_noise_ridge_amount != p_amount) {
 		_noise_ridge_amount = p_amount;
+		_update_preview();
 		emit_changed();
 	}
 }
@@ -291,6 +339,7 @@ float TerrainConfiguration::get_noise_ridge_offset() const {
 void TerrainConfiguration::set_noise_ridge_offset(const float p_offset) {
 	if (_noise_ridge_offset != p_offset) {
 		_noise_ridge_offset = p_offset;
+		_update_preview();
 		emit_changed();
 	}
 }
@@ -302,6 +351,7 @@ float TerrainConfiguration::get_noise_ridge_weight_gain() const {
 void TerrainConfiguration::set_noise_ridge_weight_gain(const float p_weight_gain) {
 	if (_noise_ridge_weight_gain != p_weight_gain) {
 		_noise_ridge_weight_gain = p_weight_gain;
+		_update_preview();
 		emit_changed();
 	}
 }
@@ -313,6 +363,7 @@ float TerrainConfiguration::get_noise_warp_amount() const {
 void TerrainConfiguration::set_noise_warp_amount(const float p_amount) {
 	if (_noise_warp_amount != p_amount) {
 		_noise_warp_amount = p_amount;
+		_update_preview();
 		emit_changed();
 	}
 }
@@ -324,6 +375,7 @@ float TerrainConfiguration::get_noise_warp_frequency() const {
 void TerrainConfiguration::set_noise_warp_frequency(const float p_frequency) {
 	if (_noise_warp_frequency != p_frequency) {
 		_noise_warp_frequency = p_frequency;
+		_update_preview();
 		emit_changed();
 	}
 }
@@ -335,6 +387,7 @@ float TerrainConfiguration::get_noise_continent_frequency() const {
 void TerrainConfiguration::set_noise_continent_frequency(const float p_frequency) {
 	if (_noise_continent_frequency != p_frequency) {
 		_noise_continent_frequency = p_frequency;
+		_update_preview();
 		emit_changed();
 	}
 }
@@ -346,6 +399,7 @@ float TerrainConfiguration::get_noise_continent_influence() const {
 void TerrainConfiguration::set_noise_continent_influence(const float p_influence) {
 	if (_noise_continent_influence != p_influence) {
 		_noise_continent_influence = p_influence;
+		_update_preview();
 		emit_changed();
 	}
 }
@@ -357,6 +411,7 @@ float TerrainConfiguration::get_noise_continent_contrast() const {
 void TerrainConfiguration::set_noise_continent_contrast(const float p_contrast) {
 	if (_noise_continent_contrast != p_contrast) {
 		_noise_continent_contrast = p_contrast;
+		_update_preview();
 		emit_changed();
 	}
 }
@@ -368,6 +423,7 @@ float TerrainConfiguration::get_noise_continent_elevation() const {
 void TerrainConfiguration::set_noise_continent_elevation(const float p_elevation) {
 	if (_noise_continent_elevation != p_elevation) {
 		_noise_continent_elevation = p_elevation;
+		_update_preview();
 		emit_changed();
 	}
 }
@@ -379,6 +435,7 @@ float TerrainConfiguration::get_noise_continent_sea_level() const {
 void TerrainConfiguration::set_noise_continent_sea_level(const float p_sea_level) {
 	if (_noise_continent_sea_level != p_sea_level) {
 		_noise_continent_sea_level = p_sea_level;
+		_update_preview();
 		emit_changed();
 	}
 }
@@ -390,6 +447,7 @@ float TerrainConfiguration::get_noise_relief_floor() const {
 void TerrainConfiguration::set_noise_relief_floor(const float p_floor) {
 	if (_noise_relief_floor != p_floor) {
 		_noise_relief_floor = p_floor;
+		_update_preview();
 		emit_changed();
 	}
 }
@@ -401,6 +459,7 @@ float TerrainConfiguration::get_noise_redistribution() const {
 void TerrainConfiguration::set_noise_redistribution(const float p_redistribution) {
 	if (_noise_redistribution != p_redistribution) {
 		_noise_redistribution = p_redistribution;
+		_update_preview();
 		emit_changed();
 	}
 }

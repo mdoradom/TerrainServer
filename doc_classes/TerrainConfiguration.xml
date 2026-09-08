@@ -72,7 +72,8 @@
 			Range [code]1[/code] to [code]10[/code].
 		</member>
 		<member name="noise_preview" type="ImageTexture" setter="" getter="get_noise_preview">
-			Read-only greyscale preview of the current noise settings, regenerated whenever one of the [code]noise_*[/code] properties changes. It exists for the inspector; it is not the heightmap the terrain is built from and has no setter.
+			Read-only greyscale top-down render of the terrain, regenerated whenever one of the [code]noise_*[/code] properties changes. It runs the same height function the shader and the collision heightmap do, so every shaping parameter is reflected in it, and it is normalized to its own range so it always uses the full black-to-white ramp — brightness is relative, not an absolute height.
+			The area covered scales with the frequencies: twelve [member noise_base_frequency] wavelengths, widened to two [member noise_continent_frequency] wavelengths once [member noise_continent_influence] is above zero, so provinces and the ridges inside them are both visible. It has no setter.
 		</member>
 		<member name="noise_redistribution" type="float" setter="set_noise_redistribution" getter="get_noise_redistribution" default="1.0">
 			Exponent applied to the normalized height, preserving its sign. [code]1.0[/code] leaves the distribution alone. Values above it flatten mid elevations into valley floor and plateau and push the rare extremes further out, which is closer to how real elevation is distributed: a lot of low ground and few peaks.
