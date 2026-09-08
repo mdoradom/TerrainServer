@@ -128,15 +128,15 @@ void TerrainConfiguration::_bind_methods() {
 
 	ADD_GROUP("Noise", "noise_");
 	ADD_PROPERTY(PropertyInfo(Variant::INT, "noise_octaves", PROPERTY_HINT_RANGE, "1,10"), "set_noise_octaves", "get_noise_octaves");
-	ADD_PROPERTY(PropertyInfo(Variant::FLOAT, "noise_base_frequency", PROPERTY_HINT_RANGE, "0.0001,0.1"), "set_noise_base_frequency", "get_noise_base_frequency");
+	ADD_PROPERTY(PropertyInfo(Variant::FLOAT, "noise_base_frequency", PROPERTY_HINT_RANGE, "0.0001,0.1,0.00001,exp"), "set_noise_base_frequency", "get_noise_base_frequency");
 	ADD_PROPERTY(PropertyInfo(Variant::FLOAT, "noise_lacunarity", PROPERTY_HINT_RANGE, "1.0,5.0"), "set_noise_lacunarity", "get_noise_lacunarity");
 	ADD_PROPERTY(PropertyInfo(Variant::FLOAT, "noise_gain", PROPERTY_HINT_RANGE, "0.0,1.0"), "set_noise_gain", "get_noise_gain");
 	ADD_PROPERTY(PropertyInfo(Variant::FLOAT, "noise_ridge_amount", PROPERTY_HINT_RANGE, "0.0,1.0"), "set_noise_ridge_amount", "get_noise_ridge_amount");
 	ADD_PROPERTY(PropertyInfo(Variant::FLOAT, "noise_ridge_offset", PROPERTY_HINT_RANGE, "0.5,1.5"), "set_noise_ridge_offset", "get_noise_ridge_offset");
 	ADD_PROPERTY(PropertyInfo(Variant::FLOAT, "noise_ridge_weight_gain", PROPERTY_HINT_RANGE, "0.0,3.0"), "set_noise_ridge_weight_gain", "get_noise_ridge_weight_gain");
 	ADD_PROPERTY(PropertyInfo(Variant::FLOAT, "noise_warp_amount", PROPERTY_HINT_RANGE, "0.0,500.0"), "set_noise_warp_amount", "get_noise_warp_amount");
-	ADD_PROPERTY(PropertyInfo(Variant::FLOAT, "noise_warp_frequency", PROPERTY_HINT_RANGE, "0.0001,0.01"), "set_noise_warp_frequency", "get_noise_warp_frequency");
-	ADD_PROPERTY(PropertyInfo(Variant::FLOAT, "noise_continent_frequency", PROPERTY_HINT_RANGE, "0.00005,0.005"), "set_noise_continent_frequency", "get_noise_continent_frequency");
+	ADD_PROPERTY(PropertyInfo(Variant::FLOAT, "noise_warp_frequency", PROPERTY_HINT_RANGE, "0.0001,0.01,0.000001,exp"), "set_noise_warp_frequency", "get_noise_warp_frequency");
+	ADD_PROPERTY(PropertyInfo(Variant::FLOAT, "noise_continent_frequency", PROPERTY_HINT_RANGE, "0.00005,0.005,0.000001,exp"), "set_noise_continent_frequency", "get_noise_continent_frequency");
 	ADD_PROPERTY(PropertyInfo(Variant::FLOAT, "noise_continent_influence", PROPERTY_HINT_RANGE, "0.0,1.0"), "set_noise_continent_influence", "get_noise_continent_influence");
 	ADD_PROPERTY(PropertyInfo(Variant::FLOAT, "noise_continent_contrast", PROPERTY_HINT_RANGE, "0.01,0.5"), "set_noise_continent_contrast", "get_noise_continent_contrast");
 	ADD_PROPERTY(PropertyInfo(Variant::FLOAT, "noise_continent_elevation", PROPERTY_HINT_RANGE, "0.0,1.0"), "set_noise_continent_elevation", "get_noise_continent_elevation");
@@ -155,11 +155,11 @@ void TerrainConfiguration::_bind_methods() {
 						 vformat("%d/%d:%s", Variant::OBJECT, PROPERTY_HINT_RESOURCE_TYPE, "TerrainBiomeLayer")),
 			"set_biome_layers", "get_biome_layers");
 	ADD_PROPERTY(PropertyInfo(Variant::OBJECT, "rock_layer", PROPERTY_HINT_RESOURCE_TYPE, "TerrainSlopeLayer"), "set_rock_layer", "get_rock_layer");
-	ADD_PROPERTY(PropertyInfo(Variant::FLOAT, "temperature_frequency", PROPERTY_HINT_RANGE, "0.0001,0.01"), "set_temperature_frequency", "get_temperature_frequency");
+	ADD_PROPERTY(PropertyInfo(Variant::FLOAT, "temperature_frequency", PROPERTY_HINT_RANGE, "0.0001,0.01,0.00001,exp"), "set_temperature_frequency", "get_temperature_frequency");
 	ADD_PROPERTY(PropertyInfo(Variant::VECTOR2, "temperature_offset"), "set_temperature_offset", "get_temperature_offset");
 	ADD_PROPERTY(PropertyInfo(Variant::FLOAT, "temperature_noise_influence", PROPERTY_HINT_RANGE, "0.0,1.0"), "set_temperature_noise_influence", "get_temperature_noise_influence");
 	ADD_PROPERTY(PropertyInfo(Variant::FLOAT, "temperature_altitude_reference", PROPERTY_HINT_RANGE, "0.1,100.0"), "set_temperature_altitude_reference", "get_temperature_altitude_reference");
-	ADD_PROPERTY(PropertyInfo(Variant::FLOAT, "moisture_frequency", PROPERTY_HINT_RANGE, "0.0001,0.01"), "set_moisture_frequency", "get_moisture_frequency");
+	ADD_PROPERTY(PropertyInfo(Variant::FLOAT, "moisture_frequency", PROPERTY_HINT_RANGE, "0.0001,0.01,0.00001,exp"), "set_moisture_frequency", "get_moisture_frequency");
 	ADD_PROPERTY(PropertyInfo(Variant::VECTOR2, "moisture_offset"), "set_moisture_offset", "get_moisture_offset");
 
 	ADD_GROUP("Parallax", "pom_");
