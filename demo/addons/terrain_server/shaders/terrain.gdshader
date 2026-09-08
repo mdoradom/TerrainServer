@@ -12,6 +12,22 @@ uniform float base_frequency = 0.002;
 uniform float lacunarity = 2.0;
 uniform float gain = 0.5;
 
+uniform float ridge_amount = 0.0;
+uniform float ridge_offset = 1.0;
+uniform float ridge_weight_gain = 1.5;
+
+uniform float warp_amount = 0.0;
+uniform float warp_frequency = 0.001;
+
+uniform float continent_frequency = 0.00025;
+uniform float continent_influence = 0.0;
+uniform float continent_contrast = 0.2;
+uniform float continent_elevation = 0.0;
+uniform float continent_sea_level = 0.4;
+uniform float relief_floor = 1.0;
+
+uniform float redistribution = 1.0;
+
 uniform float temperature_frequency = 0.0004;
 uniform vec2 temperature_offset = vec2(10000.0, -6000.0);
 uniform float temperature_noise_influence = 0.4;
@@ -55,6 +71,14 @@ varying vec2 v_world_xz;
 varying vec3 v_normal_ws;
 varying float v_height;
 
+const float NOISE_MAX_AMPLITUDE = 0.70710678;
+
+const vec2 WARP_OFFSET_X = vec2(3100.0, -1700.0);
+const vec2 WARP_OFFSET_Y = vec2(-5300.0, 2900.0);
+const vec2 CONTINENT_OFFSET = vec2(-8100.0, 4700.0);
+
+const mat2 OCTAVE_ROTATION = mat2(vec2(0.8, -0.6), vec2(0.6, 0.8));
+
 const vec2 GRADIENTS[8] = vec2[8](
 	vec2(1.0, 0.0), vec2(0.70710678, 0.70710678),
 	vec2(0.0, 1.0), vec2(-0.70710678, 0.70710678),
@@ -92,8 +116,7 @@ float noise(in vec2 p) {
 			dot(hash(i + vec2(1.0, 1.0)), f - vec2(1.0, 1.0)), u.x), u.y);
 }
 
-// Fractal Brownian Motion (fBm)
-float get_height_at(vec2 world_xz) {
+float fbm_at(vec2 p) {
 	float h = 0.0;
 	float amplitude = 1.0;
 	float frequency = base_frequency;
@@ -101,18 +124,72 @@ float get_height_at(vec2 world_xz) {
 
 	// Iterate to add detail (octaves)
 	for(int i = 0; i < octaves; i++) {
-		h += noise(world_xz * frequency) * amplitude;
+		h += noise(p * frequency) * amplitude;
 		max_amplitude += amplitude;
 		amplitude *= gain;
 		frequency *= lacunarity;
 	}
 
 	// Normalize to [-1, 1] range
-	h = h / max_amplitude;
-	return h * height_scale;
+	return h / max_amplitude;
 }
 
-const float NOISE_MAX_AMPLITUDE = 0.70710678;
+float ridged_at(vec2 p) {
+	vec2 q = p * base_frequency;
+
+	float signal = ridge_offset - abs(noise(q) / NOISE_MAX_AMPLITUDE);
+	signal *= signal;
+
+	float result = signal;
+	float amplitude = 1.0;
+	float max_amplitude = 1.0;
+
+	for(int i = 1; i < octaves; i++) {
+		q = (OCTAVE_ROTATION * q) * lacunarity;
+		amplitude *= gain;
+
+		float weight = clamp(signal * ridge_weight_gain, 0.0, 1.0);
+		signal = ridge_offset - abs(noise(q) / NOISE_MAX_AMPLITUDE);
+		signal *= signal;
+
+		result += signal * weight * amplitude;
+		max_amplitude += amplitude;
+	}
+
+	result /= max_amplitude * max(ridge_offset * ridge_offset, 0.0001);
+	return result * 2.0 - 1.0;
+}
+
+float get_height_at(vec2 world_xz) {
+	vec2 p = world_xz;
+	if (warp_amount > 0.0) {
+		vec2 w = vec2(
+			noise(world_xz * warp_frequency + WARP_OFFSET_X),
+			noise(world_xz * warp_frequency + WARP_OFFSET_Y));
+		p += w * warp_amount;
+	}
+
+	float mask = 1.0;
+	if (continent_influence > 0.0) {
+		float c = noise(world_xz * continent_frequency + CONTINENT_OFFSET);
+		c = clamp(c / NOISE_MAX_AMPLITUDE, -1.0, 1.0) * 0.5 + 0.5;
+		float contrast = max(continent_contrast, 0.0001);
+		mask = mix(1.0, smoothstep(0.5 - contrast, 0.5 + contrast, c), continent_influence);
+	}
+
+	float relief = fbm_at(p);
+	if (ridge_amount > 0.0) {
+		relief = mix(relief, ridged_at(p) * NOISE_MAX_AMPLITUDE, ridge_amount * mask);
+	}
+
+	if (redistribution != 1.0) {
+		relief = sign(relief) * pow(abs(relief), redistribution);
+	}
+
+	float h_norm = continent_elevation * (mask - continent_sea_level) + relief * mix(relief_floor, 1.0, mask);
+	return clamp(h_norm, -1.5, 1.5) * height_scale;
+}
+
 const float TEMPERATURE_MIN_C = -10.0;
 const float TEMPERATURE_MAX_C = 30.0;
 
