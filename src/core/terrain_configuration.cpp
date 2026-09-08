@@ -31,6 +31,42 @@ void TerrainConfiguration::_bind_methods() {
 	ClassDB::bind_method(D_METHOD("set_noise_gain", "gain"), &TerrainConfiguration::set_noise_gain);
 	ClassDB::bind_method(D_METHOD("get_noise_gain"), &TerrainConfiguration::get_noise_gain);
 
+	ClassDB::bind_method(D_METHOD("set_noise_ridge_amount", "amount"), &TerrainConfiguration::set_noise_ridge_amount);
+	ClassDB::bind_method(D_METHOD("get_noise_ridge_amount"), &TerrainConfiguration::get_noise_ridge_amount);
+
+	ClassDB::bind_method(D_METHOD("set_noise_ridge_offset", "offset"), &TerrainConfiguration::set_noise_ridge_offset);
+	ClassDB::bind_method(D_METHOD("get_noise_ridge_offset"), &TerrainConfiguration::get_noise_ridge_offset);
+
+	ClassDB::bind_method(D_METHOD("set_noise_ridge_weight_gain", "weight_gain"), &TerrainConfiguration::set_noise_ridge_weight_gain);
+	ClassDB::bind_method(D_METHOD("get_noise_ridge_weight_gain"), &TerrainConfiguration::get_noise_ridge_weight_gain);
+
+	ClassDB::bind_method(D_METHOD("set_noise_warp_amount", "amount"), &TerrainConfiguration::set_noise_warp_amount);
+	ClassDB::bind_method(D_METHOD("get_noise_warp_amount"), &TerrainConfiguration::get_noise_warp_amount);
+
+	ClassDB::bind_method(D_METHOD("set_noise_warp_frequency", "frequency"), &TerrainConfiguration::set_noise_warp_frequency);
+	ClassDB::bind_method(D_METHOD("get_noise_warp_frequency"), &TerrainConfiguration::get_noise_warp_frequency);
+
+	ClassDB::bind_method(D_METHOD("set_noise_continent_frequency", "frequency"), &TerrainConfiguration::set_noise_continent_frequency);
+	ClassDB::bind_method(D_METHOD("get_noise_continent_frequency"), &TerrainConfiguration::get_noise_continent_frequency);
+
+	ClassDB::bind_method(D_METHOD("set_noise_continent_influence", "influence"), &TerrainConfiguration::set_noise_continent_influence);
+	ClassDB::bind_method(D_METHOD("get_noise_continent_influence"), &TerrainConfiguration::get_noise_continent_influence);
+
+	ClassDB::bind_method(D_METHOD("set_noise_continent_contrast", "contrast"), &TerrainConfiguration::set_noise_continent_contrast);
+	ClassDB::bind_method(D_METHOD("get_noise_continent_contrast"), &TerrainConfiguration::get_noise_continent_contrast);
+
+	ClassDB::bind_method(D_METHOD("set_noise_continent_elevation", "elevation"), &TerrainConfiguration::set_noise_continent_elevation);
+	ClassDB::bind_method(D_METHOD("get_noise_continent_elevation"), &TerrainConfiguration::get_noise_continent_elevation);
+
+	ClassDB::bind_method(D_METHOD("set_noise_continent_sea_level", "sea_level"), &TerrainConfiguration::set_noise_continent_sea_level);
+	ClassDB::bind_method(D_METHOD("get_noise_continent_sea_level"), &TerrainConfiguration::get_noise_continent_sea_level);
+
+	ClassDB::bind_method(D_METHOD("set_noise_relief_floor", "floor"), &TerrainConfiguration::set_noise_relief_floor);
+	ClassDB::bind_method(D_METHOD("get_noise_relief_floor"), &TerrainConfiguration::get_noise_relief_floor);
+
+	ClassDB::bind_method(D_METHOD("set_noise_redistribution", "redistribution"), &TerrainConfiguration::set_noise_redistribution);
+	ClassDB::bind_method(D_METHOD("get_noise_redistribution"), &TerrainConfiguration::get_noise_redistribution);
+
 	ClassDB::bind_method(D_METHOD("get_noise_preview"), &TerrainConfiguration::get_noise_preview);
 
 	ClassDB::bind_method(D_METHOD("set_physics_range", "range"), &TerrainConfiguration::set_physics_range);
@@ -92,6 +128,18 @@ void TerrainConfiguration::_bind_methods() {
 	ADD_PROPERTY(PropertyInfo(Variant::FLOAT, "noise_base_frequency", PROPERTY_HINT_RANGE, "0.0001,0.1"), "set_noise_base_frequency", "get_noise_base_frequency");
 	ADD_PROPERTY(PropertyInfo(Variant::FLOAT, "noise_lacunarity", PROPERTY_HINT_RANGE, "1.0,5.0"), "set_noise_lacunarity", "get_noise_lacunarity");
 	ADD_PROPERTY(PropertyInfo(Variant::FLOAT, "noise_gain", PROPERTY_HINT_RANGE, "0.0,1.0"), "set_noise_gain", "get_noise_gain");
+	ADD_PROPERTY(PropertyInfo(Variant::FLOAT, "noise_ridge_amount", PROPERTY_HINT_RANGE, "0.0,1.0"), "set_noise_ridge_amount", "get_noise_ridge_amount");
+	ADD_PROPERTY(PropertyInfo(Variant::FLOAT, "noise_ridge_offset", PROPERTY_HINT_RANGE, "0.5,1.5"), "set_noise_ridge_offset", "get_noise_ridge_offset");
+	ADD_PROPERTY(PropertyInfo(Variant::FLOAT, "noise_ridge_weight_gain", PROPERTY_HINT_RANGE, "0.0,3.0"), "set_noise_ridge_weight_gain", "get_noise_ridge_weight_gain");
+	ADD_PROPERTY(PropertyInfo(Variant::FLOAT, "noise_warp_amount", PROPERTY_HINT_RANGE, "0.0,500.0"), "set_noise_warp_amount", "get_noise_warp_amount");
+	ADD_PROPERTY(PropertyInfo(Variant::FLOAT, "noise_warp_frequency", PROPERTY_HINT_RANGE, "0.0001,0.01"), "set_noise_warp_frequency", "get_noise_warp_frequency");
+	ADD_PROPERTY(PropertyInfo(Variant::FLOAT, "noise_continent_frequency", PROPERTY_HINT_RANGE, "0.00005,0.005"), "set_noise_continent_frequency", "get_noise_continent_frequency");
+	ADD_PROPERTY(PropertyInfo(Variant::FLOAT, "noise_continent_influence", PROPERTY_HINT_RANGE, "0.0,1.0"), "set_noise_continent_influence", "get_noise_continent_influence");
+	ADD_PROPERTY(PropertyInfo(Variant::FLOAT, "noise_continent_contrast", PROPERTY_HINT_RANGE, "0.01,0.5"), "set_noise_continent_contrast", "get_noise_continent_contrast");
+	ADD_PROPERTY(PropertyInfo(Variant::FLOAT, "noise_continent_elevation", PROPERTY_HINT_RANGE, "0.0,1.0"), "set_noise_continent_elevation", "get_noise_continent_elevation");
+	ADD_PROPERTY(PropertyInfo(Variant::FLOAT, "noise_continent_sea_level", PROPERTY_HINT_RANGE, "0.0,1.0"), "set_noise_continent_sea_level", "get_noise_continent_sea_level");
+	ADD_PROPERTY(PropertyInfo(Variant::FLOAT, "noise_relief_floor", PROPERTY_HINT_RANGE, "0.0,1.0"), "set_noise_relief_floor", "get_noise_relief_floor");
+	ADD_PROPERTY(PropertyInfo(Variant::FLOAT, "noise_redistribution", PROPERTY_HINT_RANGE, "0.5,3.0"), "set_noise_redistribution", "get_noise_redistribution");
 	ADD_PROPERTY(PropertyInfo(Variant::OBJECT, "noise_preview", PROPERTY_HINT_RESOURCE_TYPE, "ImageTexture", PROPERTY_USAGE_EDITOR), "", "get_noise_preview");
 
 	ADD_GROUP("Physics", "physics_");
@@ -121,7 +169,7 @@ void TerrainConfiguration::_bind_methods() {
 	ADD_PROPERTY(PropertyInfo(Variant::FLOAT, "triplanar_sharpness", PROPERTY_HINT_RANGE, "1.0,16.0,0.1"), "set_triplanar_sharpness", "get_triplanar_sharpness");
 }
 
-TerrainConfiguration::TerrainConfiguration() : _height_scale(10.0), _mesh_resolution(256), _terrain_size(256.0f), _noise_octaves(5), _noise_base_frequency(0.002f), _noise_lacunarity(2.0f), _noise_gain(0.5f), _clipmap_levels(6), _physics_range(64.0f), _physics_collision_layer(1), _physics_collision_mask(0), _temperature_frequency(0.0004f), _temperature_offset(10000.0f, -6000.0f), _temperature_noise_influence(0.4f), _temperature_altitude_reference(10.0f), _moisture_frequency(0.0006f), _moisture_offset(-4000.0f, 9000.0f), _pom_min_steps(8), _pom_max_steps(32), _pom_fade_start(40.0f), _pom_fade_end(120.0f), _triplanar_sharpness(4.0f) {
+TerrainConfiguration::TerrainConfiguration() : _height_scale(10.0), _mesh_resolution(256), _terrain_size(256.0f), _noise_octaves(5), _noise_base_frequency(0.002f), _noise_lacunarity(2.0f), _noise_gain(0.5f), _noise_ridge_amount(0.0f), _noise_ridge_offset(1.0f), _noise_ridge_weight_gain(1.5f), _noise_warp_amount(0.0f), _noise_warp_frequency(0.001f), _noise_continent_frequency(0.00025f), _noise_continent_influence(0.0f), _noise_continent_contrast(0.2f), _noise_continent_elevation(0.0f), _noise_continent_sea_level(0.4f), _noise_relief_floor(1.0f), _noise_redistribution(1.0f), _clipmap_levels(6), _physics_range(64.0f), _physics_collision_layer(1), _physics_collision_mask(0), _temperature_frequency(0.0004f), _temperature_offset(10000.0f, -6000.0f), _temperature_noise_influence(0.4f), _temperature_altitude_reference(10.0f), _moisture_frequency(0.0006f), _moisture_offset(-4000.0f, 9000.0f), _pom_min_steps(8), _pom_max_steps(32), _pom_fade_start(40.0f), _pom_fade_end(120.0f), _triplanar_sharpness(4.0f) {
 	_internal_noise.instantiate();
 	_internal_noise->set_noise_type(FastNoiseLite::TYPE_PERLIN);
 	_internal_noise->set_fractal_type(FastNoiseLite::FRACTAL_FBM);
@@ -221,6 +269,138 @@ void TerrainConfiguration::set_noise_gain(const float p_gain) {
 	if (_noise_gain != p_gain) {
 		_noise_gain = p_gain;
 		_update_preview();
+		emit_changed();
+	}
+}
+
+float TerrainConfiguration::get_noise_ridge_amount() const {
+	return _noise_ridge_amount;
+}
+
+void TerrainConfiguration::set_noise_ridge_amount(const float p_amount) {
+	if (_noise_ridge_amount != p_amount) {
+		_noise_ridge_amount = p_amount;
+		emit_changed();
+	}
+}
+
+float TerrainConfiguration::get_noise_ridge_offset() const {
+	return _noise_ridge_offset;
+}
+
+void TerrainConfiguration::set_noise_ridge_offset(const float p_offset) {
+	if (_noise_ridge_offset != p_offset) {
+		_noise_ridge_offset = p_offset;
+		emit_changed();
+	}
+}
+
+float TerrainConfiguration::get_noise_ridge_weight_gain() const {
+	return _noise_ridge_weight_gain;
+}
+
+void TerrainConfiguration::set_noise_ridge_weight_gain(const float p_weight_gain) {
+	if (_noise_ridge_weight_gain != p_weight_gain) {
+		_noise_ridge_weight_gain = p_weight_gain;
+		emit_changed();
+	}
+}
+
+float TerrainConfiguration::get_noise_warp_amount() const {
+	return _noise_warp_amount;
+}
+
+void TerrainConfiguration::set_noise_warp_amount(const float p_amount) {
+	if (_noise_warp_amount != p_amount) {
+		_noise_warp_amount = p_amount;
+		emit_changed();
+	}
+}
+
+float TerrainConfiguration::get_noise_warp_frequency() const {
+	return _noise_warp_frequency;
+}
+
+void TerrainConfiguration::set_noise_warp_frequency(const float p_frequency) {
+	if (_noise_warp_frequency != p_frequency) {
+		_noise_warp_frequency = p_frequency;
+		emit_changed();
+	}
+}
+
+float TerrainConfiguration::get_noise_continent_frequency() const {
+	return _noise_continent_frequency;
+}
+
+void TerrainConfiguration::set_noise_continent_frequency(const float p_frequency) {
+	if (_noise_continent_frequency != p_frequency) {
+		_noise_continent_frequency = p_frequency;
+		emit_changed();
+	}
+}
+
+float TerrainConfiguration::get_noise_continent_influence() const {
+	return _noise_continent_influence;
+}
+
+void TerrainConfiguration::set_noise_continent_influence(const float p_influence) {
+	if (_noise_continent_influence != p_influence) {
+		_noise_continent_influence = p_influence;
+		emit_changed();
+	}
+}
+
+float TerrainConfiguration::get_noise_continent_contrast() const {
+	return _noise_continent_contrast;
+}
+
+void TerrainConfiguration::set_noise_continent_contrast(const float p_contrast) {
+	if (_noise_continent_contrast != p_contrast) {
+		_noise_continent_contrast = p_contrast;
+		emit_changed();
+	}
+}
+
+float TerrainConfiguration::get_noise_continent_elevation() const {
+	return _noise_continent_elevation;
+}
+
+void TerrainConfiguration::set_noise_continent_elevation(const float p_elevation) {
+	if (_noise_continent_elevation != p_elevation) {
+		_noise_continent_elevation = p_elevation;
+		emit_changed();
+	}
+}
+
+float TerrainConfiguration::get_noise_continent_sea_level() const {
+	return _noise_continent_sea_level;
+}
+
+void TerrainConfiguration::set_noise_continent_sea_level(const float p_sea_level) {
+	if (_noise_continent_sea_level != p_sea_level) {
+		_noise_continent_sea_level = p_sea_level;
+		emit_changed();
+	}
+}
+
+float TerrainConfiguration::get_noise_relief_floor() const {
+	return _noise_relief_floor;
+}
+
+void TerrainConfiguration::set_noise_relief_floor(const float p_floor) {
+	if (_noise_relief_floor != p_floor) {
+		_noise_relief_floor = p_floor;
+		emit_changed();
+	}
+}
+
+float TerrainConfiguration::get_noise_redistribution() const {
+	return _noise_redistribution;
+}
+
+void TerrainConfiguration::set_noise_redistribution(const float p_redistribution) {
+	if (_noise_redistribution != p_redistribution) {
+		_noise_redistribution = p_redistribution;
 		emit_changed();
 	}
 }

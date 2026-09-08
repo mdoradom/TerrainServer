@@ -29,6 +29,22 @@ private:
 	float _noise_lacunarity;
 	float _noise_gain;
 
+	float _noise_ridge_amount;
+	float _noise_ridge_offset;
+	float _noise_ridge_weight_gain;
+
+	float _noise_warp_amount;
+	float _noise_warp_frequency;
+
+	float _noise_continent_frequency;
+	float _noise_continent_influence;
+	float _noise_continent_contrast;
+	float _noise_continent_elevation;
+	float _noise_continent_sea_level;
+	float _noise_relief_floor;
+
+	float _noise_redistribution;
+
 	int _clipmap_levels;
 
 	float _physics_range;
@@ -80,6 +96,42 @@ public:
 
 	float get_noise_gain() const;
 	void set_noise_gain(float p_gain);
+
+	float get_noise_ridge_amount() const;
+	void set_noise_ridge_amount(float p_amount);
+
+	float get_noise_ridge_offset() const;
+	void set_noise_ridge_offset(float p_offset);
+
+	float get_noise_ridge_weight_gain() const;
+	void set_noise_ridge_weight_gain(float p_weight_gain);
+
+	float get_noise_warp_amount() const;
+	void set_noise_warp_amount(float p_amount);
+
+	float get_noise_warp_frequency() const;
+	void set_noise_warp_frequency(float p_frequency);
+
+	float get_noise_continent_frequency() const;
+	void set_noise_continent_frequency(float p_frequency);
+
+	float get_noise_continent_influence() const;
+	void set_noise_continent_influence(float p_influence);
+
+	float get_noise_continent_contrast() const;
+	void set_noise_continent_contrast(float p_contrast);
+
+	float get_noise_continent_elevation() const;
+	void set_noise_continent_elevation(float p_elevation);
+
+	float get_noise_continent_sea_level() const;
+	void set_noise_continent_sea_level(float p_sea_level);
+
+	float get_noise_relief_floor() const;
+	void set_noise_relief_floor(float p_floor);
+
+	float get_noise_redistribution() const;
+	void set_noise_redistribution(float p_redistribution);
 
 	float get_terrain_size() const;
 	void set_terrain_size(float p_size);

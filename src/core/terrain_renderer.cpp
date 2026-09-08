@@ -16,7 +16,7 @@ using namespace godot;
 
 namespace ts {
 
-constexpr float HEIGHT_AABB_MARGIN = 1.25f;
+constexpr float HEIGHT_AABB_MARGIN = 1.5f;
 constexpr const char *SHADER_PATH = "res://addons/terrain_server/shaders/terrain.gdshader";
 
 namespace {
@@ -520,6 +520,18 @@ void TerrainRenderer::rebuild_mesh(const float p_size, const int p_resolution) {
 		rs->material_set_param(material, "lacunarity", _config->get_noise_lacunarity());
 		rs->material_set_param(material, "gain", _config->get_noise_gain());
 		rs->material_set_param(material, "base_frequency", _config->get_noise_base_frequency());
+		rs->material_set_param(material, "ridge_amount", _config->get_noise_ridge_amount());
+		rs->material_set_param(material, "ridge_offset", _config->get_noise_ridge_offset());
+		rs->material_set_param(material, "ridge_weight_gain", _config->get_noise_ridge_weight_gain());
+		rs->material_set_param(material, "warp_amount", _config->get_noise_warp_amount());
+		rs->material_set_param(material, "warp_frequency", _config->get_noise_warp_frequency());
+		rs->material_set_param(material, "continent_frequency", _config->get_noise_continent_frequency());
+		rs->material_set_param(material, "continent_influence", _config->get_noise_continent_influence());
+		rs->material_set_param(material, "continent_contrast", _config->get_noise_continent_contrast());
+		rs->material_set_param(material, "continent_elevation", _config->get_noise_continent_elevation());
+		rs->material_set_param(material, "continent_sea_level", _config->get_noise_continent_sea_level());
+		rs->material_set_param(material, "relief_floor", _config->get_noise_relief_floor());
+		rs->material_set_param(material, "redistribution", _config->get_noise_redistribution());
 
 		// Biome texture arrays
 		rs->material_set_param(material, "biome_albedo_textures", _biome_albedo_array_rid);
