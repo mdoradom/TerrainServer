@@ -1,0 +1,185 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<class name="Terrain3D" inherits="Node3D" api_type="extension" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:noNamespaceSchemaLocation="https://raw.githubusercontent.com/godotengine/godot/master/doc/class.xsd">
+	<brief_description>
+		Procedural clipmap terrain: generation, rendering and collision in one node.
+	</brief_description>
+	<description>
+		Renders an endless procedural terrain as a geometry clipmap and keeps a matching heightmap collision body underneath it. Everything is derived from noise at runtime; no heightmap asset is stored or streamed.
+		All tuning lives in [member configuration]. Assign a [TerrainConfiguration] and the terrain appears; edit any of its properties, or any [TerrainBiomeLayer] inside it, and the terrain rebuilds immediately, in editor and runtime.
+		[b]Focus resolution.[/b] Both the clipmap and the collision grid follow a single [i]focus point[/i], resolved fresh each frame from the first of these three sources that yields a position:
+		[b]1.[/b] The [Node3D] at [member focus_path], if the path is set and resolves.
+		[b]2.[/b] In the editor, the override the plugin pushes each frame from the 3D viewport's fly camera.
+		[b]3.[/b] The active [Viewport]'s current [Camera3D].
+		If none resolves, the frame is skipped and the terrain stays where it was. Because [member focus_path] wins and needs no camera at all, this works on a headless server, and lets the terrain track a player that is not the viewport camera.
+		[b]Sampling.[/b] [method get_height_at] and its siblings evaluate the noise directly on the CPU rather than reading the collision grid, so they are exact, they agree with the rendered surface, and they stay valid arbitrarily far outside [member TerrainConfiguration.physics_range]:
+		[codeblock]
+		var pos := Vector2(120.0, -40.0)
+		var spawn := Vector3(pos.x, terrain.get_height_at(pos), pos.y)
+		[/codeblock]
+	</description>
+	<tutorials>
+	</tutorials>
+	<methods>
+		<method name="clear_editor_focus_override">
+			<return type="void" />
+			<description>
+				Clears an override set by [method set_editor_focus_override], returning the node to normal focus resolution.
+			</description>
+		</method>
+		<method name="get_biome_at" qualifiers="const">
+			<return type="TerrainBiomeLayer" />
+			<param index="0" name="world_xz" type="Vector2" />
+			<description>
+				Returns the [TerrainBiomeLayer] that best matches the climate at world-space XZ position [param world_xz], or [code]null[/code] if [member configuration] is unset or holds no biome layers.
+				Each layer's temperature and moisture window is evaluated as a soft weight and the highest-weighted layer wins; see [TerrainBiomeLayer] for how the windows blend. This is the outright winner, not the blend the shader draws, so close to a boundary the neighbouring layer may be almost equally visible on screen.
+			</description>
+		</method>
+		<method name="get_clipmap_center" qualifiers="const">
+			<return type="Vector2" />
+			<description>
+				Returns the snapped world-space XZ position the clipmap is centered on. This is the origin of level [code]0[/code], not the raw focus point.
+				The clipmap is deliberately snapped to a grid instead of following the focus point continuously; comparing this against [method get_focus_position] gives the current snapping offset.
+			</description>
+		</method>
+		<method name="get_clipmap_level_count" qualifiers="const">
+			<return type="int" />
+			<description>
+				Returns the number of clipmap levels currently built. This matches [member TerrainConfiguration.clipmap_levels] once the mesh exists, and is [code]0[/code] before that or while the renderer is torn down.
+			</description>
+		</method>
+		<method name="get_clipmap_level_extent" qualifiers="const">
+			<return type="float" />
+			<param index="0" name="level" type="int" />
+			<description>
+				Returns the world-space side length of clipmap level [param level]. Level [code]0[/code] is the finest ring and each level covers twice the extent of the one below it, so this is [member TerrainConfiguration.terrain_size] multiplied by [code]2[/code] to the power of [param level].
+				Fails and returns [code]0.0[/code] if [param level] is out of range.
+			</description>
+		</method>
+		<method name="get_clipmap_level_origin" qualifiers="const">
+			<return type="Vector2" />
+			<param index="0" name="level" type="int" />
+			<description>
+				Returns the world-space XZ origin that clipmap level [param level] is currently snapped to. Coarser levels snap to coarser grids, so origins differ from level to level.
+				Fails and returns [constant Vector2.ZERO] if [param level] is out of range.
+			</description>
+		</method>
+		<method name="get_collision_built_range" qualifiers="const">
+			<return type="float" />
+			<description>
+				Returns the side length of the collision area actually present in the physics body. This differs from [method get_collision_range] just after [member TerrainConfiguration.physics_range] changes, until the next regrid completes.
+			</description>
+		</method>
+		<method name="get_collision_center" qualifiers="const">
+			<return type="Vector2" />
+			<description>
+				Returns the world-space XZ origin the collision heightmap was last built around. It stays put as the focus point moves and only jumps when a regrid completes, so it trails [method get_focus_position].
+			</description>
+		</method>
+		<method name="get_collision_height_range" qualifiers="const">
+			<return type="Vector2" />
+			<description>
+				Returns the lowest and highest sample in the current collision heightmap, as the [code]x[/code] and [code]y[/code] components of a [Vector2]. Useful for sizing a debug gizmo or a broad-phase bound over the collision area.
+			</description>
+		</method>
+		<method name="get_collision_range" qualifiers="const">
+			<return type="float" />
+			<description>
+				Returns the configured side length of the collision area, mirroring [member TerrainConfiguration.physics_range]. Compare with [method get_collision_built_range] for what is actually in the physics body right now.
+			</description>
+		</method>
+		<method name="get_collision_resolution" qualifiers="const">
+			<return type="int" />
+			<description>
+				Returns the number of heightmap samples along one side of the collision grid.
+			</description>
+		</method>
+		<method name="get_focus_position" qualifiers="const">
+			<return type="Vector3" />
+			<description>
+				Returns the focus point resolved on the most recent frame, in world space. See the class description for how it is chosen.
+				Keeps its last value if no source resolved this frame, and is [constant Vector3.ZERO] before the first one does.
+			</description>
+		</method>
+		<method name="get_height_at" qualifiers="const">
+			<return type="float" />
+			<param index="0" name="world_xz" type="Vector2" />
+			<description>
+				Returns the terrain height, in world units, at world-space XZ position [param world_xz].
+				Evaluated straight from the noise on the CPU, so it is independent of the collision grid and stays valid outside [member TerrainConfiguration.physics_range]. Returns [code]0.0[/code] if no [member configuration] is assigned.
+			</description>
+		</method>
+		<method name="get_moisture_at" qualifiers="const">
+			<return type="float" />
+			<param index="0" name="world_xz" type="Vector2" />
+			<description>
+				Returns the climate moisture at world-space XZ position [param world_xz], in the range [code]0.0[/code] to [code]1.0[/code]. Returns [code]0.0[/code] if no [member configuration] is assigned.
+				Unlike temperature, moisture is pure noise and does not depend on height.
+			</description>
+		</method>
+		<method name="get_morph_band_start" qualifiers="const">
+			<return type="float" />
+			<description>
+				Returns the normalized distance across a clipmap ring at which geometry begins morphing toward the next coarser level, hiding the transition. This is a fixed constant ([code]0.33[/code]), exposed for the editor gizmos and for debug visualisations.
+			</description>
+		</method>
+		<method name="get_temperature_at" qualifiers="const">
+			<return type="float" />
+			<param index="0" name="world_xz" type="Vector2" />
+			<description>
+				Returns the climate temperature, in degrees Celsius, at world-space XZ position [param world_xz]. Returns [code]0.0[/code] if no [member configuration] is assigned.
+				Temperature is derived mostly from terrain height, scaled by [member TerrainConfiguration.temperature_altitude_reference], with noise mixed in according to [member TerrainConfiguration.temperature_noise_influence]. In practice it therefore reads as an altitude band: high ground is cold, low ground is warm.
+			</description>
+		</method>
+		<method name="is_collision_built" qualifiers="const">
+			<return type="bool" />
+			<description>
+				Returns [code]true[/code] once a collision heightmap has been built and handed to the physics server at least once. Before that there is nothing to collide with, so it is worth checking this before dropping a body onto the terrain.
+			</description>
+		</method>
+		<method name="is_collision_rebuild_pending" qualifiers="const">
+			<return type="bool" />
+			<description>
+				Returns [code]true[/code] while a collision regrid is running on a worker thread. Only one regrid is in flight at a time, so during fast movement the collision surface can trail the rendered one by a frame or two. That is by design; [method get_height_at] is unaffected and stays exact.
+			</description>
+		</method>
+		<method name="rebuild">
+			<return type="void" />
+			<description>
+				Rebuilds the terrain from the current [member configuration]: re-runs generation and re-creates the clipmap mesh. This happens automatically whenever the configuration changes, so it is only needed to recover from an inconsistent state, or after mutating a configuration in a way that does not emit [signal Resource.changed].
+				Does not re-read the shader from disk; use [method reload_shader] for that.
+			</description>
+		</method>
+		<method name="reload_shader">
+			<return type="void" />
+			<description>
+				Re-reads [code]terrain.gdshader[/code] from [code]res://[/code] and rebuilds the terrain with it.
+				The shader is loaded from disk at runtime rather than compiled into the extension, but the loaded shader is otherwise reused across configuration changes, so [method rebuild] alone will [i]not[/i] pick up a shader edit, and this will. Also available as [b]Tools &gt; Reload Terrain Shader[/b] and from the terrain dock.
+			</description>
+		</method>
+		<method name="set_editor_focus_override">
+			<return type="void" />
+			<param index="0" name="world_position" type="Vector3" />
+			<description>
+				Forces the focus point to [param world_position], overriding the viewport camera but not [member focus_path].
+				Intended for the editor plugin, which calls this every frame with the 3D viewport's fly camera position so the terrain follows you around the editor. Call [method clear_editor_focus_override] to release it.
+			</description>
+		</method>
+	</methods>
+	<members>
+		<member name="configuration" type="TerrainConfiguration" setter="set_configuration" getter="get_configuration">
+			The [TerrainConfiguration] driving every aspect of this terrain. Nothing is generated until one is assigned.
+			The node connects to the resource's [signal Resource.changed] signal, so editing any of its properties (or any [TerrainBiomeLayer] or [TerrainSlopeLayer] it holds) rebuilds the terrain right away, in the editor as well as in runtime.
+		</member>
+		<member name="editor_preview" type="bool" setter="set_editor_preview" getter="get_editor_preview" default="true">
+			If [code]true[/code], the terrain renders in the editor viewport as well as at runtime. Turning it off frees the renderer and leaves the node invisible in the editor, which is worth doing on a heavy scene. Has no effect on a running game.
+		</member>
+		<member name="editor_preview_physics" type="bool" setter="set_editor_preview_physics" getter="get_editor_preview_physics" default="false">
+			If [code]true[/code], collision is generated in the editor too, so the collision gizmo has something to show. Off by default, because the regrid then runs continuously as you fly the editor camera around.
+			Only takes effect while [member editor_preview] is also enabled. Has no effect on a running game, where collision is always generated.
+		</member>
+		<member name="focus_path" type="NodePath" setter="set_focus_path" getter="get_focus_path" default="NodePath(&quot;&quot;)">
+			Path to a [Node3D] whose global position the terrain should follow. This is the highest-priority focus source: when set and resolvable it overrides both the editor override and the viewport camera.
+			Point it at the player to keep the finest clipmap geometry and the collision grid under them rather than under the camera. Since no camera is involved, it also works on a headless server. Leave it empty to fall back to the camera.
+		</member>
+	</members>
+</class>
