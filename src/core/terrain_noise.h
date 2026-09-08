@@ -20,6 +20,7 @@ struct FbmParams {
 	float ridge_amount = 0.0f;
 	float ridge_offset = 1.0f;
 	float ridge_weight_gain = 1.5f;
+	float ridge_crest_rounding = 0.2f;
 
 	float warp_amount = 0.0f;
 	float warp_frequency = 0.001f;
@@ -43,6 +44,7 @@ inline bool operator==(const FbmParams &p_a, const FbmParams &p_b) {
 			p_a.ridge_amount == p_b.ridge_amount &&
 			p_a.ridge_offset == p_b.ridge_offset &&
 			p_a.ridge_weight_gain == p_b.ridge_weight_gain &&
+			p_a.ridge_crest_rounding == p_b.ridge_crest_rounding &&
 			p_a.warp_amount == p_b.warp_amount &&
 			p_a.warp_frequency == p_b.warp_frequency &&
 			p_a.continent_frequency == p_b.continent_frequency &&
@@ -160,10 +162,17 @@ inline float fbm_at(const godot::Vector2 p_p, const FbmParams &p_params) {
 	return h / max_amplitude;
 }
 
+inline float ridge_fold(const float p_value, const float p_rounding) {
+	if (p_rounding <= 0.0f) {
+		return fabsf(p_value);
+	}
+	return sqrtf(p_value * p_value + p_rounding * p_rounding);
+}
+
 inline float ridged_at(const godot::Vector2 p_p, const FbmParams &p_params) {
 	godot::Vector2 q = p_p * p_params.base_frequency;
 
-	float signal = p_params.ridge_offset - fabsf(noise(q) / NOISE_MAX_AMPLITUDE);
+	float signal = p_params.ridge_offset - ridge_fold(noise(q) / NOISE_MAX_AMPLITUDE, p_params.ridge_crest_rounding);
 	signal *= signal;
 
 	float result = signal;
@@ -175,27 +184,19 @@ inline float ridged_at(const godot::Vector2 p_p, const FbmParams &p_params) {
 		amplitude *= p_params.gain;
 
 		const float weight = std::clamp(signal * p_params.ridge_weight_gain, 0.0f, 1.0f);
-		signal = p_params.ridge_offset - fabsf(noise(q) / NOISE_MAX_AMPLITUDE);
+		signal = p_params.ridge_offset - ridge_fold(noise(q) / NOISE_MAX_AMPLITUDE, p_params.ridge_crest_rounding);
 		signal *= signal;
 
 		result += signal * weight * amplitude;
 		max_amplitude += amplitude;
 	}
 
-	result /= max_amplitude * std::max(p_params.ridge_offset * p_params.ridge_offset, 0.0001f);
+	const float peak = std::max(p_params.ridge_offset - p_params.ridge_crest_rounding, 0.01f);
+	result /= max_amplitude * peak * peak;
 	return result * 2.0f - 1.0f;
 }
 
 inline float get_height_at(const godot::Vector2 p_world_xz, const FbmParams &p_params) {
-	godot::Vector2 p = p_world_xz;
-	if (p_params.warp_amount > 0.0f) {
-		const godot::Vector2 scaled = p_world_xz * p_params.warp_frequency;
-		const godot::Vector2 w(
-				noise(scaled + godot::Vector2(WARP_OFFSET_X[0], WARP_OFFSET_X[1])),
-				noise(scaled + godot::Vector2(WARP_OFFSET_Y[0], WARP_OFFSET_Y[1])));
-		p += w * p_params.warp_amount;
-	}
-
 	float mask = 1.0f;
 	if (p_params.continent_influence > 0.0f) {
 		const godot::Vector2 scaled = p_world_xz * p_params.continent_frequency;
@@ -203,6 +204,16 @@ inline float get_height_at(const godot::Vector2 p_world_xz, const FbmParams &p_p
 		c = std::clamp(c / NOISE_MAX_AMPLITUDE, -1.0f, 1.0f) * 0.5f + 0.5f;
 		const float contrast = std::max(p_params.continent_contrast, 0.0001f);
 		mask = mix(1.0f, smoothstep(0.5f - contrast, 0.5f + contrast, c), p_params.continent_influence);
+	}
+
+	godot::Vector2 p = p_world_xz;
+	const float warp = p_params.warp_amount * mask;
+	if (warp > 0.0f) {
+		const godot::Vector2 scaled = p_world_xz * p_params.warp_frequency;
+		const godot::Vector2 w(
+				noise(scaled + godot::Vector2(WARP_OFFSET_X[0], WARP_OFFSET_X[1])),
+				noise(scaled + godot::Vector2(WARP_OFFSET_Y[0], WARP_OFFSET_Y[1])));
+		p += w * warp;
 	}
 
 	float relief = fbm_at(p, p_params);

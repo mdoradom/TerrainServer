@@ -43,6 +43,9 @@ void TerrainConfiguration::_bind_methods() {
 	ClassDB::bind_method(D_METHOD("set_noise_ridge_weight_gain", "weight_gain"), &TerrainConfiguration::set_noise_ridge_weight_gain);
 	ClassDB::bind_method(D_METHOD("get_noise_ridge_weight_gain"), &TerrainConfiguration::get_noise_ridge_weight_gain);
 
+	ClassDB::bind_method(D_METHOD("set_noise_ridge_crest_rounding", "rounding"), &TerrainConfiguration::set_noise_ridge_crest_rounding);
+	ClassDB::bind_method(D_METHOD("get_noise_ridge_crest_rounding"), &TerrainConfiguration::get_noise_ridge_crest_rounding);
+
 	ClassDB::bind_method(D_METHOD("set_noise_warp_amount", "amount"), &TerrainConfiguration::set_noise_warp_amount);
 	ClassDB::bind_method(D_METHOD("get_noise_warp_amount"), &TerrainConfiguration::get_noise_warp_amount);
 
@@ -134,6 +137,7 @@ void TerrainConfiguration::_bind_methods() {
 	ADD_PROPERTY(PropertyInfo(Variant::FLOAT, "noise_ridge_amount", PROPERTY_HINT_RANGE, "0.0,1.0"), "set_noise_ridge_amount", "get_noise_ridge_amount");
 	ADD_PROPERTY(PropertyInfo(Variant::FLOAT, "noise_ridge_offset", PROPERTY_HINT_RANGE, "0.5,1.5"), "set_noise_ridge_offset", "get_noise_ridge_offset");
 	ADD_PROPERTY(PropertyInfo(Variant::FLOAT, "noise_ridge_weight_gain", PROPERTY_HINT_RANGE, "0.0,3.0"), "set_noise_ridge_weight_gain", "get_noise_ridge_weight_gain");
+	ADD_PROPERTY(PropertyInfo(Variant::FLOAT, "noise_ridge_crest_rounding", PROPERTY_HINT_RANGE, "0.0,0.5,0.001"), "set_noise_ridge_crest_rounding", "get_noise_ridge_crest_rounding");
 	ADD_PROPERTY(PropertyInfo(Variant::FLOAT, "noise_warp_amount", PROPERTY_HINT_RANGE, "0.0,500.0"), "set_noise_warp_amount", "get_noise_warp_amount");
 	ADD_PROPERTY(PropertyInfo(Variant::FLOAT, "noise_warp_frequency", PROPERTY_HINT_RANGE, "0.0001,0.01,0.000001,exp"), "set_noise_warp_frequency", "get_noise_warp_frequency");
 	ADD_PROPERTY(PropertyInfo(Variant::FLOAT, "noise_continent_frequency", PROPERTY_HINT_RANGE, "0.00005,0.005,0.000001,exp"), "set_noise_continent_frequency", "get_noise_continent_frequency");
@@ -172,7 +176,7 @@ void TerrainConfiguration::_bind_methods() {
 	ADD_PROPERTY(PropertyInfo(Variant::FLOAT, "triplanar_sharpness", PROPERTY_HINT_RANGE, "1.0,16.0,0.1"), "set_triplanar_sharpness", "get_triplanar_sharpness");
 }
 
-TerrainConfiguration::TerrainConfiguration() : _height_scale(10.0), _mesh_resolution(256), _terrain_size(256.0f), _noise_octaves(5), _noise_base_frequency(0.002f), _noise_lacunarity(2.0f), _noise_gain(0.5f), _noise_ridge_amount(0.0f), _noise_ridge_offset(1.0f), _noise_ridge_weight_gain(1.5f), _noise_warp_amount(0.0f), _noise_warp_frequency(0.001f), _noise_continent_frequency(0.00025f), _noise_continent_influence(0.0f), _noise_continent_contrast(0.2f), _noise_continent_elevation(0.0f), _noise_continent_sea_level(0.4f), _noise_relief_floor(1.0f), _noise_redistribution(1.0f), _clipmap_levels(6), _physics_range(64.0f), _physics_collision_layer(1), _physics_collision_mask(0), _temperature_frequency(0.0004f), _temperature_offset(10000.0f, -6000.0f), _temperature_noise_influence(0.4f), _temperature_altitude_reference(10.0f), _moisture_frequency(0.0006f), _moisture_offset(-4000.0f, 9000.0f), _pom_min_steps(8), _pom_max_steps(32), _pom_fade_start(40.0f), _pom_fade_end(120.0f), _triplanar_sharpness(4.0f) {
+TerrainConfiguration::TerrainConfiguration() : _height_scale(10.0), _mesh_resolution(256), _terrain_size(256.0f), _noise_octaves(5), _noise_base_frequency(0.002f), _noise_lacunarity(2.0f), _noise_gain(0.5f), _noise_ridge_amount(0.0f), _noise_ridge_offset(1.0f), _noise_ridge_weight_gain(1.5f), _noise_ridge_crest_rounding(0.2f), _noise_warp_amount(0.0f), _noise_warp_frequency(0.001f), _noise_continent_frequency(0.00025f), _noise_continent_influence(0.0f), _noise_continent_contrast(0.2f), _noise_continent_elevation(0.0f), _noise_continent_sea_level(0.4f), _noise_relief_floor(1.0f), _noise_redistribution(1.0f), _clipmap_levels(6), _physics_range(64.0f), _physics_collision_layer(1), _physics_collision_mask(0), _temperature_frequency(0.0004f), _temperature_offset(10000.0f, -6000.0f), _temperature_noise_influence(0.4f), _temperature_altitude_reference(10.0f), _moisture_frequency(0.0006f), _moisture_offset(-4000.0f, 9000.0f), _pom_min_steps(8), _pom_max_steps(32), _pom_fade_start(40.0f), _pom_fade_end(120.0f), _triplanar_sharpness(4.0f) {
 	_update_preview();
 }
 
@@ -188,6 +192,7 @@ TerrainNoise::FbmParams TerrainConfiguration::build_noise_params() const {
 	params.ridge_amount = _noise_ridge_amount;
 	params.ridge_offset = _noise_ridge_offset;
 	params.ridge_weight_gain = _noise_ridge_weight_gain;
+	params.ridge_crest_rounding = _noise_ridge_crest_rounding;
 	params.warp_amount = _noise_warp_amount;
 	params.warp_frequency = _noise_warp_frequency;
 	params.continent_frequency = _noise_continent_frequency;
@@ -351,6 +356,18 @@ float TerrainConfiguration::get_noise_ridge_weight_gain() const {
 void TerrainConfiguration::set_noise_ridge_weight_gain(const float p_weight_gain) {
 	if (_noise_ridge_weight_gain != p_weight_gain) {
 		_noise_ridge_weight_gain = p_weight_gain;
+		_update_preview();
+		emit_changed();
+	}
+}
+
+float TerrainConfiguration::get_noise_ridge_crest_rounding() const {
+	return _noise_ridge_crest_rounding;
+}
+
+void TerrainConfiguration::set_noise_ridge_crest_rounding(const float p_rounding) {
+	if (_noise_ridge_crest_rounding != p_rounding) {
+		_noise_ridge_crest_rounding = p_rounding;
 		_update_preview();
 		emit_changed();
 	}

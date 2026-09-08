@@ -36,6 +36,7 @@ private:
 	float _noise_ridge_amount;
 	float _noise_ridge_offset;
 	float _noise_ridge_weight_gain;
+	float _noise_ridge_crest_rounding;
 
 	float _noise_warp_amount;
 	float _noise_warp_frequency;
@@ -108,6 +109,9 @@ public:
 
 	float get_noise_ridge_weight_gain() const;
 	void set_noise_ridge_weight_gain(float p_weight_gain);
+
+	float get_noise_ridge_crest_rounding() const;
+	void set_noise_ridge_crest_rounding(float p_rounding);
 
 	float get_noise_warp_amount() const;
 	void set_noise_warp_amount(float p_amount);

@@ -87,6 +87,11 @@
 			How far the height field is blended from smooth fBm towards a ridged multifractal. At [code]0.0[/code] the terrain is plain fBm: rounded, dune-like, with the same relief everywhere. Raising it folds each octave around its zero crossings so they become sharp ridgelines with dendritic valleys between them. Scaled down by the province mask, so lowlands stay smooth even at [code]1.0[/code].
 			Range [code]0.0[/code] to [code]1.0[/code].
 		</member>
+		<member name="noise_ridge_crest_rounding" type="float" setter="set_noise_ridge_crest_rounding" getter="get_noise_ridge_crest_rounding" default="0.2">
+			Radius over which each ridge crest is rounded off, as a fraction of the octave's own amplitude, so it scales with every octave rather than being a fixed world distance.
+			Folding an octave with a plain absolute value leaves a sharp crease, and a crease carries detail at every scale — far below the finest octave, and far below anything the terrain mesh can represent. Rounding the fold band-limits it. [code]0.0[/code] restores the hard fold and the sharpest possible crests, at the cost of detail the mesh cannot resolve; higher values trade peak height for a smoother surface.
+			Range [code]0.0[/code] to [code]0.5[/code].
+		</member>
 		<member name="noise_ridge_offset" type="float" setter="set_noise_ridge_offset" getter="get_noise_ridge_offset" default="1.0">
 			Height each ridged octave is folded around, which sets how sharp the crests are. Values below [code]1.0[/code] flatten the peaks; higher values make them narrower and spikier. Only has an effect when [member noise_ridge_amount] is above zero.
 			Range [code]0.5[/code] to [code]1.5[/code].

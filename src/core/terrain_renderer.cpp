@@ -523,6 +523,7 @@ void TerrainRenderer::rebuild_mesh(const float p_size, const int p_resolution) {
 		rs->material_set_param(material, "ridge_amount", _config->get_noise_ridge_amount());
 		rs->material_set_param(material, "ridge_offset", _config->get_noise_ridge_offset());
 		rs->material_set_param(material, "ridge_weight_gain", _config->get_noise_ridge_weight_gain());
+		rs->material_set_param(material, "ridge_crest_rounding", _config->get_noise_ridge_crest_rounding());
 		rs->material_set_param(material, "warp_amount", _config->get_noise_warp_amount());
 		rs->material_set_param(material, "warp_frequency", _config->get_noise_warp_frequency());
 		rs->material_set_param(material, "continent_frequency", _config->get_noise_continent_frequency());
