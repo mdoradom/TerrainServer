@@ -17,11 +17,25 @@ scons platform=linux target=template_release # release build
 
 `platform` is one of `linux`, `windows`, `macos`, `ios`; `arch` defaults per-platform (CI builds `x86_64`, macos `universal`). Output goes to `demo/addons/terrain_server/bin/` as `libterrain_server.<platform>.<target>[.<arch>].<ext>`, matched by `demo/addons/terrain_server/terrain_server.gdextension`.
 
+**Never build with `dev_build=yes`.** It appends `.dev` to the filename — `libterrain_server.linux.template_debug.dev.x86_64.so` — and no `.gdextension` entry names that path, so Godot silently keeps loading whatever stale non-dev `.so` is already on disk. There is no error: the build succeeds and simply has no effect. Use `debug_symbols=yes optimize=none` for a debuggable build instead; those do not change the suffix. Note that CLion's "Build Godot debug" play button is configured to run `scons dev_build=yes -j8` and therefore never produces a binary Godot loads — build from the terminal instead. When a C++ or doc change appears to do nothing, check the mtime of the file the `.gdextension` actually names before suspecting the code.
+
 **After adding a new C++ class to the plugin, regenerate `compile_commands.json`:**
 
 ```sh
 scons compiledb=yes
 ```
+
+**After adding or changing anything bound in a `_bind_methods`, refresh the class reference:**
+
+```sh
+godot --headless --path demo --doctool "$PWD" --gdextension-docs
+```
+
+This rewrites `doc_classes/*.xml` from `ClassDB`, so the extension must already be built.
+It merges rather than overwrites: hand-written descriptions survive, new bindings appear as
+empty `<description>` blocks to fill in, removed ones disappear, and escaping is normalised.
+The XML is compiled into the binary, so a doc edit only takes effect after a `scons` rebuild
+**and an editor restart** — extension doc data is read once at editor startup.
 
 There is no test suite in this repo. Validate changes by building successfully and, for rendering/behavior changes, opening `demo/project.godot` in the Godot editor and running the demo scene (`demo/terrain_server.tscn`).
 
@@ -47,6 +61,8 @@ Data flow: `Terrain3D::set_configuration()` connects to the config's `changed` s
 Lifecycle: renderer/physics RIDs and state are set up in `_ready()` and `NOTIFICATION_ENTER_TREE`, torn down in the destructor and `NOTIFICATION_EXIT_TREE` — always via each collaborator's `cleanup()`, since they own raw `RenderingServer`/`PhysicsServer` RIDs that are not automatically freed.
 
 Terrain shading lives in `demo/addons/terrain_server/shaders/terrain.gdshader`, loaded at runtime by `TerrainRenderer::rebuild_mesh()` via `FileAccess::get_file_as_string("res://addons/terrain_server/shaders/terrain.gdshader")` — it is not compiled into the extension, so shader edits take effect without a `scons` rebuild. The shader RID itself is only (re)loaded from disk on a full renderer teardown/setup (`cleanup()` + `rebuild_mesh()`, e.g. the node re-entering the tree or a scene reload) by default — `rebuild_mesh()` otherwise reuses the already-loaded shader RID across ordinary `TerrainConfiguration` edits. `TerrainRenderer::request_shader_reload()` (exposed as `Terrain3D::reload_shader()`, wired to the dock button and the Tools-menu item) forces a reload on demand instead: it sets a dirty flag that `rebuild_mesh()` consumes after freeing the old mesh instances and before reloading, so a live shader edit can be picked up without a full scene reload.
+
+The in-editor class reference lives in `doc_classes/*.xml`. `SConstruct` runs godot-cpp's `GodotCPPDocData` builder over them into `gen/doc_data.gen.cpp` (gitignored; kept out of `src/` because `SConstruct` walks that tree for `.cpp` and would compile it twice), gated to `template_debug` — the target an editor build of the `.gdextension` resolves to. Only the four public classes carry full docs; `TerrainGenerator`, `TerrainRenderer` and `TerrainPhysics` are `GDREGISTER_CLASS`'d so doctool emits skeletons for them too, and they carry a class description only. Ranges and defaults in the XML come from `_bind_methods` — that is the source of truth, never invent one. Nothing but F1 in a real editor verifies the result: `--headless` does not load class docs, and `--doctool` ignores extension-registered doc data.
 
 New classes registered in `src/register_types.cpp` must also be `GDREGISTER_CLASS`'d (or `GDREGISTER_INTERNAL_CLASS`'d for editor-only classes) there and forward-declared/included, or Godot won't see them.
 
