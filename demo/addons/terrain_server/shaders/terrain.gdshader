@@ -15,6 +15,7 @@ uniform float gain = 0.5;
 uniform float ridge_amount = 0.0;
 uniform float ridge_offset = 1.0;
 uniform float ridge_weight_gain = 1.5;
+uniform float ridge_crest_rounding = 0.2;
 
 uniform float warp_amount = 0.0;
 uniform float warp_frequency = 0.001;
@@ -134,10 +135,17 @@ float fbm_at(vec2 p) {
 	return h / max_amplitude;
 }
 
+float ridge_fold(float p_value) {
+	if (ridge_crest_rounding <= 0.0) {
+		return abs(p_value);
+	}
+	return sqrt(p_value * p_value + ridge_crest_rounding * ridge_crest_rounding);
+}
+
 float ridged_at(vec2 p) {
 	vec2 q = p * base_frequency;
 
-	float signal = ridge_offset - abs(noise(q) / NOISE_MAX_AMPLITUDE);
+	float signal = ridge_offset - ridge_fold(noise(q) / NOISE_MAX_AMPLITUDE);
 	signal *= signal;
 
 	float result = signal;
@@ -149,32 +157,34 @@ float ridged_at(vec2 p) {
 		amplitude *= gain;
 
 		float weight = clamp(signal * ridge_weight_gain, 0.0, 1.0);
-		signal = ridge_offset - abs(noise(q) / NOISE_MAX_AMPLITUDE);
+		signal = ridge_offset - ridge_fold(noise(q) / NOISE_MAX_AMPLITUDE);
 		signal *= signal;
 
 		result += signal * weight * amplitude;
 		max_amplitude += amplitude;
 	}
 
-	result /= max_amplitude * max(ridge_offset * ridge_offset, 0.0001);
+	float peak = max(ridge_offset - ridge_crest_rounding, 0.01);
+	result /= max_amplitude * peak * peak;
 	return result * 2.0 - 1.0;
 }
 
 float get_height_at(vec2 world_xz) {
-	vec2 p = world_xz;
-	if (warp_amount > 0.0) {
-		vec2 w = vec2(
-			noise(world_xz * warp_frequency + WARP_OFFSET_X),
-			noise(world_xz * warp_frequency + WARP_OFFSET_Y));
-		p += w * warp_amount;
-	}
-
 	float mask = 1.0;
 	if (continent_influence > 0.0) {
 		float c = noise(world_xz * continent_frequency + CONTINENT_OFFSET);
 		c = clamp(c / NOISE_MAX_AMPLITUDE, -1.0, 1.0) * 0.5 + 0.5;
 		float contrast = max(continent_contrast, 0.0001);
 		mask = mix(1.0, smoothstep(0.5 - contrast, 0.5 + contrast, c), continent_influence);
+	}
+
+	vec2 p = world_xz;
+	float warp = warp_amount * mask;
+	if (warp > 0.0) {
+		vec2 w = vec2(
+			noise(world_xz * warp_frequency + WARP_OFFSET_X),
+			noise(world_xz * warp_frequency + WARP_OFFSET_Y));
+		p += w * warp;
 	}
 
 	float relief = fbm_at(p);
@@ -236,7 +246,8 @@ void vertex() {
 	VERTEX.y = final_height / length(MODEL_MATRIX[1].xyz);
 	v_height = final_height;
 
-	float e = max(0.05, lod_scale * mix(0.5, 1.0, morph_factor) / resolution);
+	float vertex_spacing = lod_scale / resolution;
+	float e = max(0.05, vertex_spacing * mix(1.0, 2.0, morph_factor));
 
 	float hL = get_height_at(v_world_xz + vec2(-e, 0.0));
 	float hR = get_height_at(v_world_xz + vec2( e, 0.0));
