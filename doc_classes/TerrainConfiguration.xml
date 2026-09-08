@@ -96,10 +96,11 @@
 		</member>
 		<member name="noise_warp_amount" type="float" setter="set_noise_warp_amount" getter="get_noise_warp_amount" default="0.0">
 			Distance, in world units, that the sample position is displaced by a second noise field before the terrain is evaluated. Makes ridges and valleys meander instead of running straight. [code]0.0[/code] disables the warp and skips its two noise lookups.
+			This interacts with [member noise_warp_frequency]: it is their [i]product[/i] that decides how much the warp stretches the terrain locally. Keep it below roughly [code]0.1[/code], or the stretch becomes strong enough to squash the fine octaves into parallel corrugations, which are most obvious on otherwise flat lowland.
 			Range [code]0.0[/code] to [code]500.0[/code].
 		</member>
 		<member name="noise_warp_frequency" type="float" setter="set_noise_warp_frequency" getter="get_noise_warp_frequency" default="0.001">
-			Frequency of the displacement field used by [member noise_warp_amount]. Low values bend whole ranges; values approaching [member noise_base_frequency] distort individual ridges.
+			Frequency of the displacement field used by [member noise_warp_amount]. Keep it well below [member noise_base_frequency] so the warp bends whole ranges rather than shearing individual landforms; as the two frequencies approach each other the warp starts corrugating the terrain instead of meandering it. Raising this is also the cheapest way to overshoot the product limit described in [member noise_warp_amount].
 			Range [code]0.0001[/code] to [code]0.01[/code].
 		</member>
 		<member name="physics_collision_layer" type="int" setter="set_physics_collision_layer" getter="get_physics_collision_layer" default="1">
