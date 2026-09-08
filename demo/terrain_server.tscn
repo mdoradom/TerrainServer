@@ -34,14 +34,14 @@ shadow_normal_bias = 0.05
 shadow_blur = 10.0
 
 [node name="Camera3D" type="Camera3D" parent="." unique_id=699225141]
-transform = Transform3D(0.9077775, 0.066339724, -0.41417277, 0, 0.9874138, 0.15815806, 0.41945207, -0.14357233, 0.89635205, -2.959343, 3.6941547, 9.376048)
+transform = Transform3D(0.9077775, 0.066339724, -0.41417277, 0, 0.9874138, 0.15815806, 0.41945207, -0.14357233, 0.89635205, -2.959343, 75.0, 9.376048)
 
 [node name="Terrain3D" type="Terrain3D" parent="." unique_id=1294411717]
 configuration = ExtResource("1_j1qb7")
 editor_preview_physics = true
 
 [node name="Node3D" type="Node3D" parent="." unique_id=2110923160]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 8.016816, 0)
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 95, 0)
 
 [node name="RigidBody3D" type="RigidBody3D" parent="Node3D" unique_id=1456719488]
 
