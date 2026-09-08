@@ -22,7 +22,7 @@
 		</member>
 		<member name="height_scale" type="float" setter="set_height_scale" getter="get_height_scale" default="10.0">
 			Vertical amplitude of the terrain, in world units: peaks reach roughly this far above and below [code]y = 0[/code]. Raising it makes slopes steeper everywhere, which also raises the slope values that [member rock_layer] is compared against.
-			Range [code]0.1[/code] to [code]100.0[/code].
+			Range [code]0.1[/code] to [code]1000.0[/code].
 		</member>
 		<member name="mesh_resolution" type="int" setter="set_mesh_resolution" getter="get_mesh_resolution" default="256">
 			Number of quads along one side of a single clipmap block. Higher values mean finer geometry at every level, at a roughly quadratic cost in vertices.
@@ -39,6 +39,26 @@
 			Frequency of the first noise octave; effectively the inverse of feature size. Lower values give broad, rolling landforms, higher values give tight, busy ones.
 			Range [code]0.0001[/code] to [code]0.1[/code].
 		</member>
+		<member name="noise_continent_contrast" type="float" setter="set_noise_continent_contrast" getter="get_noise_continent_contrast" default="0.2">
+			Half-width of the transition between lowland and highland provinces. Small values give crisp borders where plains meet mountains; large values blend them into one long gradient.
+			Range [code]0.01[/code] to [code]0.5[/code].
+		</member>
+		<member name="noise_continent_elevation" type="float" setter="set_noise_continent_elevation" getter="get_noise_continent_elevation" default="0.0">
+			How far a province shifts the terrain's base height, as a fraction of [member height_scale]. This is what makes a highland genuinely higher than a plain rather than merely rougher at the same average elevation. It is also the only term that can push the surface past the range [member height_scale] implies, so raising it moves the ground away from [code]y = 0[/code] in both directions.
+			Range [code]0.0[/code] to [code]1.0[/code].
+		</member>
+		<member name="noise_continent_frequency" type="float" setter="set_noise_continent_frequency" getter="get_noise_continent_frequency" default="0.00025">
+			Frequency of the province field, which decides where mountain ranges sit and where lowland does. The inverse is roughly the width of one province, so this should be well below [member noise_base_frequency].
+			Range [code]0.00005[/code] to [code]0.005[/code].
+		</member>
+		<member name="noise_continent_influence" type="float" setter="set_noise_continent_influence" getter="get_noise_continent_influence" default="0.0">
+			Master switch for provinces. At [code]0.0[/code] the province field is not sampled at all and the terrain has the same character everywhere; at [code]1.0[/code] it fully drives [member noise_continent_elevation], [member noise_relief_floor] and the local strength of [member noise_ridge_amount].
+			Range [code]0.0[/code] to [code]1.0[/code].
+		</member>
+		<member name="noise_continent_sea_level" type="float" setter="set_noise_continent_sea_level" getter="get_noise_continent_sea_level" default="0.4">
+			Point in the province range that maps to no height offset. Provinces below it are pushed down by [member noise_continent_elevation] and provinces above it are pushed up, so lower values put more of the world in highland and higher values in lowland.
+			Range [code]0.0[/code] to [code]1.0[/code].
+		</member>
 		<member name="noise_gain" type="float" setter="set_noise_gain" getter="get_noise_gain" default="0.5">
 			Amplitude multiplier between consecutive octaves. Values below [code]0.5[/code] give smooth terrain dominated by the base octave; higher values let fine octaves through and produce rough, craggy ground.
 			Range [code]0.0[/code] to [code]1.0[/code].
@@ -53,6 +73,34 @@
 		</member>
 		<member name="noise_preview" type="ImageTexture" setter="" getter="get_noise_preview">
 			Read-only greyscale preview of the current noise settings, regenerated whenever one of the [code]noise_*[/code] properties changes. It exists for the inspector; it is not the heightmap the terrain is built from and has no setter.
+		</member>
+		<member name="noise_redistribution" type="float" setter="set_noise_redistribution" getter="get_noise_redistribution" default="1.0">
+			Exponent applied to the normalized height, preserving its sign. [code]1.0[/code] leaves the distribution alone. Values above it flatten mid elevations into valley floor and plateau and push the rare extremes further out, which is closer to how real elevation is distributed: a lot of low ground and few peaks.
+			Range [code]0.5[/code] to [code]3.0[/code].
+		</member>
+		<member name="noise_relief_floor" type="float" setter="set_noise_relief_floor" getter="get_noise_relief_floor" default="1.0">
+			Fraction of the full relief amplitude kept in the calmest provinces. [code]1.0[/code] gives every province the same amount of relief; low values flatten lowlands into plains while mountain provinces keep their full height.
+			Range [code]0.0[/code] to [code]1.0[/code].
+		</member>
+		<member name="noise_ridge_amount" type="float" setter="set_noise_ridge_amount" getter="get_noise_ridge_amount" default="0.0">
+			How far the height field is blended from smooth fBm towards a ridged multifractal. At [code]0.0[/code] the terrain is plain fBm: rounded, dune-like, with the same relief everywhere. Raising it folds each octave around its zero crossings so they become sharp ridgelines with dendritic valleys between them. Scaled down by the province mask, so lowlands stay smooth even at [code]1.0[/code].
+			Range [code]0.0[/code] to [code]1.0[/code].
+		</member>
+		<member name="noise_ridge_offset" type="float" setter="set_noise_ridge_offset" getter="get_noise_ridge_offset" default="1.0">
+			Height each ridged octave is folded around, which sets how sharp the crests are. Values below [code]1.0[/code] flatten the peaks; higher values make them narrower and spikier. Only has an effect when [member noise_ridge_amount] is above zero.
+			Range [code]0.5[/code] to [code]1.5[/code].
+		</member>
+		<member name="noise_ridge_weight_gain" type="float" setter="set_noise_ridge_weight_gain" getter="get_noise_ridge_weight_gain" default="1.5">
+			How strongly a ridged octave's prominence feeds into the next one. Higher values concentrate fine detail onto ridges that are already prominent and leave valley floors simple; [code]0.0[/code] weights every octave equally, giving uniformly busy terrain. Only has an effect when [member noise_ridge_amount] is above zero.
+			Range [code]0.0[/code] to [code]3.0[/code].
+		</member>
+		<member name="noise_warp_amount" type="float" setter="set_noise_warp_amount" getter="get_noise_warp_amount" default="0.0">
+			Distance, in world units, that the sample position is displaced by a second noise field before the terrain is evaluated. Makes ridges and valleys meander instead of running straight. [code]0.0[/code] disables the warp and skips its two noise lookups.
+			Range [code]0.0[/code] to [code]500.0[/code].
+		</member>
+		<member name="noise_warp_frequency" type="float" setter="set_noise_warp_frequency" getter="get_noise_warp_frequency" default="0.001">
+			Frequency of the displacement field used by [member noise_warp_amount]. Low values bend whole ranges; values approaching [member noise_base_frequency] distort individual ridges.
+			Range [code]0.0001[/code] to [code]0.01[/code].
 		</member>
 		<member name="physics_collision_layer" type="int" setter="set_physics_collision_layer" getter="get_physics_collision_layer" default="1">
 			Physics layers the terrain's collision body belongs to. See [url=https://docs.godotengine.org/en/stable/tutorials/physics/physics_introduction.html#collision-layers-and-masks]Collision layers and masks[/url].
