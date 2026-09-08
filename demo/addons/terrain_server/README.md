@@ -26,7 +26,7 @@ Procedural terrain generation system for Godot
 - ✅ macOS (Universal)
 
 ## Requirements
-- Godot 4.2+ (tested on 4.6)
+- Godot 4.5+ (tested on 4.7.1)
 
 ## Support
 Report issues: https://github.com/mdoradom/TerrainServer/issues
