@@ -97,24 +97,26 @@ uvec2 pcg2d(uvec2 v) {
 	return v;
 }
 
-// Hash function to generate a pseudo-random gradient vector based on the input position
-vec2 hash(vec2 p) {
-	uvec2 h = pcg2d(uvec2(ivec2(p)));
+// Hash function to generate a pseudo-random gradient vector based on a lattice cell
+vec2 hash(ivec2 p) {
+	uvec2 h = pcg2d(uvec2(p));
 	return GRADIENTS[h.x % 8u];
 }
 
 // Perlin Noise 2D
 float noise(in vec2 p) {
 	vec2 i = floor(p);
-	vec2 f = fract(p);
+	vec2 f = p - i;
 
 	// Quintic curve
 	vec2 u = f * f * f * (f * (f * 6.0 - 15.0) + 10.0);
 
-	return mix(mix(dot(hash(i + vec2(0.0, 0.0)), f - vec2(0.0, 0.0)),
-		dot(hash(i + vec2(1.0, 0.0)), f - vec2(1.0, 0.0)), u.x),
-		mix(dot(hash(i + vec2(0.0, 1.0)), f - vec2(0.0, 1.0)),
-			dot(hash(i + vec2(1.0, 1.0)), f - vec2(1.0, 1.0)), u.x), u.y);
+	ivec2 c = ivec2(i);
+
+	return mix(mix(dot(hash(c + ivec2(0, 0)), f - vec2(0.0, 0.0)),
+		dot(hash(c + ivec2(1, 0)), f - vec2(1.0, 0.0)), u.x),
+		mix(dot(hash(c + ivec2(0, 1)), f - vec2(0.0, 1.0)),
+			dot(hash(c + ivec2(1, 1)), f - vec2(1.0, 1.0)), u.x), u.y);
 }
 
 float ridge_fold(float p_value) {
