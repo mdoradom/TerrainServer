@@ -12,3 +12,5 @@ normal_texture = ExtResource("4_x65d6")
 roughness_texture = ExtResource("5_c2m40")
 height_texture = ExtResource("3_ghsa8")
 ao_texture = ExtResource("2_3kac6")
+slope_threshold = 0.8
+slope_blend_range = 0.3

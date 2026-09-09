@@ -17,3 +17,4 @@ uv_scale = 0.129
 pom_depth = 0.08
 min_temperature = 7.0
 min_moisture = 0.2
+blend_softness = 0.03

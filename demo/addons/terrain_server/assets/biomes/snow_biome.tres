@@ -16,3 +16,4 @@ ao_texture = ExtResource("2_q0mpc")
 uv_scale = 0.13
 pom_depth = 0.05
 max_temperature = -3.0
+blend_softness = 1.0
