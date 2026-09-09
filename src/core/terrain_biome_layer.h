@@ -4,6 +4,7 @@
 #include <godot_cpp/classes/texture2d.hpp>
 #include <godot_cpp/variant/string.hpp>
 
+#include "terrain_slope_layer.h"
 #include "terrain_texture_slot.h"
 
 namespace ts {
@@ -30,6 +31,11 @@ private:
 	float _max_moisture;
 
 	float _blend_softness;
+
+	godot::Ref<TerrainSlopeLayer> _slope_layer;
+	bool _slope_override;
+	float _slope_threshold;
+	float _slope_blend_range;
 
 	godot::String _biome_name;
 
@@ -75,6 +81,18 @@ public:
 
 	float get_blend_softness() const;
 	void set_blend_softness(float p_softness);
+
+	godot::Ref<TerrainSlopeLayer> get_slope_layer() const;
+	void set_slope_layer(const godot::Ref<TerrainSlopeLayer> &p_layer);
+
+	bool get_slope_override() const;
+	void set_slope_override(bool p_override);
+
+	float get_slope_threshold() const;
+	void set_slope_threshold(float p_threshold);
+
+	float get_slope_blend_range() const;
+	void set_slope_blend_range(float p_range);
 
 	godot::String get_biome_name() const;
 	void set_biome_name(const godot::String &p_name);

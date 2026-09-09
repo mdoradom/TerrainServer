@@ -20,6 +20,9 @@ namespace ts {
 class TerrainRenderer : public godot::RefCounted {
 	GDCLASS(TerrainRenderer, godot::RefCounted);
 
+	// Sentinel slice index for a biome with no rock material in effect.
+	static constexpr int ROCK_SLICE_NONE = -1;
+
 private:
 	godot::RID _mesh_rid;
 	godot::RID _mesh_ring_rid;
@@ -52,14 +55,19 @@ private:
 	bool _biome_texture_arrays_built = false;
 	int _biome_layer_count = 0;
 
-	godot::RID _rock_albedo_rid;
-	godot::RID _rock_normal_rid;
-	godot::RID _rock_roughness_rid;
-	godot::RID _rock_height_rid;
-	godot::RID _rock_ao_rid;
+	godot::RID _rock_albedo_array_rid;
+	godot::RID _rock_normal_array_rid;
+	godot::RID _rock_roughness_array_rid;
+	godot::RID _rock_height_array_rid;
+	godot::RID _rock_ao_array_rid;
 	std::vector<uint64_t> _rock_texture_signature;
 	// Same "never built" vs. "built with no rock layer" distinction as the biome arrays above.
 	bool _rock_textures_built = false;
+	// Slice each biome samples its rock from, and the slice used when no biome layers exist.
+	// ROCK_SLICE_NONE means that biome has no rock material at all.
+	std::vector<int> _rock_biome_slice;
+	int _rock_fallback_slice = ROCK_SLICE_NONE;
+	int _rock_slice_count = 0;
 
 	void _free_mesh_instances();
 
@@ -71,10 +79,16 @@ private:
 			const char *p_debug_kind, int p_layer_index, bool &r_size_mismatch);
 	void _free_biome_texture_arrays();
 
-	std::vector<uint64_t> _compute_rock_texture_signature(const godot::Ref<TerrainSlopeLayer> &p_layer) const;
-	void _rebuild_rock_textures_if_dirty(const godot::Ref<TerrainSlopeLayer> &p_layer);
-	void _build_rock_textures(const godot::Ref<TerrainSlopeLayer> &p_layer);
-	void _free_rock_textures();
+	// A biome's own slope layer if it has one, otherwise the configuration's shared rock layer.
+	static godot::Ref<TerrainSlopeLayer> _effective_slope_layer(const godot::Ref<TerrainBiomeLayer> &p_biome,
+			const godot::Ref<TerrainSlopeLayer> &p_fallback);
+	std::vector<uint64_t> _compute_rock_texture_signature(const godot::TypedArray<TerrainBiomeLayer> &p_biomes,
+			const godot::Ref<TerrainSlopeLayer> &p_fallback) const;
+	void _rebuild_rock_texture_arrays_if_dirty(const godot::TypedArray<TerrainBiomeLayer> &p_biomes,
+			const godot::Ref<TerrainSlopeLayer> &p_fallback);
+	void _build_rock_texture_arrays(const godot::TypedArray<TerrainBiomeLayer> &p_biomes,
+			const godot::Ref<TerrainSlopeLayer> &p_fallback);
+	void _free_rock_texture_arrays();
 
 protected:
 	static void _bind_methods();

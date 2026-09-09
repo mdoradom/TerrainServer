@@ -2,7 +2,6 @@
 
 [ext_resource type="TerrainBiomeLayer" uid="uid://c5c0fw64xx3ks" path="res://addons/terrain_server/assets/biomes/snow_biome.tres" id="1_82vo5"]
 [ext_resource type="TerrainBiomeLayer" uid="uid://b6615ek61y2i0" path="res://addons/terrain_server/assets/biomes/rock_biome.tres" id="2_eqf56"]
-[ext_resource type="TerrainBiomeLayer" uid="uid://cyngkq45xmcp3" path="res://addons/terrain_server/assets/biomes/ice_cliff_biome.tres" id="3_d31br"]
 [ext_resource type="TerrainBiomeLayer" uid="uid://0w50oynr67r1" path="res://addons/terrain_server/assets/biomes/grass_biome.tres" id="4_w8kfa"]
 [ext_resource type="TerrainBiomeLayer" uid="uid://dud2ypjq8l0rt" path="res://addons/terrain_server/assets/biomes/dirt_biome.tres" id="5_lexdh"]
 [ext_resource type="TerrainSlopeLayer" uid="uid://btjq03a3ise8k" path="res://addons/terrain_server/assets/biomes/rock_slope_layer.tres" id="6_qxqc8"]
@@ -20,7 +19,7 @@ noise_continent_elevation = 0.9
 noise_relief_floor = 0.3
 noise_redistribution = 1.3
 physics_range = 256.0
-biome_layers = Array[TerrainBiomeLayer]([ExtResource("1_82vo5"), ExtResource("2_eqf56"), ExtResource("3_d31br"), ExtResource("4_w8kfa"), ExtResource("5_lexdh")])
+biome_layers = Array[TerrainBiomeLayer]([ExtResource("1_82vo5"), ExtResource("2_eqf56"), ExtResource("4_w8kfa"), ExtResource("5_lexdh")])
 rock_layer = ExtResource("6_qxqc8")
 temperature_frequency = 0.0008
 temperature_noise_influence = 0.15

@@ -51,13 +51,19 @@ uniform float biome_max_moisture[32];
 uniform float biome_uv_scale[32];
 uniform float biome_pom_depth[32];
 uniform float biome_blend_softness[32];
+uniform float biome_slope_threshold[32];
+uniform float biome_slope_blend_range[32];
+uniform int biome_rock_index[32];
+uniform float biome_rock_uv_scale[32];
+uniform float biome_rock_pom_depth[32];
 
-uniform sampler2D rock_albedo_texture : source_color;
-uniform sampler2D rock_normal_texture : hint_normal;
-uniform sampler2D rock_roughness_texture;
-uniform sampler2D rock_height_texture;
-uniform sampler2D rock_ao_texture;
+uniform sampler2DArray rock_albedo_textures : source_color;
+uniform sampler2DArray rock_normal_textures : hint_normal;
+uniform sampler2DArray rock_roughness_textures;
+uniform sampler2DArray rock_height_textures;
+uniform sampler2DArray rock_ao_textures;
 uniform bool rock_layer_enabled = false;
+uniform int rock_index = 0;
 uniform float rock_slope_threshold = 0.6;
 uniform float rock_slope_blend_range = 0.15;
 uniform float rock_uv_scale = 0.1;
@@ -329,35 +335,12 @@ vec4 triplanar_array(sampler2DArray p_tex, int p_layer, vec3 p_pos, vec3 p_ddx, 
 	return acc;
 }
 
-vec4 triplanar_2d(sampler2D p_tex, vec3 p_pos, vec3 p_ddx, vec3 p_ddy, float p_scale, vec3 p_w) {
-	vec4 acc = vec4(0.0);
-	for (int a = 0; a < 3; a++) {
-		float w = axis_weight(p_w, a);
-		if (w > TRIPLANAR_WEIGHT_EPSILON) {
-			acc += w * textureGrad(p_tex, axis_uv(p_pos, a) * p_scale, axis_uv(p_ddx, a) * p_scale, axis_uv(p_ddy, a) * p_scale);
-		}
-	}
-	return acc;
-}
-
 vec3 triplanar_normal_array(sampler2DArray p_tex, int p_layer, vec3 p_pos, vec3 p_ddx, vec3 p_ddy, float p_scale, vec3 p_w, vec3 p_n) {
 	vec3 acc = vec3(0.0);
 	for (int a = 0; a < 3; a++) {
 		float w = axis_weight(p_w, a);
 		if (w > TRIPLANAR_WEIGHT_EPSILON) {
 			vec3 t = textureGrad(p_tex, vec3(axis_uv(p_pos, a) * p_scale, float(p_layer)), axis_uv(p_ddx, a) * p_scale, axis_uv(p_ddy, a) * p_scale).xyz * 2.0 - 1.0;
-			acc += w * whiteout(t, p_n, a);
-		}
-	}
-	return acc;
-}
-
-vec3 triplanar_normal_2d(sampler2D p_tex, vec3 p_pos, vec3 p_ddx, vec3 p_ddy, float p_scale, vec3 p_w, vec3 p_n) {
-	vec3 acc = vec3(0.0);
-	for (int a = 0; a < 3; a++) {
-		float w = axis_weight(p_w, a);
-		if (w > TRIPLANAR_WEIGHT_EPSILON) {
-			vec3 t = textureGrad(p_tex, axis_uv(p_pos, a) * p_scale, axis_uv(p_ddx, a) * p_scale, axis_uv(p_ddy, a) * p_scale).xyz * 2.0 - 1.0;
 			acc += w * whiteout(t, p_n, a);
 		}
 	}
@@ -377,20 +360,20 @@ float triplanar_height_array(int p_layer, vec3 p_pos, float p_scale, vec3 p_lods
 	return acc / max(kept, TRIPLANAR_WEIGHT_SUM_MIN);
 }
 
-float triplanar_height_2d(vec3 p_pos, float p_scale, vec3 p_lods, vec3 p_w) {
+float triplanar_rock_height(int p_layer, vec3 p_pos, float p_scale, vec3 p_lods, vec3 p_w) {
 	float acc = 0.0;
 	float kept = 0.0;
 	for (int a = 0; a < 3; a++) {
 		float w = axis_weight(p_w, a);
 		if (w > POM_AXIS_WEIGHT_EPSILON) {
-			acc += w * textureLod(rock_height_texture, axis_uv(p_pos, a) * p_scale, axis_lod(p_lods, a)).r;
+			acc += w * textureLod(rock_height_textures, vec3(axis_uv(p_pos, a) * p_scale, float(p_layer)), axis_lod(p_lods, a)).r;
 			kept += w;
 		}
 	}
 	return acc / max(kept, TRIPLANAR_WEIGHT_SUM_MIN);
 }
 
-float blended_height(vec3 p_pos, vec3 p_w, ivec2 p_layers, vec2 p_scales, vec3 p_lod0, vec3 p_lod1, float p_blend, float p_rock_alpha, vec3 p_rock_lod) {
+float blended_height(vec3 p_pos, vec3 p_w, ivec2 p_layers, vec2 p_scales, vec3 p_lod0, vec3 p_lod1, float p_blend, float p_rock_alpha, int p_rock_layer, float p_rock_scale, vec3 p_rock_lod) {
 	float h = 0.0;
 
 	if (biome_layer_count > 0 && p_rock_alpha < ROCK_ALPHA_OPAQUE) {
@@ -401,7 +384,7 @@ float blended_height(vec3 p_pos, vec3 p_w, ivec2 p_layers, vec2 p_scales, vec3 p
 	}
 
 	if (rock_layer_enabled && p_rock_alpha > 0.0) {
-		h = mix(h, triplanar_height_2d(p_pos, rock_uv_scale, p_rock_lod, p_w), p_rock_alpha);
+		h = mix(h, triplanar_rock_height(p_rock_layer, p_pos, p_rock_scale, p_rock_lod, p_w), p_rock_alpha);
 	}
 	return h;
 }
@@ -415,13 +398,6 @@ void fragment()
 	vec3 pos_ddy = dFdy(base_pos);
 
 	vec3 tri_w = triplanar_weights(geo_normal_ws);
-
-	float rock_alpha = 0.0;
-	if (rock_layer_enabled) {
-		float slope = 1.0 - dot(geo_normal_ws, vec3(0.0, 1.0, 0.0));
-		float safe_blend_range = max(rock_slope_blend_range, 0.001);
-		rock_alpha = smoothstep(rock_slope_threshold - safe_blend_range, rock_slope_threshold + safe_blend_range, slope);
-	}
 
 	float pom_depth = 0.0;
 	float weights[32];
@@ -464,7 +440,49 @@ void fragment()
 		}
 		pom_blend = pom_w1 / max(pom_w0 + pom_w1, WHITTAKER_WEIGHT_FLOOR);
 	}
-	pom_depth = mix(pom_depth, rock_pom_depth, rock_alpha);
+
+	int rock_layer_a = 0;
+	int rock_layer_b = 0;
+	float rock_scale_a = rock_uv_scale;
+	float rock_scale_b = rock_uv_scale;
+	float rock_blend = 0.0;
+	float rock_depth = rock_pom_depth;
+	float rock_alpha = 0.0;
+
+	if (rock_layer_enabled) {
+		float threshold = rock_slope_threshold;
+		float blend_range = rock_slope_blend_range;
+		rock_layer_a = rock_index;
+		rock_layer_b = rock_index;
+
+		if (biome_layer_count > 0) {
+			rock_layer_a = biome_rock_index[pom_layers.x];
+			rock_layer_b = rock_layer_a;
+			rock_scale_a = biome_rock_uv_scale[pom_layers.x];
+			rock_scale_b = rock_scale_a;
+			rock_depth = biome_rock_pom_depth[pom_layers.x];
+			threshold = biome_slope_threshold[pom_layers.x];
+			blend_range = biome_slope_blend_range[pom_layers.x];
+
+			if (pom_blend > BIOME_WEIGHT_EPSILON) {
+				rock_layer_b = biome_rock_index[pom_layers.y];
+				rock_scale_b = biome_rock_uv_scale[pom_layers.y];
+				rock_depth = mix(rock_depth, biome_rock_pom_depth[pom_layers.y], pom_blend);
+				threshold = mix(threshold, biome_slope_threshold[pom_layers.y], pom_blend);
+				blend_range = mix(blend_range, biome_slope_blend_range[pom_layers.y], pom_blend);
+
+				if (rock_layer_b != rock_layer_a || rock_scale_b != rock_scale_a) {
+					rock_blend = pom_blend;
+				}
+			}
+		}
+
+		float slope = 1.0 - dot(geo_normal_ws, vec3(0.0, 1.0, 0.0));
+		float safe_blend_range = max(blend_range, 0.001);
+		rock_alpha = smoothstep(threshold - safe_blend_range, threshold + safe_blend_range, slope);
+	}
+
+	pom_depth = mix(pom_depth, rock_depth, rock_alpha);
 
 	vec3 world_offset = vec3(0.0);
 
@@ -480,7 +498,7 @@ void fragment()
 		vec2 pom_scales = vec2(biome_uv_scale[pom_layers.x], biome_uv_scale[pom_layers.y]);
 		vec3 pom_lod0 = axis_lods(pos_ddx, pos_ddy, pom_scales.x, biome_height_size);
 		vec3 pom_lod1 = pom_blend > BIOME_WEIGHT_EPSILON ? axis_lods(pos_ddx, pos_ddy, pom_scales.y, biome_height_size) : pom_lod0;
-		vec3 pom_rock_lod = rock_alpha > 0.0 ? axis_lods(pos_ddx, pos_ddy, rock_uv_scale, vec2(textureSize(rock_height_texture, 0))) : vec3(0.0);
+		vec3 pom_rock_lod = rock_alpha > 0.0 ? axis_lods(pos_ddx, pos_ddy, rock_scale_a, vec2(textureSize(rock_height_textures, 0).xy)) : vec3(0.0);
 
 		float step_count = max(1.0, floor(mix(float(pom_max_steps), float(pom_min_steps), abs(n_dot_v)) * pom_fade));
 		int steps = int(step_count);
@@ -493,7 +511,7 @@ void fragment()
 		bool hit = false;
 
 		for (int s = 0; s <= steps; s++) {
-			cur_surface = 1.0 - blended_height(base_pos - ray_depth * sweep, tri_w, pom_layers, pom_scales, pom_lod0, pom_lod1, pom_blend, rock_alpha, pom_rock_lod);
+			cur_surface = 1.0 - blended_height(base_pos - ray_depth * sweep, tri_w, pom_layers, pom_scales, pom_lod0, pom_lod1, pom_blend, rock_alpha, rock_layer_a, rock_scale_a, pom_rock_lod);
 			if (ray_depth >= cur_surface) {
 				hit = true;
 				break;
@@ -514,7 +532,7 @@ void fragment()
 
 			for (int b = 0; b < POM_REFINE_STEPS; b++) {
 				float mid_depth = mix(above_depth, below_depth, 0.5);
-				float mid_surface = 1.0 - blended_height(base_pos - mid_depth * sweep, tri_w, pom_layers, pom_scales, pom_lod0, pom_lod1, pom_blend, rock_alpha, pom_rock_lod);
+				float mid_surface = 1.0 - blended_height(base_pos - mid_depth * sweep, tri_w, pom_layers, pom_scales, pom_lod0, pom_lod1, pom_blend, rock_alpha, rock_layer_a, rock_scale_a, pom_rock_lod);
 
 				if (mid_depth >= mid_surface) {
 					below_depth = mid_depth;
@@ -574,10 +592,17 @@ void fragment()
 	// Rock/cliff slope overlay -- independent of the biome blend above, applied on top
 	// (including on top of the zero-biome-layers magenta debug guard).
 	if (rock_layer_enabled && rock_alpha > 0.0) {
-		vec3 rock_albedo = triplanar_2d(rock_albedo_texture, sample_pos, pos_ddx, pos_ddy, rock_uv_scale, tri_w).rgb;
-		float rock_roughness = triplanar_2d(rock_roughness_texture, sample_pos, pos_ddx, pos_ddy, rock_uv_scale, tri_w).r;
-		float rock_ao = triplanar_2d(rock_ao_texture, sample_pos, pos_ddx, pos_ddy, rock_uv_scale, tri_w).r;
-		vec3 rock_normal = triplanar_normal_2d(rock_normal_texture, sample_pos, pos_ddx, pos_ddy, rock_uv_scale, tri_w, geo_normal_ws);
+		vec3 rock_albedo = triplanar_array(rock_albedo_textures, rock_layer_a, sample_pos, pos_ddx, pos_ddy, rock_scale_a, tri_w).rgb;
+		float rock_roughness = triplanar_array(rock_roughness_textures, rock_layer_a, sample_pos, pos_ddx, pos_ddy, rock_scale_a, tri_w).r;
+		float rock_ao = triplanar_array(rock_ao_textures, rock_layer_a, sample_pos, pos_ddx, pos_ddy, rock_scale_a, tri_w).r;
+		vec3 rock_normal = triplanar_normal_array(rock_normal_textures, rock_layer_a, sample_pos, pos_ddx, pos_ddy, rock_scale_a, tri_w, geo_normal_ws);
+
+		if (rock_blend > 0.0) {
+			rock_albedo = mix(rock_albedo, triplanar_array(rock_albedo_textures, rock_layer_b, sample_pos, pos_ddx, pos_ddy, rock_scale_b, tri_w).rgb, rock_blend);
+			rock_roughness = mix(rock_roughness, triplanar_array(rock_roughness_textures, rock_layer_b, sample_pos, pos_ddx, pos_ddy, rock_scale_b, tri_w).r, rock_blend);
+			rock_ao = mix(rock_ao, triplanar_array(rock_ao_textures, rock_layer_b, sample_pos, pos_ddx, pos_ddy, rock_scale_b, tri_w).r, rock_blend);
+			rock_normal = mix(rock_normal, triplanar_normal_array(rock_normal_textures, rock_layer_b, sample_pos, pos_ddx, pos_ddy, rock_scale_b, tri_w, geo_normal_ws), rock_blend);
+		}
 
 		ALBEDO = mix(ALBEDO, rock_albedo, rock_alpha);
 		ROUGHNESS = mix(ROUGHNESS, rock_roughness, rock_alpha);

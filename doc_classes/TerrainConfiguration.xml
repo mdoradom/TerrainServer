@@ -135,6 +135,7 @@
 		</member>
 		<member name="rock_layer" type="TerrainSlopeLayer" setter="set_rock_layer" getter="get_rock_layer">
 			Optional [TerrainSlopeLayer] painted over the biomes wherever the ground is steep enough, regardless of climate. Typically, a rock or cliff material.
+			This is the default rock for every biome. A biome that sets [member TerrainBiomeLayer.slope_layer] uses that instead, so leave this assigned as the shared fallback and override only the biomes that need cliffs of their own. With this unset, biomes without a slope layer of their own simply show no rock.
 			If it never appears, its [member TerrainSlopeLayer.slope_threshold] is above the steepest slope the terrain actually produces, see that class for how to pick a value.
 		</member>
 		<member name="temperature_altitude_reference" type="float" setter="set_temperature_altitude_reference" getter="get_temperature_altitude_reference" default="10.0">

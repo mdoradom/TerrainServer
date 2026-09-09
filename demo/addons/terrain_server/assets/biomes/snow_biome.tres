@@ -5,6 +5,7 @@
 [ext_resource type="Texture2D" uid="uid://3tdxosmwfdrk" path="res://addons/terrain_server/assets/textures/snow/clean_snow_disp_2k.png" id="3_3lxtf"]
 [ext_resource type="Texture2D" uid="uid://4g01se4ujnqi" path="res://addons/terrain_server/assets/textures/snow/clean_snow_nor_gl_2k.png" id="4_0yb5u"]
 [ext_resource type="Texture2D" uid="uid://dkbb8c4vjo3u" path="res://addons/terrain_server/assets/textures/snow/clean_snow_rough_2k.png" id="5_gtc0o"]
+[ext_resource type="TerrainSlopeLayer" uid="uid://b4ka8e0wrei88" path="res://addons/terrain_server/assets/biomes/ice_slope_layer.tres" id="6_q0mpc"]
 
 [resource]
 biome_name = "snow"
@@ -15,5 +16,8 @@ height_texture = ExtResource("3_3lxtf")
 ao_texture = ExtResource("2_q0mpc")
 uv_scale = 0.13
 pom_depth = 0.05
-max_temperature = -3.0
-blend_softness = 1.0
+max_temperature = 0.0
+blend_softness = 0.15
+slope_layer = ExtResource("6_q0mpc")
+slope_threshold = 0.5
+slope_blend_range = 0.159

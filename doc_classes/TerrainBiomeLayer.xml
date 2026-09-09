@@ -59,6 +59,29 @@
 		<member name="roughness_texture" type="Texture2D" setter="set_roughness_texture" getter="get_roughness_texture">
 			Roughness map. Read from the red channel; white is fully rough, black is mirror-smooth.
 		</member>
+		<member name="slope_blend_range" type="float" setter="set_slope_blend_range" getter="get_slope_blend_range" default="0.15">
+			Width of the soft edge around [member slope_threshold] within this biome, in the same units. The rock overlay fades in across [code]slope_threshold - slope_blend_range[/code] to [code]slope_threshold + slope_blend_range[/code].
+			Only consulted when [member slope_override] is [code]true[/code]; otherwise the biome inherits [member TerrainSlopeLayer.slope_blend_range] from whichever slope layer is in effect for it — [member slope_layer] if set, else [member TerrainConfiguration.rock_layer].
+			Range [code]0.01[/code] to [code]1.0[/code].
+		</member>
+		<member name="slope_layer" type="TerrainSlopeLayer" setter="set_slope_layer" getter="get_slope_layer">
+			Rock material this biome shows on steep ground. When unset the biome falls back to [member TerrainConfiguration.rock_layer], so leaving it empty everywhere reproduces the single shared cliff material this property replaced.
+			Assign it to give a biome cliffs of its own — pale limestone in a desert, dark basalt on a volcanic coast — instead of the same rock everywhere. It supplies the textures, [member TerrainSlopeLayer.uv_scale] and [member TerrainSlopeLayer.pom_depth], and, unless [member slope_override] says otherwise, the slope cut-off too.
+			Layers are deduplicated by texture set, not by resource: assigning one material to a dozen biomes, or several separate resources that happen to point at the same five textures, all cost a single slice of GPU memory. Give two biomes the same textures at a different [member TerrainSlopeLayer.uv_scale] and they still share that slice, since tiling is applied per biome.
+			Where two biomes meet, the shader blends their rock materials by the same climate weights it blends everything else, and skips the second set of texture reads entirely when both resolve to the same material and tiling. The raymarched parallax depth is the one exception: it follows the dominant biome's rock alone, because a second height tap per march step costs far more than the displacement difference is worth.
+			Every slope layer in use must agree on texture dimensions per texture type, the same constraint the biome textures are under. A mismatch disables the rock overlay entirely and pushes a warning naming the problem.
+		</member>
+		<member name="slope_override" type="bool" setter="set_slope_override" getter="get_slope_override" default="false">
+			Whether this biome supplies its own rock cut-off instead of inheriting the one on the slope layer in effect for it. When [code]false[/code] (the default) [member slope_threshold] and [member slope_blend_range] are ignored.
+			Turn it on to let a biome go rocky at a different steepness than its neighbours — scree gathers on gentler ground in a desert than in a rainforest, where soil and roots hold a steeper face. It is independent of [member slope_layer]: override the cut-off while still sharing everyone else's rock, or take a distinct rock material and keep its own cut-off.
+			Where two biomes meet, the shader blends the two dominant biomes' thresholds by their climate weights, so an overriding biome fades into a non-overriding one without a seam.
+		</member>
+		<member name="slope_threshold" type="float" setter="set_slope_threshold" getter="get_slope_threshold" default="0.6">
+			How steep ground must get inside this biome before the rock overlay takes over, measured as [code]1.0 - dot(normal, UP)[/code]: [code]0.0[/code] is flat, [code]1.0[/code] is a vertical wall. Lower values put rock on gentler slopes.
+			Only consulted when [member slope_override] is [code]true[/code]; otherwise the biome inherits [member TerrainSlopeLayer.slope_threshold] from whichever slope layer is in effect for it — [member slope_layer] if set, else [member TerrainConfiguration.rock_layer].
+			Set it below the terrain's typical slope and the biome turns to rock nearly everywhere, which usually means the threshold is under the slope distribution rather than above its upper tail.
+			Range [code]0.0[/code] to [code]1.0[/code].
+		</member>
 		<member name="uv_scale" type="float" setter="set_uv_scale" getter="get_uv_scale" default="0.1">
 			How many times the layer's textures repeat per world unit. Lower values stretch the texture over more ground; higher values tile it more tightly and show tiling artifacts sooner.
 			Range [code]0.001[/code] to [code]2.0[/code], and it accepts larger values.

@@ -4,7 +4,8 @@
 		A terrain material placed by steepness rather than climate.
 	</brief_description>
 	<description>
-		A material painted on top of the biome blend wherever the ground is steep enough, typically rock or cliff. Assign it to [member TerrainConfiguration.rock_layer]. Unlike [TerrainBiomeLayer], it ignores climate entirely and is driven only by surface normal, so it reads as exposed bedrock across every biome.
+		A material painted on top of the biome blend wherever the ground is steep enough, typically rock or cliff. Unlike [TerrainBiomeLayer], it ignores climate entirely and is driven only by surface normal, so it reads as exposed bedrock.
+		Assign it to [member TerrainConfiguration.rock_layer] to use it as the default rock for every biome, or to [member TerrainBiomeLayer.slope_layer] to give one biome cliffs of its own. Layers are deduplicated by texture set, so sharing one across many biomes costs a single slice of GPU memory.
 		[b]How steepness is measured.[/b] Slope is [code]1.0 - dot(normal, UP)[/code], so [code]0.0[/code] is dead flat and [code]1.0[/code] is a vertical wall. It is not an angle and not linear in one: roughly [code]0.1[/code] is a 26° slope, [code]0.3[/code] is 45°, and the default [code]0.6[/code] is about 66°.
 		[b]If the layer never shows up[/b], that is almost always the reason: [member slope_threshold] sits above the steepest slope the terrain actually produces. Terrain steepness is set by [member TerrainConfiguration.height_scale] against [member TerrainConfiguration.noise_base_frequency], and gentle settings simply never reach 66°. The threshold has to fall below roughly the terrain's 95th-percentile slope for the layer to appear on more than a stray pixel, so either lower it, or raise [member TerrainConfiguration.height_scale].
 		Emits [signal Resource.changed], so edits update the terrain live.
