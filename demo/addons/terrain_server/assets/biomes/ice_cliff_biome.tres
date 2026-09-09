@@ -15,5 +15,5 @@ height_texture = ExtResource("3_by0ae")
 ao_texture = ExtResource("2_i1xyo")
 uv_scale = 0.05
 pom_depth = 0.06
-min_temperature = -2.0
+min_temperature = -3.0
 max_temperature = 3.0
