@@ -163,15 +163,17 @@ float relief_at(vec2 p, float p_ridge_blend) {
 	return mix(fbm, ridged * NOISE_MAX_AMPLITUDE, p_ridge_blend);
 }
 
-float get_height_at(vec2 world_xz) {
-	float mask = 1.0;
-	if (continent_influence > 0.0) {
-		float c = noise((world_xz + CONTINENT_OFFSET) * continent_frequency);
-		c = clamp(c / NOISE_MAX_AMPLITUDE, -1.0, 1.0) * 0.5 + 0.5;
-		float contrast = max(continent_contrast, 0.0001);
-		mask = mix(1.0, smoothstep(0.5 - contrast, 0.5 + contrast, c), continent_influence);
+float province_mask(vec2 world_xz) {
+	if (continent_influence <= 0.0) {
+		return 1.0;
 	}
+	float c = noise((world_xz + CONTINENT_OFFSET) * continent_frequency);
+	c = clamp(c / NOISE_MAX_AMPLITUDE, -1.0, 1.0) * 0.5 + 0.5;
+	float contrast = max(continent_contrast, 0.0001);
+	return mix(1.0, smoothstep(0.5 - contrast, 0.5 + contrast, c), continent_influence);
+}
 
+float height_from_mask(vec2 world_xz, float mask) {
 	vec2 p = world_xz;
 	float warp = warp_amount * mask;
 	if (warp > 0.0) {
@@ -189,6 +191,10 @@ float get_height_at(vec2 world_xz) {
 
 	float h_norm = continent_elevation * (mask - continent_sea_level) + relief * mix(relief_floor, 1.0, mask);
 	return clamp(h_norm, -1.5, 1.5) * height_scale;
+}
+
+float get_height_at(vec2 world_xz) {
+	return height_from_mask(world_xz, province_mask(world_xz));
 }
 
 const float TEMPERATURE_MIN_C = -10.0;
@@ -240,10 +246,12 @@ void vertex() {
 	float vertex_spacing = lod_scale / resolution;
 	float e = max(0.05, vertex_spacing * mix(1.0, 2.0, morph_factor));
 
-	float hL = get_height_at(v_world_xz + vec2(-e, 0.0));
-	float hR = get_height_at(v_world_xz + vec2( e, 0.0));
-	float hD = get_height_at(v_world_xz + vec2(0.0, -e));
-	float hU = get_height_at(v_world_xz + vec2(0.0,  e));
+	float mask = province_mask(v_world_xz);
+
+	float hL = height_from_mask(v_world_xz + vec2(-e, 0.0), mask);
+	float hR = height_from_mask(v_world_xz + vec2( e, 0.0), mask);
+	float hD = height_from_mask(v_world_xz + vec2(0.0, -e), mask);
+	float hU = height_from_mask(v_world_xz + vec2(0.0,  e), mask);
 
 	vec3 normal_ws = normalize(vec3(hL - hR, 2.0 * e, hD - hU));
 
