@@ -1,0 +1,18 @@
+[gd_resource type="TerrainBiomeLayer" format=3 uid="uid://c5c0fw64xx3ks"]
+
+[ext_resource type="Texture2D" uid="uid://m83oiisequ15" path="res://addons/terrain_server/assets/textures/snow_clean/clean_snow_diff_2k.png" id="1_lhekq"]
+[ext_resource type="Texture2D" uid="uid://bguk44mjv8kul" path="res://addons/terrain_server/assets/textures/snow_clean/clean_snow_ao_2k.png" id="2_34sq2"]
+[ext_resource type="Texture2D" uid="uid://3tdxosmwfdrk" path="res://addons/terrain_server/assets/textures/snow_clean/clean_snow_disp_2k.png" id="3_ek0u0"]
+[ext_resource type="Texture2D" uid="uid://4g01se4ujnqi" path="res://addons/terrain_server/assets/textures/snow_clean/clean_snow_nor_gl_2k.png" id="4_v55l3"]
+[ext_resource type="Texture2D" uid="uid://dkbb8c4vjo3u" path="res://addons/terrain_server/assets/textures/snow_clean/clean_snow_rough_2k.png" id="5_ef4el"]
+
+[resource]
+biome_name = "clean_snow"
+albedo_texture = ExtResource("1_lhekq")
+normal_texture = ExtResource("4_v55l3")
+roughness_texture = ExtResource("5_ef4el")
+height_texture = ExtResource("3_ek0u0")
+ao_texture = ExtResource("2_34sq2")
+uv_scale = 0.13
+pom_depth = 0.05
+max_temperature = -2.0

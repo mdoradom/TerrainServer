@@ -1,0 +1,19 @@
+[gd_resource type="TerrainBiomeLayer" format=3 uid="uid://b6615ek61y2i0"]
+
+[ext_resource type="Texture2D" uid="uid://cseb5mxyj47ot" path="res://addons/terrain_server/assets/textures/rock_wall/rough_rock_wall_diff_2k.png" id="1_8vwe4"]
+[ext_resource type="Texture2D" uid="uid://b2n36h2y6ly1m" path="res://addons/terrain_server/assets/textures/rock_wall/rough_rock_wall_ao_2k.png" id="2_ddrqh"]
+[ext_resource type="Texture2D" uid="uid://ddlcg81r73yfm" path="res://addons/terrain_server/assets/textures/rock_wall/rough_rock_wall_disp_2k.png" id="3_rjplk"]
+[ext_resource type="Texture2D" uid="uid://d12svnkkjjlsa" path="res://addons/terrain_server/assets/textures/rock_wall/rough_rock_wall_nor_gl_2k.png" id="4_b5h6r"]
+[ext_resource type="Texture2D" uid="uid://btn1tqch6fhjo" path="res://addons/terrain_server/assets/textures/rock_wall/rough_rock_wall_rough_2k.png" id="5_ywsca"]
+
+[resource]
+biome_name = "rock"
+albedo_texture = ExtResource("1_8vwe4")
+normal_texture = ExtResource("4_b5h6r")
+roughness_texture = ExtResource("5_ywsca")
+height_texture = ExtResource("3_rjplk")
+ao_texture = ExtResource("2_ddrqh")
+uv_scale = 0.04
+pom_depth = 0.1
+min_temperature = 3.0
+max_temperature = 9.0

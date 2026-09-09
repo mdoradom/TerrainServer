@@ -1,0 +1,20 @@
+[gd_resource type="TerrainBiomeLayer" format=3 uid="uid://dud2ypjq8l0rt"]
+
+[ext_resource type="Texture2D" uid="uid://36b5hvolxig2" path="res://addons/terrain_server/assets/textures/forest_floor/forest_floor_diff_2k.png" id="1_gupo0"]
+[ext_resource type="Texture2D" uid="uid://doqvlm08xbska" path="res://addons/terrain_server/assets/textures/forest_floor/forest_floor_ao_2k.png" id="2_d8qxg"]
+[ext_resource type="Texture2D" uid="uid://8t7wcuujkv5w" path="res://addons/terrain_server/assets/textures/forest_floor/forest_floor_disp_2k.png" id="3_g3rdf"]
+[ext_resource type="Texture2D" uid="uid://b340c4skqh8cn" path="res://addons/terrain_server/assets/textures/forest_floor/forest_floor_nor_gl_2k.png" id="4_ayq40"]
+[ext_resource type="Texture2D" uid="uid://dnqukhdco2gtk" path="res://addons/terrain_server/assets/textures/forest_floor/forest_floor_rough_2k.png" id="5_byw1w"]
+
+[resource]
+biome_name = "dirt"
+albedo_texture = ExtResource("1_gupo0")
+normal_texture = ExtResource("4_ayq40")
+roughness_texture = ExtResource("5_byw1w")
+height_texture = ExtResource("3_g3rdf")
+ao_texture = ExtResource("2_d8qxg")
+uv_scale = 0.12
+pom_depth = 0.1
+min_temperature = 9.0
+max_temperature = 17.0
+min_moisture = 0.35
