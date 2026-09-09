@@ -40,6 +40,9 @@ void TerrainBiomeLayer::_bind_methods() {
 	ClassDB::bind_method(D_METHOD("set_max_moisture", "moisture"), &TerrainBiomeLayer::set_max_moisture);
 	ClassDB::bind_method(D_METHOD("get_max_moisture"), &TerrainBiomeLayer::get_max_moisture);
 
+	ClassDB::bind_method(D_METHOD("set_blend_softness", "softness"), &TerrainBiomeLayer::set_blend_softness);
+	ClassDB::bind_method(D_METHOD("get_blend_softness"), &TerrainBiomeLayer::get_blend_softness);
+
 	ClassDB::bind_method(D_METHOD("set_biome_name", "name"), &TerrainBiomeLayer::set_biome_name);
 	ClassDB::bind_method(D_METHOD("get_biome_name"), &TerrainBiomeLayer::get_biome_name);
 
@@ -60,10 +63,11 @@ void TerrainBiomeLayer::_bind_methods() {
 	ADD_PROPERTY(PropertyInfo(Variant::FLOAT, "max_temperature", PROPERTY_HINT_RANGE, "-10.0,30.0"), "set_max_temperature", "get_max_temperature");
 	ADD_PROPERTY(PropertyInfo(Variant::FLOAT, "min_moisture", PROPERTY_HINT_RANGE, "0.0,1.0"), "set_min_moisture", "get_min_moisture");
 	ADD_PROPERTY(PropertyInfo(Variant::FLOAT, "max_moisture", PROPERTY_HINT_RANGE, "0.0,1.0"), "set_max_moisture", "get_max_moisture");
+	ADD_PROPERTY(PropertyInfo(Variant::FLOAT, "blend_softness", PROPERTY_HINT_RANGE, "0.0,1.0,0.001"), "set_blend_softness", "get_blend_softness");
 }
 
 TerrainBiomeLayer::TerrainBiomeLayer() :
-		_uv_scale(0.1f), _pom_depth(0.0f), _min_temperature(-10.0f), _max_temperature(30.0f), _min_moisture(0.0f), _max_moisture(1.0f) {
+		_uv_scale(0.1f), _pom_depth(0.0f), _min_temperature(-10.0f), _max_temperature(30.0f), _min_moisture(0.0f), _max_moisture(1.0f), _blend_softness(0.25f) {
 }
 
 TerrainBiomeLayer::~TerrainBiomeLayer() = default;
@@ -172,6 +176,17 @@ float TerrainBiomeLayer::get_max_moisture() const {
 void TerrainBiomeLayer::set_max_moisture(const float p_moisture) {
 	if (_max_moisture != p_moisture) {
 		_max_moisture = p_moisture;
+		emit_changed();
+	}
+}
+
+float TerrainBiomeLayer::get_blend_softness() const {
+	return _blend_softness;
+}
+
+void TerrainBiomeLayer::set_blend_softness(const float p_softness) {
+	if (_blend_softness != p_softness) {
+		_blend_softness = p_softness;
 		emit_changed();
 	}
 }

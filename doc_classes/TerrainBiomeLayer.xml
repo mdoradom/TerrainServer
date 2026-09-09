@@ -22,6 +22,12 @@
 		<member name="biome_name" type="String" setter="set_biome_name" getter="get_biome_name" default="&quot;&quot;">
 			Human-readable label for this biome. It is what identifies the layer in the terrain dock's Whittaker chart and in the live probe readout, so it is worth filling in.
 		</member>
+		<member name="blend_softness" type="float" setter="set_blend_softness" getter="get_blend_softness" default="0.25">
+			Width of the soft edge around this layer's climate box, as a fraction of the box itself. The temperature falloff spans [code]blend_softness * (max_temperature - min_temperature)[/code] either side of [member min_temperature] and [member max_temperature], and the moisture falloff the same fraction of [member min_moisture] to [member max_moisture], so a wide biome fades over a wide band and a narrow one over a narrow band without retuning.
+			Raise it to let this biome bleed further into its neighbours, lower it for a tighter boundary. Zero gives a hard edge, down to the hair-thin falloff the shader keeps only to leave [code]smoothstep[/code]'s two edges distinct. Expect that edge to alias and crawl as the camera moves, the way any hard threshold on a smoothly varying field does.
+			Beware that a hard edge also exposes any gap in climate coverage. A point whose temperature and moisture fall outside every layer's box gets an even blend of all of them, which the wide default falloff normally hides.
+			Range [code]0.0[/code] to [code]1.0[/code]. Also applies to the CPU-side classification behind [method Terrain3D.get_biome_at], so the probed biome matches the dominant rendered one.
+		</member>
 		<member name="height_texture" type="Texture2D" setter="set_height_texture" getter="get_height_texture">
 			Height (displacement) map driving parallax occlusion mapping. Only used when [member pom_depth] is above zero.
 		</member>

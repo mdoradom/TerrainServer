@@ -29,6 +29,8 @@ private:
 	float _min_moisture;
 	float _max_moisture;
 
+	float _blend_softness;
+
 	godot::String _biome_name;
 
 protected:
@@ -70,6 +72,9 @@ public:
 
 	float get_max_moisture() const;
 	void set_max_moisture(float p_moisture);
+
+	float get_blend_softness() const;
+	void set_blend_softness(float p_softness);
 
 	godot::String get_biome_name() const;
 	void set_biome_name(const godot::String &p_name);

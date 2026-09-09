@@ -475,6 +475,7 @@ void TerrainRenderer::rebuild_mesh(const float p_size, const int p_resolution) {
 	PackedFloat32Array biome_max_moisture;
 	PackedFloat32Array biome_uv_scale;
 	PackedFloat32Array biome_pom_depth;
+	PackedFloat32Array biome_blend_softness;
 
 	biome_min_temperature.resize(_biome_layer_count);
 	biome_max_temperature.resize(_biome_layer_count);
@@ -482,6 +483,7 @@ void TerrainRenderer::rebuild_mesh(const float p_size, const int p_resolution) {
 	biome_max_moisture.resize(_biome_layer_count);
 	biome_uv_scale.resize(_biome_layer_count);
 	biome_pom_depth.resize(_biome_layer_count);
+	biome_blend_softness.resize(_biome_layer_count);
 
 	for (int i = 0; i < _biome_layer_count; i++) {
 		const Ref<TerrainBiomeLayer> layer = biome_layers[i];
@@ -491,6 +493,7 @@ void TerrainRenderer::rebuild_mesh(const float p_size, const int p_resolution) {
 		biome_max_moisture[i] = layer.is_valid() ? layer->get_max_moisture() : 0.0f;
 		biome_uv_scale[i] = layer.is_valid() ? layer->get_uv_scale() : 0.1f;
 		biome_pom_depth[i] = layer.is_valid() ? layer->get_pom_depth() : 0.0f;
+		biome_blend_softness[i] = layer.is_valid() ? layer->get_blend_softness() : 0.25f;
 	}
 
 	int num_levels = _config->get_clipmap_levels();
@@ -549,6 +552,7 @@ void TerrainRenderer::rebuild_mesh(const float p_size, const int p_resolution) {
 		rs->material_set_param(material, "biome_max_moisture", biome_max_moisture);
 		rs->material_set_param(material, "biome_uv_scale", biome_uv_scale);
 		rs->material_set_param(material, "biome_pom_depth", biome_pom_depth);
+		rs->material_set_param(material, "biome_blend_softness", biome_blend_softness);
 
 		// Temperature/moisture noise parameters
 		rs->material_set_param(material, "temperature_frequency", _config->get_temperature_frequency());

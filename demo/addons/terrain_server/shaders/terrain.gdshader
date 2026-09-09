@@ -50,6 +50,7 @@ uniform float biome_min_moisture[32];
 uniform float biome_max_moisture[32];
 uniform float biome_uv_scale[32];
 uniform float biome_pom_depth[32];
+uniform float biome_blend_softness[32];
 
 uniform sampler2D rock_albedo_texture : source_color;
 uniform sampler2D rock_normal_texture : hint_normal;
@@ -263,8 +264,10 @@ void vertex() {
 	NORMAL = inv_model * normal_ws;
 }
 
-const float WHITTAKER_TEMP_SOFTNESS_MIN = 0.5; // deg C
-const float WHITTAKER_MOIST_SOFTNESS_MIN = 0.02; // normalized [0,1]
+// Only keeps smoothstep's two edges distinct -- GLSL leaves edge0 >= edge1 undefined. Both are
+// far below a pixel's worth of climate variation, so blend_softness = 0 reads as a hard boundary.
+const float WHITTAKER_TEMP_SOFTNESS_EPSILON = 0.01; // deg C
+const float WHITTAKER_MOIST_SOFTNESS_EPSILON = 0.0005; // normalized [0,1]
 const float WHITTAKER_WEIGHT_FLOOR = 0.0001;
 const float POM_MIN_DEPTH = 0.00001;
 const int POM_REFINE_STEPS = 3;
@@ -430,8 +433,8 @@ void fragment()
 
 		float total_weight = 0.0;
 		for (int i = 0; i < biome_layer_count; i++) {
-			float softness_t = max(WHITTAKER_TEMP_SOFTNESS_MIN, (biome_max_temperature[i] - biome_min_temperature[i]) * 0.25);
-			float softness_m = max(WHITTAKER_MOIST_SOFTNESS_MIN, (biome_max_moisture[i] - biome_min_moisture[i]) * 0.25);
+			float softness_t = max(WHITTAKER_TEMP_SOFTNESS_EPSILON, (biome_max_temperature[i] - biome_min_temperature[i]) * biome_blend_softness[i]);
+			float softness_m = max(WHITTAKER_MOIST_SOFTNESS_EPSILON, (biome_max_moisture[i] - biome_min_moisture[i]) * biome_blend_softness[i]);
 
 			float wt = smoothstep(biome_min_temperature[i] - softness_t, biome_min_temperature[i], t) *
 					(1.0 - smoothstep(biome_max_temperature[i], biome_max_temperature[i] + softness_t, t));
