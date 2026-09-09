@@ -117,24 +117,6 @@ float noise(in vec2 p) {
 			dot(hash(i + vec2(1.0, 1.0)), f - vec2(1.0, 1.0)), u.x), u.y);
 }
 
-float fbm_at(vec2 p) {
-	float h = 0.0;
-	float amplitude = 1.0;
-	float frequency = base_frequency;
-	float max_amplitude = 0.0;
-
-	// Iterate to add detail (octaves)
-	for(int i = 0; i < octaves; i++) {
-		h += noise(p * frequency) * amplitude;
-		max_amplitude += amplitude;
-		amplitude *= gain;
-		frequency *= lacunarity;
-	}
-
-	// Normalize to [-1, 1] range
-	return h / max_amplitude;
-}
-
 float ridge_fold(float p_value) {
 	if (ridge_crest_rounding <= 0.0) {
 		return abs(p_value);
@@ -142,31 +124,41 @@ float ridge_fold(float p_value) {
 	return sqrt(p_value * p_value + ridge_crest_rounding * ridge_crest_rounding);
 }
 
-float ridged_at(vec2 p) {
+float relief_at(vec2 p, float p_ridge_blend) {
 	vec2 q = p * base_frequency;
-
-	float signal = ridge_offset - ridge_fold(noise(q) / NOISE_MAX_AMPLITUDE);
-	signal *= signal;
-
-	float result = signal;
 	float amplitude = 1.0;
-	float max_amplitude = 1.0;
+	float max_amplitude = 0.0;
 
-	for(int i = 1; i < octaves; i++) {
-		q = (OCTAVE_ROTATION * q) * lacunarity;
-		amplitude *= gain;
+	float fbm = 0.0;
+	float ridged = 0.0;
+	float weight = 1.0;
 
-		float weight = clamp(signal * ridge_weight_gain, 0.0, 1.0);
-		signal = ridge_offset - ridge_fold(noise(q) / NOISE_MAX_AMPLITUDE);
-		signal *= signal;
+	for(int i = 0; i < octaves; i++) {
+		float n = noise(q);
 
-		result += signal * weight * amplitude;
+		fbm += n * amplitude;
+
+		if (p_ridge_blend > 0.0) {
+			float signal = ridge_offset - ridge_fold(n / NOISE_MAX_AMPLITUDE);
+			signal *= signal;
+			ridged += signal * weight * amplitude;
+			weight = clamp(signal * ridge_weight_gain, 0.0, 1.0);
+		}
+
 		max_amplitude += amplitude;
+		amplitude *= gain;
+		q = (OCTAVE_ROTATION * q) * lacunarity;
+	}
+
+	fbm /= max_amplitude;
+
+	if (p_ridge_blend <= 0.0) {
+		return fbm;
 	}
 
 	float peak = max(ridge_offset - ridge_crest_rounding, 0.01);
-	result /= max_amplitude * peak * peak;
-	return result * 2.0 - 1.0;
+	ridged = (ridged / (max_amplitude * peak * peak)) * 2.0 - 1.0;
+	return mix(fbm, ridged * NOISE_MAX_AMPLITUDE, p_ridge_blend);
 }
 
 float get_height_at(vec2 world_xz) {
@@ -187,10 +179,7 @@ float get_height_at(vec2 world_xz) {
 		p += w * warp;
 	}
 
-	float relief = fbm_at(p);
-	if (ridge_amount > 0.0) {
-		relief = mix(relief, ridged_at(p) * NOISE_MAX_AMPLITUDE, ridge_amount * mask);
-	}
+	float relief = relief_at(p, ridge_amount * mask);
 
 	if (redistribution != 1.0) {
 		relief = sign(relief) * pow(abs(relief), redistribution);

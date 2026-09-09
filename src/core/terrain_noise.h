@@ -142,26 +142,6 @@ inline float sign_pow(const float p_x, const float p_exponent) {
 	return s * powf(fabsf(p_x), p_exponent);
 }
 
-inline float fbm_at(const godot::Vector2 p_p, const FbmParams &p_params) {
-	float h = 0.0f;
-	float amplitude = 1.0f;
-	float frequency = p_params.base_frequency;
-	float max_amplitude = 0.0f;
-
-	for (int i = 0; i < p_params.octaves; i++) {
-		h += noise(p_p * frequency) * amplitude;
-		max_amplitude += amplitude;
-		amplitude *= p_params.gain;
-		frequency *= p_params.lacunarity;
-	}
-
-	if (max_amplitude <= 0.0f) {
-		return 0.0f;
-	}
-
-	return h / max_amplitude;
-}
-
 inline float ridge_fold(const float p_value, const float p_rounding) {
 	if (p_rounding <= 0.0f) {
 		return fabsf(p_value);
@@ -169,31 +149,45 @@ inline float ridge_fold(const float p_value, const float p_rounding) {
 	return sqrtf(p_value * p_value + p_rounding * p_rounding);
 }
 
-inline float ridged_at(const godot::Vector2 p_p, const FbmParams &p_params) {
+inline float relief_at(const godot::Vector2 p_p, const float p_ridge_blend, const FbmParams &p_params) {
 	godot::Vector2 q = p_p * p_params.base_frequency;
-
-	float signal = p_params.ridge_offset - ridge_fold(noise(q) / NOISE_MAX_AMPLITUDE, p_params.ridge_crest_rounding);
-	signal *= signal;
-
-	float result = signal;
 	float amplitude = 1.0f;
-	float max_amplitude = 1.0f;
+	float max_amplitude = 0.0f;
 
-	for (int i = 1; i < p_params.octaves; i++) {
-		q = godot::Vector2(0.8f * q.x + 0.6f * q.y, -0.6f * q.x + 0.8f * q.y) * p_params.lacunarity;
-		amplitude *= p_params.gain;
+	float fbm = 0.0f;
+	float ridged = 0.0f;
+	float weight = 1.0f;
 
-		const float weight = std::clamp(signal * p_params.ridge_weight_gain, 0.0f, 1.0f);
-		signal = p_params.ridge_offset - ridge_fold(noise(q) / NOISE_MAX_AMPLITUDE, p_params.ridge_crest_rounding);
-		signal *= signal;
+	for (int i = 0; i < p_params.octaves; i++) {
+		const float n = noise(q);
 
-		result += signal * weight * amplitude;
+		fbm += n * amplitude;
+
+		if (p_ridge_blend > 0.0f) {
+			float signal = p_params.ridge_offset - ridge_fold(n / NOISE_MAX_AMPLITUDE, p_params.ridge_crest_rounding);
+			signal *= signal;
+			ridged += signal * weight * amplitude;
+			weight = std::clamp(signal * p_params.ridge_weight_gain, 0.0f, 1.0f);
+		}
+
 		max_amplitude += amplitude;
+		amplitude *= p_params.gain;
+		q = godot::Vector2(0.8f * q.x + 0.6f * q.y, -0.6f * q.x + 0.8f * q.y) * p_params.lacunarity;
+	}
+
+	if (max_amplitude <= 0.0f) {
+		return 0.0f;
+	}
+
+	fbm /= max_amplitude;
+
+	if (p_ridge_blend <= 0.0f) {
+		return fbm;
 	}
 
 	const float peak = std::max(p_params.ridge_offset - p_params.ridge_crest_rounding, 0.01f);
-	result /= max_amplitude * peak * peak;
-	return result * 2.0f - 1.0f;
+	ridged = (ridged / (max_amplitude * peak * peak)) * 2.0f - 1.0f;
+	return mix(fbm, ridged * NOISE_MAX_AMPLITUDE, p_ridge_blend);
 }
 
 inline float get_height_at(const godot::Vector2 p_world_xz, const FbmParams &p_params) {
@@ -214,10 +208,7 @@ inline float get_height_at(const godot::Vector2 p_world_xz, const FbmParams &p_p
 		p += w * warp;
 	}
 
-	float relief = fbm_at(p, p_params);
-	if (p_params.ridge_amount > 0.0f) {
-		relief = mix(relief, ridged_at(p, p_params) * NOISE_MAX_AMPLITUDE, p_params.ridge_amount * mask);
-	}
+	float relief = relief_at(p, p_params.ridge_amount * mask, p_params);
 
 	if (p_params.redistribution != 1.0f) {
 		relief = sign_pow(relief, p_params.redistribution);
