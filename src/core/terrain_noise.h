@@ -71,9 +71,9 @@ struct TemperatureMoistureParams {
 
 inline constexpr float NOISE_MAX_AMPLITUDE = 0.70710678f;
 
-inline constexpr float WARP_OFFSET_X[2] = { 3100.0f, -1700.0f };
-inline constexpr float WARP_OFFSET_Y[2] = { -5300.0f, 2900.0f };
-inline constexpr float CONTINENT_OFFSET[2] = { -8100.0f, 4700.0f };
+inline constexpr float WARP_OFFSET_X[2] = { 12700.0f, -8300.0f };
+inline constexpr float WARP_OFFSET_Y[2] = { -9700.0f, 15100.0f };
+inline constexpr float CONTINENT_OFFSET[2] = { -21300.0f, 13700.0f };
 
 inline constexpr float TEMPERATURE_MIN_C = -10.0f;
 inline constexpr float TEMPERATURE_MAX_C = 30.0f;
@@ -199,8 +199,7 @@ inline float ridged_at(const godot::Vector2 p_p, const FbmParams &p_params) {
 inline float get_height_at(const godot::Vector2 p_world_xz, const FbmParams &p_params) {
 	float mask = 1.0f;
 	if (p_params.continent_influence > 0.0f) {
-		const godot::Vector2 scaled = p_world_xz * p_params.continent_frequency;
-		float c = noise(scaled + godot::Vector2(CONTINENT_OFFSET[0], CONTINENT_OFFSET[1]));
+		float c = noise((p_world_xz + godot::Vector2(CONTINENT_OFFSET[0], CONTINENT_OFFSET[1])) * p_params.continent_frequency);
 		c = std::clamp(c / NOISE_MAX_AMPLITUDE, -1.0f, 1.0f) * 0.5f + 0.5f;
 		const float contrast = std::max(p_params.continent_contrast, 0.0001f);
 		mask = mix(1.0f, smoothstep(0.5f - contrast, 0.5f + contrast, c), p_params.continent_influence);
@@ -209,10 +208,9 @@ inline float get_height_at(const godot::Vector2 p_world_xz, const FbmParams &p_p
 	godot::Vector2 p = p_world_xz;
 	const float warp = p_params.warp_amount * mask;
 	if (warp > 0.0f) {
-		const godot::Vector2 scaled = p_world_xz * p_params.warp_frequency;
 		const godot::Vector2 w(
-				noise(scaled + godot::Vector2(WARP_OFFSET_X[0], WARP_OFFSET_X[1])),
-				noise(scaled + godot::Vector2(WARP_OFFSET_Y[0], WARP_OFFSET_Y[1])));
+				noise((p_world_xz + godot::Vector2(WARP_OFFSET_X[0], WARP_OFFSET_X[1])) * p_params.warp_frequency),
+				noise((p_world_xz + godot::Vector2(WARP_OFFSET_Y[0], WARP_OFFSET_Y[1])) * p_params.warp_frequency));
 		p += w * warp;
 	}
 
@@ -233,7 +231,7 @@ inline float get_height_at(const godot::Vector2 p_world_xz, const FbmParams &p_p
 inline float temperature_at(const godot::Vector2 p_world_xz, const float p_height, const TemperatureMoistureParams &p_params) {
 	const float altitude_norm = 1.0f - std::clamp((p_height / p_params.temperature_altitude_reference) * 0.5f + 0.5f, 0.0f, 1.0f);
 
-	const float n = noise(p_world_xz * p_params.temperature_frequency + p_params.temperature_offset);
+	const float n = noise((p_world_xz + p_params.temperature_offset) * p_params.temperature_frequency);
 	const float noise_norm = std::clamp(n / NOISE_MAX_AMPLITUDE, -1.0f, 1.0f) * 0.5f + 0.5f;
 
 	const float combined_norm = std::clamp(altitude_norm + (noise_norm - 0.5f) * p_params.temperature_noise_influence, 0.0f, 1.0f);
@@ -242,7 +240,7 @@ inline float temperature_at(const godot::Vector2 p_world_xz, const float p_heigh
 }
 
 inline float moisture_at(const godot::Vector2 p_world_xz, const TemperatureMoistureParams &p_params) {
-	const float n = noise(p_world_xz * p_params.moisture_frequency + p_params.moisture_offset);
+	const float n = noise((p_world_xz + p_params.moisture_offset) * p_params.moisture_frequency);
 	return std::clamp(n / NOISE_MAX_AMPLITUDE, -1.0f, 1.0f) * 0.5f + 0.5f;
 }
 

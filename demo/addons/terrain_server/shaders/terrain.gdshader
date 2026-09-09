@@ -74,9 +74,9 @@ varying float v_height;
 
 const float NOISE_MAX_AMPLITUDE = 0.70710678;
 
-const vec2 WARP_OFFSET_X = vec2(3100.0, -1700.0);
-const vec2 WARP_OFFSET_Y = vec2(-5300.0, 2900.0);
-const vec2 CONTINENT_OFFSET = vec2(-8100.0, 4700.0);
+const vec2 WARP_OFFSET_X = vec2(12700.0, -8300.0);
+const vec2 WARP_OFFSET_Y = vec2(-9700.0, 15100.0);
+const vec2 CONTINENT_OFFSET = vec2(-21300.0, 13700.0);
 
 const mat2 OCTAVE_ROTATION = mat2(vec2(0.8, -0.6), vec2(0.6, 0.8));
 
@@ -172,7 +172,7 @@ float ridged_at(vec2 p) {
 float get_height_at(vec2 world_xz) {
 	float mask = 1.0;
 	if (continent_influence > 0.0) {
-		float c = noise(world_xz * continent_frequency + CONTINENT_OFFSET);
+		float c = noise((world_xz + CONTINENT_OFFSET) * continent_frequency);
 		c = clamp(c / NOISE_MAX_AMPLITUDE, -1.0, 1.0) * 0.5 + 0.5;
 		float contrast = max(continent_contrast, 0.0001);
 		mask = mix(1.0, smoothstep(0.5 - contrast, 0.5 + contrast, c), continent_influence);
@@ -182,8 +182,8 @@ float get_height_at(vec2 world_xz) {
 	float warp = warp_amount * mask;
 	if (warp > 0.0) {
 		vec2 w = vec2(
-			noise(world_xz * warp_frequency + WARP_OFFSET_X),
-			noise(world_xz * warp_frequency + WARP_OFFSET_Y));
+			noise((world_xz + WARP_OFFSET_X) * warp_frequency),
+			noise((world_xz + WARP_OFFSET_Y) * warp_frequency));
 		p += w * warp;
 	}
 
@@ -206,7 +206,7 @@ const float TEMPERATURE_MAX_C = 30.0;
 float temperature_at(vec2 world_xz, float height) {
 	float altitude_norm = 1.0 - clamp((height / temperature_altitude_reference) * 0.5 + 0.5, 0.0, 1.0);
 
-	float n = noise(world_xz * temperature_frequency + temperature_offset);
+	float n = noise((world_xz + temperature_offset) * temperature_frequency);
 	float noise_norm = clamp(n / NOISE_MAX_AMPLITUDE, -1.0, 1.0) * 0.5 + 0.5;
 
 	float combined_norm = clamp(altitude_norm + (noise_norm - 0.5) * temperature_noise_influence, 0.0, 1.0);
@@ -215,7 +215,7 @@ float temperature_at(vec2 world_xz, float height) {
 }
 
 float moisture_at(vec2 world_xz) {
-	float n = noise(world_xz * moisture_frequency + moisture_offset);
+	float n = noise((world_xz + moisture_offset) * moisture_frequency);
 	return clamp(n / NOISE_MAX_AMPLITUDE, -1.0, 1.0) * 0.5 + 0.5;
 }
 
