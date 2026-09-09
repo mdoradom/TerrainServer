@@ -18,6 +18,7 @@
 
 #include <algorithm>
 #include <limits>
+#include <vector>
 
 using namespace godot;
 
@@ -26,9 +27,10 @@ namespace ts {
 namespace {
 
 constexpr double STATS_REFRESH_INTERVAL = 0.5;
-constexpr int HEIGHT_PREVIEW_RESOLUTION = 40;
-constexpr float HEIGHT_PREVIEW_FALLBACK_WINDOW = 64.0f;
-constexpr float HEIGHT_PREVIEW_WINDOW_FRACTION = 0.25f;
+constexpr int HEIGHT_PREVIEW_RESOLUTION = 128;
+constexpr float HEIGHT_PREVIEW_WINDOW_FRACTION = 2.0f;
+constexpr float HEIGHT_PREVIEW_FALLBACK_WINDOW = 512.0f;
+constexpr int HEIGHT_PREVIEW_MARKER_ARM = 3;
 
 Terrain3D *terrain_from_selected_node(Node *p_node) {
 	for (Node *node = p_node; node != nullptr; node = node->get_parent()) {
@@ -274,7 +276,7 @@ void TerrainDock::_refresh_height_preview() {
 	const float window = extent0 > 0.0f ? extent0 * HEIGHT_PREVIEW_WINDOW_FRACTION : HEIGHT_PREVIEW_FALLBACK_WINDOW;
 	const float half = window * 0.5f;
 
-	float heights[HEIGHT_PREVIEW_RESOLUTION * HEIGHT_PREVIEW_RESOLUTION];
+	std::vector<float> heights(static_cast<size_t>(HEIGHT_PREVIEW_RESOLUTION) * HEIGHT_PREVIEW_RESOLUTION);
 	float min_h = std::numeric_limits<float>::max();
 	float max_h = std::numeric_limits<float>::lowest();
 
@@ -283,23 +285,44 @@ void TerrainDock::_refresh_height_preview() {
 		for (int x = 0; x < HEIGHT_PREVIEW_RESOLUTION; x++) {
 			const float wx = center.x - half + window * (static_cast<float>(x) + 0.5f) / HEIGHT_PREVIEW_RESOLUTION;
 			const float h = _current_terrain->get_height_at(Vector2(wx, wz));
-			heights[y * HEIGHT_PREVIEW_RESOLUTION + x] = h;
+			heights[static_cast<size_t>(y) * HEIGHT_PREVIEW_RESOLUTION + x] = h;
 			min_h = std::min(min_h, h);
 			max_h = std::max(max_h, h);
 		}
 	}
 
 	const float range = std::max(max_h - min_h, 0.001f);
-	const Ref<Image> image = Image::create(HEIGHT_PREVIEW_RESOLUTION, HEIGHT_PREVIEW_RESOLUTION, false, Image::FORMAT_RGB8);
-	for (int y = 0; y < HEIGHT_PREVIEW_RESOLUTION; y++) {
-		for (int x = 0; x < HEIGHT_PREVIEW_RESOLUTION; x++) {
-			const float t = (heights[y * HEIGHT_PREVIEW_RESOLUTION + x] - min_h) / range;
-			image->set_pixel(x, y, Color(t, t, t));
-		}
+
+	PackedByteArray pixels;
+	pixels.resize(HEIGHT_PREVIEW_RESOLUTION * HEIGHT_PREVIEW_RESOLUTION * 3);
+	uint8_t *pixel_write = pixels.ptrw();
+	for (size_t i = 0; i < heights.size(); i++) {
+		const float t = (heights[i] - min_h) / range;
+		const auto value = static_cast<uint8_t>(std::clamp(t, 0.0f, 1.0f) * 255.0f + 0.5f);
+		pixel_write[i * 3 + 0] = value;
+		pixel_write[i * 3 + 1] = value;
+		pixel_write[i * 3 + 2] = value;
 	}
 
 	constexpr int center_px = HEIGHT_PREVIEW_RESOLUTION / 2;
-	image->set_pixel(center_px, center_px, Color(1.0f, 0.85f, 0.2f));
+	const auto mark = [pixel_write](const int p_x, const int p_y) {
+		if (p_x < 0 || p_x >= HEIGHT_PREVIEW_RESOLUTION || p_y < 0 || p_y >= HEIGHT_PREVIEW_RESOLUTION) {
+			return;
+		}
+		const size_t offset = (static_cast<size_t>(p_y) * HEIGHT_PREVIEW_RESOLUTION + p_x) * 3;
+		pixel_write[offset + 0] = 255;
+		pixel_write[offset + 1] = 217;
+		pixel_write[offset + 2] = 51;
+	};
+	for (int i = -HEIGHT_PREVIEW_MARKER_ARM; i <= HEIGHT_PREVIEW_MARKER_ARM; i++) {
+		mark(center_px + i, center_px);
+		mark(center_px, center_px + i);
+	}
+
+	const Ref<Image> image = Image::create_from_data(HEIGHT_PREVIEW_RESOLUTION, HEIGHT_PREVIEW_RESOLUTION, false, Image::FORMAT_RGB8, pixels);
+	if (image.is_null()) {
+		return;
+	}
 
 	if (_height_preview_texture.is_valid()) {
 		_height_preview_texture->set_image(image);
