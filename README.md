@@ -1,5 +1,7 @@
 # TerrainServer
 
+![TerrainServer hero](docs/assets/hero.png)
+
 ![Godot Engine](https://img.shields.io/badge/Godot-4.5+-478cbf?logo=godot-engine&logoColor=white)
 ![C++](https://img.shields.io/badge/Language-C++17-00599C?logo=c%2B%2B&logoColor=white)
 ![License](https://img.shields.io/badge/License-GNU%20GPLv3-blue.svg)
@@ -83,3 +85,8 @@ Godot 4.5+ (tested on 4.7.1).
 ## License
 
 [GNU GPLv3](LICENSE).
+
+<picture>
+  <source media="(prefers-color-scheme: dark)" srcset="docs/assets/lockup_horizontal_light.png">
+  <img src="docs/assets/lockup_horizontal_dark.png" alt="TerrainServer" width="480">
+</picture>
