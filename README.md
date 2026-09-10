@@ -18,17 +18,15 @@ plus a set of `Resource` classes for shape, biome and slope tuning.
 
 ## Features
 
-- Real-time procedural generation driven by `TerrainConfiguration`
-- Clipmap-based level-of-detail rendering
-- Physics collision that tracks the rendered surface
-- Biome (temperature/moisture) and slope-based layering
-- Editor preview: live in-viewport terrain, debug gizmos, and a bottom-panel dock with stats, a
-  Whittaker climate chart and a live probe
+* Real-time procedural generation driven by `TerrainConfiguration`
+* Clipmap-based level-of-detail rendering
+* Physics collision that tracks the rendered surface
+* Biome (temperature/moisture) and slope-based layering
+* Editor preview: live in-viewport terrain, debug gizmos, and a bottom-panel dock with stats, a Whittaker climate chart and a live probe
 
 ## Install from a release
 
-1. Download the latest release archive (for example, `terrain_server-v1.2.3.zip`) from the
-   [GitHub Releases page](https://github.com/mdoradom/TerrainServer/releases)
+1. Download the latest release archive (for example, `terrain_server-v1.2.3.zip`) from the [GitHub Releases page](https://github.com/mdoradom/TerrainServer/releases)
 2. Extract it to your project root (creates `res://addons/terrain_server/`)
 3. Restart Godot. The extension loads automatically, no Plugins-tab toggle needed
 
@@ -41,8 +39,7 @@ See [`docs/manual/01-installation.md`](docs/manual/01-installation.md) for detai
 3. Point `focus_path` at your camera or player so the clipmap and collision follow it
 4. Add `TerrainBiomeLayer` / `TerrainSlopeLayer` resources to shade by climate and slope
 
-The defaults alone are enough to see terrain, see
-[`docs/manual/02-quick-start.md`](docs/manual/02-quick-start.md) for a full walkthrough.
+The defaults alone are enough to see terrain, see [`docs/manual/02-quick-start.md`](docs/manual/02-quick-start.md) for a full walkthrough.
 
 ## Build from source
 
@@ -52,11 +49,12 @@ cd TerrainServer
 scons platform=linux target=template_debug   # or template_release
 ```
 
-`platform` is one of `linux`, `windows`, `macos`, `ios`. The resulting binary lands in
+`platform` is one of `linux`, `windows`, `macos`. The resulting binary lands in
 `demo/addons/terrain_server/bin/`, matched by
 `demo/addons/terrain_server/terrain_server.gdextension`. If you already cloned without
-submodules, run `git submodule update --init --recursive` first. See
-[`docs/manual/01-installation.md`](docs/manual/01-installation.md) for the full build-from-source
+submodules, run `git submodule update --init --recursive` first. 
+
+See [`docs/manual/01-installation.md`](docs/manual/01-installation.md) for the full build-from-source
 guide, including a build flag to avoid that silently produces a binary Godot won't load.
 
 ## Documentation
@@ -68,6 +66,7 @@ The manual lives under [`docs/manual/`](docs/manual/):
 3. [Demo scene walkthrough](docs/manual/03-demo-scene-walkthrough.md)
 4. [Runtime API](docs/manual/04-runtime-api.md)
 5. [Editor tools](docs/manual/05-editor-tools.md)
+6. [Benchmarking](docs/benchmarks.md)
 
 The in-editor class reference (F1 in Godot) covers every bound class, property and method in
 detail; the manual above is the narrative guide to using them together.
@@ -76,7 +75,7 @@ detail; the manual above is the narrative guide to using them together.
 
 - ✅ Linux x86_64
 - ✅ Windows x86_64
-- ✅ macOS (Universal)
+- ✅ macOS
 
 ## Requirements
 
