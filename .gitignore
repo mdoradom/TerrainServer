@@ -43,3 +43,6 @@ demo/bin/
 
 # --- Generated doc data ---
 gen/
+
+# --- Benchmark output ---
+.benchmarks/

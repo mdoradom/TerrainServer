@@ -1,6 +1,6 @@
 [gd_scene format=3 uid="uid://wynwhvbc4af1"]
 
-[ext_resource type="TerrainConfiguration" uid="uid://dqpa6lvc7vs0d" path="res://addons/terrain_server/assets/terrains/new_terrain_configuration.tres" id="1_j1qb7"]
+[ext_resource type="TerrainConfiguration" uid="uid://dqpa6lvc7vs0d" path="res://addons/terrain_server/assets/terrains/demo_terrain_configuration.tres" id="1_j1qb7"]
 
 [sub_resource type="ProceduralSkyMaterial" id="ProceduralSkyMaterial_pt7ik"]
 sky_horizon_color = Color(0.66224277, 0.6717428, 0.6867428, 1)

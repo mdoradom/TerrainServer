@@ -29,7 +29,7 @@ finest clipmap detail and the collision grid center themselves.
 
 ## 2. Add the `Terrain3D` node
 
-Add the node, assign `new_terrain_configuration.tres` (the resource this walkthrough tunes) to
+Add the node, assign `demo_terrain_configuration.tres` (the resource this walkthrough tunes) to
 `configuration`, and set `focus_path` to the `Camera3D` sibling. The demo also turns on
 `editor_preview_physics`, so the collision gizmo and the terrain dock's live probe have real
 data to show while editing, at the cost of the collision grid regridding continuously as you fly
