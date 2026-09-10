@@ -1,0 +1,40 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<class name="TerrainGenerator" inherits="RefCounted" api_type="extension" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:noNamespaceSchemaLocation="https://raw.githubusercontent.com/godotengine/godot/master/doc/class.xsd">
+	<brief_description>
+		Builds the flat meshes that every clipmap level reuses.
+	</brief_description>
+	<description>
+		Generates the base geometry of the clipmap: the square block that is instanced to form each ring, and the fixup strips that close the seams between rings. No vertical displacement is applied here, the mesh is flat, and the terrain shader displaces it on the GPU, so one mesh serves every level at a different scale.
+		Owned and driven by [Terrain3D], which calls [method setup] whenever its [member Terrain3D.configuration] changes. There is no reason to instantiate this class yourself.
+	</description>
+	<tutorials>
+	</tutorials>
+	<methods>
+		<method name="create_block_mesh" qualifiers="static">
+			<return type="ArrayMesh" />
+			<param index="0" name="resolution" type="int" />
+			<description>
+			</description>
+		</method>
+		<method name="create_ring_fixup_mesh" qualifiers="static">
+			<return type="ArrayMesh" />
+			<param index="0" name="resolution" type="int" />
+			<description>
+			</description>
+		</method>
+		<method name="create_trim_mesh" qualifiers="static">
+			<return type="ArrayMesh" />
+			<param index="0" name="resolution" type="int" />
+			<param index="1" name="dx" type="int" />
+			<param index="2" name="dz" type="int" />
+			<description>
+			</description>
+		</method>
+		<method name="setup">
+			<return type="void" />
+			<param index="0" name="config" type="TerrainConfiguration" />
+			<description>
+			</description>
+		</method>
+	</methods>
+</class>

@@ -1,0 +1,167 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<class name="TerrainConfiguration" inherits="Resource" api_type="extension" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:noNamespaceSchemaLocation="https://raw.githubusercontent.com/godotengine/godot/master/doc/class.xsd">
+	<brief_description>
+		Every tunable parameter of a [Terrain3D], in one resource.
+	</brief_description>
+	<description>
+		Holds the shape, look and collision settings for a [Terrain3D]. Nothing is generated until a configuration is assigned to [member Terrain3D.configuration].
+		Every setter emits [signal Resource.changed], and the terrain node rebuilds in response, so edits apply live, in the editor as well as in a running game. The nested layers relay their own changes too: editing a [TerrainBiomeLayer] inside [member biome_layers], or the [member rock_layer], rebuilds the terrain just the same.
+		Because it is a plain [Resource], a configuration can be saved as a [code].tres[/code] preset and shared between scenes, or swapped at runtime to move a terrain between looks.
+		Properties are grouped in the inspector as [b]Terrain[/b], [b]Noise[/b], [b]Physics[/b], [b]Biome[/b], [b]Parallax[/b] and [b]Triplanar[/b].
+	</description>
+	<tutorials>
+	</tutorials>
+	<members>
+		<member name="biome_layers" type="TerrainBiomeLayer[]" setter="set_biome_layers" getter="get_biome_layers" default="[]">
+			The [TerrainBiomeLayer] resources the terrain picks between, by temperature and moisture. An empty array renders untextured terrain.
+			At most [code]32[/code] layers are used; a longer array is truncated with a warning. Layers relay their own [signal Resource.changed], so editing one rebuilds the terrain.
+		</member>
+		<member name="clipmap_levels" type="int" setter="set_clipmap_levels" getter="get_clipmap_levels" default="6">
+			Number of nested clipmap rings. Each additional level doubles the terrain's visible radius for a nearly fixed vertex cost, so this is the cheap way to see further, unlike [member mesh_resolution].
+			Range [code]1[/code] to [code]10[/code].
+		</member>
+		<member name="height_scale" type="float" setter="set_height_scale" getter="get_height_scale" default="10.0">
+			Vertical amplitude of the terrain, in world units: peaks reach roughly this far above and below [code]y = 0[/code]. Raising it makes slopes steeper everywhere, which also raises the slope values that [member rock_layer] is compared against.
+			Range [code]0.1[/code] to [code]1000.0[/code].
+		</member>
+		<member name="mesh_resolution" type="int" setter="set_mesh_resolution" getter="get_mesh_resolution" default="256">
+			Number of quads along one side of a single clipmap block. Higher values mean finer geometry at every level, at a roughly quadratic cost in vertices.
+			Range [code]1[/code] to [code]512[/code]. Values of [code]0[/code] or less are modified to [code]64[/code].
+		</member>
+		<member name="moisture_frequency" type="float" setter="set_moisture_frequency" getter="get_moisture_frequency" default="0.0006">
+			Frequency of the moisture noise field; effectively the inverse of how large a wet or dry region is. Unlike temperature, moisture does not depend on height at all.
+			Range [code]0.0001[/code] to [code]0.01[/code].
+		</member>
+		<member name="moisture_offset" type="Vector2" setter="set_moisture_offset" getter="get_moisture_offset" default="Vector2(-4000, 9000)">
+			World-space offset applied when sampling the moisture noise field. Because temperature and moisture use separate offsets, changing this re-rolls which parts of a temperature band are wet or dry.
+		</member>
+		<member name="noise_base_frequency" type="float" setter="set_noise_base_frequency" getter="get_noise_base_frequency" default="0.002">
+			Frequency of the first noise octave; effectively the inverse of feature size. Lower values give broad, rolling landforms, higher values give tight, busy ones.
+			Range [code]0.0001[/code] to [code]0.1[/code].
+		</member>
+		<member name="noise_continent_contrast" type="float" setter="set_noise_continent_contrast" getter="get_noise_continent_contrast" default="0.2">
+			Half-width of the transition between lowland and highland provinces. Small values give crisp borders where plains meet mountains; large values blend them into one long gradient.
+			Range [code]0.01[/code] to [code]0.5[/code].
+		</member>
+		<member name="noise_continent_elevation" type="float" setter="set_noise_continent_elevation" getter="get_noise_continent_elevation" default="0.0">
+			How far a province shifts the terrain's base height, as a fraction of [member height_scale]. This is what makes a highland genuinely higher than a plain rather than merely rougher at the same average elevation. It is also the only term that can push the surface past the range [member height_scale] implies, so raising it moves the ground away from [code]y = 0[/code] in both directions.
+			Range [code]0.0[/code] to [code]1.0[/code].
+		</member>
+		<member name="noise_continent_frequency" type="float" setter="set_noise_continent_frequency" getter="get_noise_continent_frequency" default="0.00025">
+			Frequency of the province field, which decides where mountain ranges sit and where lowland does. The inverse is roughly the width of one province, so this should be well below [member noise_base_frequency].
+			Range [code]0.00005[/code] to [code]0.005[/code].
+		</member>
+		<member name="noise_continent_influence" type="float" setter="set_noise_continent_influence" getter="get_noise_continent_influence" default="0.0">
+			Master switch for provinces. At [code]0.0[/code] the province field is not sampled at all and the terrain has the same character everywhere; at [code]1.0[/code] it fully drives [member noise_continent_elevation], [member noise_relief_floor] and the local strength of [member noise_ridge_amount].
+			Range [code]0.0[/code] to [code]1.0[/code].
+		</member>
+		<member name="noise_continent_sea_level" type="float" setter="set_noise_continent_sea_level" getter="get_noise_continent_sea_level" default="0.4">
+			Point in the province range that maps to no height offset. Provinces below it are pushed down by [member noise_continent_elevation] and provinces above it are pushed up, so lower values put more of the world in highland and higher values in lowland.
+			Range [code]0.0[/code] to [code]1.0[/code].
+		</member>
+		<member name="noise_gain" type="float" setter="set_noise_gain" getter="get_noise_gain" default="0.5">
+			Amplitude multiplier between consecutive octaves. Values below [code]0.5[/code] give smooth terrain dominated by the base octave; higher values let fine octaves through and produce rough, craggy ground.
+			Range [code]0.0[/code] to [code]1.0[/code].
+		</member>
+		<member name="noise_lacunarity" type="float" setter="set_noise_lacunarity" getter="get_noise_lacunarity" default="2.0">
+			Frequency multiplier between consecutive octaves. The standard value of [code]2.0[/code] doubles the frequency each octave; higher values spread the octaves further apart and make detail look less self-similar.
+			Range [code]1.0[/code] to [code]5.0[/code].
+		</member>
+		<member name="noise_octaves" type="int" setter="set_noise_octaves" getter="get_noise_octaves" default="5">
+			Number of fBm octaves summed to produce the terrain height. More octaves add finer detail, at a linear cost in both the shader and the CPU-side sampling that backs collision and [method Terrain3D.get_height_at].
+			Range [code]1[/code] to [code]10[/code].
+		</member>
+		<member name="noise_preview" type="ImageTexture" setter="" getter="get_noise_preview">
+			Read-only greyscale top-down render of the terrain, regenerated whenever one of the [code]noise_*[/code] properties changes. It runs the same height function the shader and the collision heightmap do, so every shaping parameter is reflected in it, and it is normalized to its own range so it always uses the full black-to-white ramp — brightness is relative, not an absolute height.
+			The area covered scales with the frequencies: twelve [member noise_base_frequency] wavelengths, widened to two [member noise_continent_frequency] wavelengths once [member noise_continent_influence] is above zero, so provinces and the ridges inside them are both visible. It has no setter.
+		</member>
+		<member name="noise_redistribution" type="float" setter="set_noise_redistribution" getter="get_noise_redistribution" default="1.0">
+			Exponent applied to the normalized height, preserving its sign. [code]1.0[/code] leaves the distribution alone. Values above it flatten mid elevations into valley floor and plateau and push the rare extremes further out, which is closer to how real elevation is distributed: a lot of low ground and few peaks.
+			Range [code]0.5[/code] to [code]3.0[/code].
+		</member>
+		<member name="noise_relief_floor" type="float" setter="set_noise_relief_floor" getter="get_noise_relief_floor" default="1.0">
+			Fraction of the full relief amplitude kept in the calmest provinces. [code]1.0[/code] gives every province the same amount of relief; low values flatten lowlands into plains while mountain provinces keep their full height.
+			Range [code]0.0[/code] to [code]1.0[/code].
+		</member>
+		<member name="noise_ridge_amount" type="float" setter="set_noise_ridge_amount" getter="get_noise_ridge_amount" default="0.0">
+			How far the height field is blended from smooth fBm towards a ridged multifractal. At [code]0.0[/code] the terrain is plain fBm: rounded, dune-like, with the same relief everywhere. Raising it folds each octave around its zero crossings so they become sharp ridgelines with dendritic valleys between them. Scaled down by the province mask, so lowlands stay smooth even at [code]1.0[/code].
+			Range [code]0.0[/code] to [code]1.0[/code].
+		</member>
+		<member name="noise_ridge_crest_rounding" type="float" setter="set_noise_ridge_crest_rounding" getter="get_noise_ridge_crest_rounding" default="0.2">
+			Radius over which each ridge crest is rounded off, as a fraction of the octave's own amplitude, so it scales with every octave rather than being a fixed world distance.
+			Folding an octave with a plain absolute value leaves a sharp crease, and a crease carries detail at every scale — far below the finest octave, and far below anything the terrain mesh can represent. Rounding the fold band-limits it. [code]0.0[/code] restores the hard fold and the sharpest possible crests, at the cost of detail the mesh cannot resolve; higher values trade peak height for a smoother surface.
+			Range [code]0.0[/code] to [code]0.5[/code].
+		</member>
+		<member name="noise_ridge_offset" type="float" setter="set_noise_ridge_offset" getter="get_noise_ridge_offset" default="1.0">
+			Height each ridged octave is folded around, which sets how sharp the crests are. Values below [code]1.0[/code] flatten the peaks; higher values make them narrower and spikier. Only has an effect when [member noise_ridge_amount] is above zero.
+			Range [code]0.5[/code] to [code]1.5[/code].
+		</member>
+		<member name="noise_ridge_weight_gain" type="float" setter="set_noise_ridge_weight_gain" getter="get_noise_ridge_weight_gain" default="1.5">
+			How strongly a ridged octave's prominence feeds into the next one. Higher values concentrate fine detail onto ridges that are already prominent and leave valley floors simple; [code]0.0[/code] weights every octave equally, giving uniformly busy terrain. Only has an effect when [member noise_ridge_amount] is above zero.
+			Range [code]0.0[/code] to [code]3.0[/code].
+		</member>
+		<member name="noise_warp_amount" type="float" setter="set_noise_warp_amount" getter="get_noise_warp_amount" default="0.0">
+			Distance, in world units, that the sample position is displaced by a second noise field before the terrain is evaluated. Makes ridges and valleys meander instead of running straight. [code]0.0[/code] disables the warp and skips its two noise lookups.
+			This interacts with [member noise_warp_frequency]: it is their [i]product[/i] that decides how much the warp stretches the terrain locally. Keep it below roughly [code]0.1[/code], or the stretch becomes strong enough to squash the fine octaves into parallel corrugations, which are most obvious on otherwise flat lowland.
+			Range [code]0.0[/code] to [code]500.0[/code].
+		</member>
+		<member name="noise_warp_frequency" type="float" setter="set_noise_warp_frequency" getter="get_noise_warp_frequency" default="0.001">
+			Frequency of the displacement field used by [member noise_warp_amount]. Keep it well below [member noise_base_frequency] so the warp bends whole ranges rather than shearing individual landforms; as the two frequencies approach each other the warp starts corrugating the terrain instead of meandering it. Raising this is also the cheapest way to overshoot the product limit described in [member noise_warp_amount].
+			Range [code]0.0001[/code] to [code]0.01[/code].
+		</member>
+		<member name="physics_collision_layer" type="int" setter="set_physics_collision_layer" getter="get_physics_collision_layer" default="1">
+			Physics layers the terrain's collision body belongs to. See [url=https://docs.godotengine.org/en/stable/tutorials/physics/physics_introduction.html#collision-layers-and-masks]Collision layers and masks[/url].
+		</member>
+		<member name="physics_collision_mask" type="int" setter="set_physics_collision_mask" getter="get_physics_collision_mask" default="0">
+			Physics layers the terrain's collision body scans. The terrain body is static and does not need to detect anything to be collided [i]with[/i], so the default of [code]0[/code] is usually right.
+		</member>
+		<member name="physics_range" type="float" setter="set_physics_range" getter="get_physics_range" default="64.0">
+			Side length, in world units, of the square collision area kept around the focus point. Larger values push the collision regrid further into the background but make each regrid more expensive, since [member mesh_resolution] samples are spread over more ground.
+			Range [code]8.0[/code] to [code]512.0[/code].
+		</member>
+		<member name="pom_fade_end" type="float" setter="set_pom_fade_end" getter="get_pom_fade_end" default="120.0">
+			View distance, in world units, at which parallax occlusion mapping is fully faded out and costs nothing. Keep it comfortably above [member pom_fade_start] so the fade is not visible as a band, and low enough that distant terrain does not pay for detail nobody can see.
+		</member>
+		<member name="pom_fade_start" type="float" setter="set_pom_fade_start" getter="get_pom_fade_start" default="40.0">
+			View distance, in world units, at which parallax occlusion mapping begins fading out. Closer than this it is applied at full strength.
+		</member>
+		<member name="pom_max_steps" type="int" setter="set_pom_max_steps" getter="get_pom_max_steps" default="32">
+			Highest number of ray-marching steps parallax occlusion mapping uses, taken at grazing angles where the ray travels furthest through the height field. This is the main cost knob for parallax; lower it first if POM is too expensive.
+			Range [code]1[/code] to [code]128[/code].
+		</member>
+		<member name="pom_min_steps" type="int" setter="set_pom_min_steps" getter="get_pom_min_steps" default="8">
+			Lowest number of ray-marching steps parallax occlusion mapping uses, taken when a surface is viewed head-on and needs the least work.
+			Range [code]1[/code] to [code]64[/code]. Only has an effect on layers whose [member TerrainBiomeLayer.pom_depth] is above zero.
+		</member>
+		<member name="rock_layer" type="TerrainSlopeLayer" setter="set_rock_layer" getter="get_rock_layer">
+			Optional [TerrainSlopeLayer] painted over the biomes wherever the ground is steep enough, regardless of climate. Typically, a rock or cliff material.
+			This is the default rock for every biome. A biome that sets [member TerrainBiomeLayer.slope_layer] uses that instead, so leave this assigned as the shared fallback and override only the biomes that need cliffs of their own. With this unset, biomes without a slope layer of their own simply show no rock.
+			If it never appears, its [member TerrainSlopeLayer.slope_threshold] is above the steepest slope the terrain actually produces, see that class for how to pick a value.
+		</member>
+		<member name="temperature_altitude_reference" type="float" setter="set_temperature_altitude_reference" getter="get_temperature_altitude_reference" default="10.0">
+			Height, in world units, over which temperature falls across its full range. Lower values compress the whole climate gradient into a shorter climb, so biomes stack up in thinner altitude bands.
+			This is what makes temperature behave as altitude in practice: with the default settings, a biome's temperature window selects an [i]elevation[/i] band, not a region of the map.
+			Range [code]0.1[/code] to [code]100.0[/code].
+		</member>
+		<member name="temperature_frequency" type="float" setter="set_temperature_frequency" getter="get_temperature_frequency" default="0.0004">
+			Frequency of the noise field mixed into the climate temperature. Only matters to the extent that [member temperature_noise_influence] is above zero.
+			Range [code]0.0001[/code] to [code]0.01[/code].
+		</member>
+		<member name="temperature_noise_influence" type="float" setter="set_temperature_noise_influence" getter="get_temperature_noise_influence" default="0.4">
+			How much noise perturbs the altitude-derived temperature, from [code]0.0[/code] (temperature is purely a function of height) to [code]1.0[/code] (noise dominates).
+			Keep this low for tidy altitude-banded biomes, and raise it to break the bands up into patches.
+			Range [code]0.0[/code] to [code]1.0[/code].
+		</member>
+		<member name="temperature_offset" type="Vector2" setter="set_temperature_offset" getter="get_temperature_offset" default="Vector2(10000, -6000)">
+			World-space offset applied when sampling the temperature noise field. Change it to shift which climates land where without touching the terrain's shape.
+		</member>
+		<member name="terrain_size" type="float" setter="set_terrain_size" getter="get_terrain_size" default="256.0">
+			World-space side length of the finest clipmap level, in world units. Each coarser level covers twice as much ground, so the total radius the terrain reaches is this multiplied by [code]2[/code] to the power of [member clipmap_levels].
+			Range [code]1.0[/code] to [code]10000.0[/code].
+		</member>
+		<member name="triplanar_sharpness" type="float" setter="set_triplanar_sharpness" getter="get_triplanar_sharpness" default="4.0">
+			Exponent controlling how sharply triplanar texture projection blends between the three axes. Low values give a wide, soft blend that can look washed out on flat ground; high values give a crisp transition that can show a visible seam on slopes near 45 degrees.
+			Range [code]1.0[/code] to [code]16.0[/code].
+		</member>
+	</members>
+</class>

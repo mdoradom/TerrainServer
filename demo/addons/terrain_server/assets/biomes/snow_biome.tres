@@ -1,0 +1,24 @@
+[gd_resource type="TerrainBiomeLayer" format=3 uid="uid://c5c0fw64xx3ks"]
+
+[ext_resource type="Texture2D" uid="uid://m83oiisequ15" path="res://addons/terrain_server/assets/textures/snow/clean_snow_diff_2k.png" id="1_0uynp"]
+[ext_resource type="Texture2D" uid="uid://bguk44mjv8kul" path="res://addons/terrain_server/assets/textures/snow/clean_snow_ao_2k.png" id="2_q0mpc"]
+[ext_resource type="Texture2D" uid="uid://3tdxosmwfdrk" path="res://addons/terrain_server/assets/textures/snow/clean_snow_disp_2k.png" id="3_3lxtf"]
+[ext_resource type="Texture2D" uid="uid://4g01se4ujnqi" path="res://addons/terrain_server/assets/textures/snow/clean_snow_nor_gl_2k.png" id="4_0yb5u"]
+[ext_resource type="Texture2D" uid="uid://dkbb8c4vjo3u" path="res://addons/terrain_server/assets/textures/snow/clean_snow_rough_2k.png" id="5_gtc0o"]
+[ext_resource type="TerrainSlopeLayer" uid="uid://b4ka8e0wrei88" path="res://addons/terrain_server/assets/biomes/ice_slope_layer.tres" id="6_q0mpc"]
+
+[resource]
+biome_name = "snow"
+albedo_texture = ExtResource("1_0uynp")
+normal_texture = ExtResource("4_0yb5u")
+roughness_texture = ExtResource("5_gtc0o")
+height_texture = ExtResource("3_3lxtf")
+ao_texture = ExtResource("2_q0mpc")
+uv_scale = 0.13
+pom_depth = 0.05
+max_temperature = 0.0
+blend_softness = 0.15
+slope_layer = ExtResource("6_q0mpc")
+slope_override = true
+slope_threshold = 0.7
+slope_blend_range = 0.5

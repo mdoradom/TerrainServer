@@ -20,9 +20,11 @@ namespace ts {
 constexpr int PHYSICS_MIN_GRID_RESOLUTION = 8;
 constexpr int PHYSICS_MAX_GRID_RESOLUTION = 256;
 
-// Mirrors WHITTAKER_TEMP_SOFTNESS_MIN / WHITTAKER_MOIST_SOFTNESS_MIN in terrain.gdshader fragment().
-constexpr float WHITTAKER_TEMP_SOFTNESS_MIN = 0.5f; // deg C
-constexpr float WHITTAKER_MOIST_SOFTNESS_MIN = 0.02f; // normalized [0,1]
+// Mirrors WHITTAKER_TEMP_SOFTNESS_EPSILON / WHITTAKER_MOIST_SOFTNESS_EPSILON in terrain.gdshader
+// fragment(). Both also stay clear of Math::smoothstep's is_equal_approx degenerate-edge branch,
+// which would return the edge value itself rather than a weight.
+constexpr float WHITTAKER_TEMP_SOFTNESS_EPSILON = 0.01f; // deg C
+constexpr float WHITTAKER_MOIST_SOFTNESS_EPSILON = 0.0005f; // normalized [0,1]
 
 void TerrainPhysics::_bind_methods() {
 	ClassDB::bind_method(D_METHOD("get_height_at", "world_xz"), &TerrainPhysics::get_height_at);
@@ -80,11 +82,7 @@ void TerrainPhysics::set_configuration(const Ref<TerrainConfiguration> &p_config
 	const float previous_range = _range;
 	const int previous_grid_resolution = _grid_resolution;
 
-	_noise_params.octaves = _config->get_noise_octaves();
-	_noise_params.base_frequency = _config->get_noise_base_frequency();
-	_noise_params.lacunarity = _config->get_noise_lacunarity();
-	_noise_params.gain = _config->get_noise_gain();
-	_noise_params.height_scale = static_cast<float>(_config->get_height_scale());
+	_noise_params = _config->build_noise_params();
 
 	_temp_moist_params.temperature_frequency = _config->get_temperature_frequency();
 	_temp_moist_params.temperature_offset = _config->get_temperature_offset();
@@ -120,11 +118,7 @@ void TerrainPhysics::set_configuration(const Ref<TerrainConfiguration> &p_config
 
 	const bool heightmap_params_changed = _grid_resolution != previous_grid_resolution ||
 			_range != previous_range ||
-			_noise_params.octaves != previous_noise_params.octaves ||
-			_noise_params.base_frequency != previous_noise_params.base_frequency ||
-			_noise_params.lacunarity != previous_noise_params.lacunarity ||
-			_noise_params.gain != previous_noise_params.gain ||
-			_noise_params.height_scale != previous_noise_params.height_scale;
+			_noise_params != previous_noise_params;
 
 	if (heightmap_params_changed) {
 		_has_built = false;
@@ -230,8 +224,9 @@ Ref<TerrainBiomeLayer> TerrainPhysics::get_biome_at(const Vector2 p_world_xz) co
 		const float min_m = layer->get_min_moisture();
 		const float max_m = layer->get_max_moisture();
 
-		const float softness_t = std::max(WHITTAKER_TEMP_SOFTNESS_MIN, (max_t - min_t) * 0.25f);
-		const float softness_m = std::max(WHITTAKER_MOIST_SOFTNESS_MIN, (max_m - min_m) * 0.25f);
+		const float blend_softness = layer->get_blend_softness();
+		const float softness_t = std::max(WHITTAKER_TEMP_SOFTNESS_EPSILON, (max_t - min_t) * blend_softness);
+		const float softness_m = std::max(WHITTAKER_MOIST_SOFTNESS_EPSILON, (max_m - min_m) * blend_softness);
 
 		const float wt = Math::smoothstep(min_t - softness_t, min_t, temperature) *
 				(1.0f - Math::smoothstep(max_t, max_t + softness_t, temperature));

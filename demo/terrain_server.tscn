@@ -1,6 +1,6 @@
 [gd_scene format=3 uid="uid://wynwhvbc4af1"]
 
-[ext_resource type="TerrainConfiguration" uid="uid://dqpa6lvc7vs0d" path="res://new_terrain_configuration.tres" id="1_j1qb7"]
+[ext_resource type="TerrainConfiguration" uid="uid://dqpa6lvc7vs0d" path="res://addons/terrain_server/assets/terrains/demo_terrain_configuration.tres" id="1_j1qb7"]
 
 [sub_resource type="ProceduralSkyMaterial" id="ProceduralSkyMaterial_pt7ik"]
 sky_horizon_color = Color(0.66224277, 0.6717428, 0.6867428, 1)
@@ -18,9 +18,9 @@ glow_enabled = true
 fog_sky_affect = 0.0
 fog_height_density = 0.4077
 
-[sub_resource type="SphereShape3D" id="SphereShape3D_7s5li"]
+[sub_resource type="SphereShape3D" id="SphereShape3D_kljxx"]
 
-[sub_resource type="SphereMesh" id="SphereMesh_pegvl"]
+[sub_resource type="SphereMesh" id="SphereMesh_bqtym"]
 
 [node name="Node3D" type="Node3D" unique_id=695386943]
 
@@ -34,19 +34,19 @@ shadow_normal_bias = 0.05
 shadow_blur = 10.0
 
 [node name="Camera3D" type="Camera3D" parent="." unique_id=699225141]
-transform = Transform3D(0.9077775, 0.066339724, -0.41417277, 0, 0.9874138, 0.15815806, 0.41945207, -0.14357233, 0.89635205, -2.959343, 3.6941547, 9.376048)
+transform = Transform3D(-0.7714331, -0.10063764, 0.62830174, 6.250323e-09, 0.9874138, 0.15815808, -0.6363105, 0.12200842, -0.7617239, -121.48069, 200.4384, -448.4122)
 
 [node name="Terrain3D" type="Terrain3D" parent="." unique_id=1294411717]
 configuration = ExtResource("1_j1qb7")
 editor_preview_physics = true
 
 [node name="Node3D" type="Node3D" parent="." unique_id=2110923160]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 8.016816, 0)
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -137.52467, 205.98264, -433.6516)
 
 [node name="RigidBody3D" type="RigidBody3D" parent="Node3D" unique_id=1456719488]
 
 [node name="CollisionShape3D" type="CollisionShape3D" parent="Node3D/RigidBody3D" unique_id=936135791]
-shape = SubResource("SphereShape3D_7s5li")
+shape = SubResource("SphereShape3D_kljxx")
 
 [node name="MeshInstance3D" type="MeshInstance3D" parent="Node3D/RigidBody3D" unique_id=837949051]
-mesh = SubResource("SphereMesh_pegvl")
+mesh = SubResource("SphereMesh_bqtym")

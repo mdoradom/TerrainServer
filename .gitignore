@@ -40,3 +40,9 @@ compile_commands.json
 
 # --- Specific Project Paths ---
 demo/bin/
+
+# --- Generated doc data ---
+gen/
+
+# --- Benchmark output ---
+.benchmarks/

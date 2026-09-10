@@ -1,0 +1,50 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<class name="TerrainSlopeLayer" inherits="Resource" api_type="extension" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:noNamespaceSchemaLocation="https://raw.githubusercontent.com/godotengine/godot/master/doc/class.xsd">
+	<brief_description>
+		A terrain material placed by steepness rather than climate.
+	</brief_description>
+	<description>
+		A material painted on top of the biome blend wherever the ground is steep enough, typically rock or cliff. Unlike [TerrainBiomeLayer], it ignores climate entirely and is driven only by surface normal, so it reads as exposed bedrock.
+		Assign it to [member TerrainConfiguration.rock_layer] to use it as the default rock for every biome, or to [member TerrainBiomeLayer.slope_layer] to give one biome cliffs of its own. Layers are deduplicated by texture set, so sharing one across many biomes costs a single slice of GPU memory.
+		[b]How steepness is measured.[/b] Slope is [code]1.0 - dot(normal, UP)[/code], so [code]0.0[/code] is dead flat and [code]1.0[/code] is a vertical wall. It is not an angle and not linear in one: roughly [code]0.1[/code] is a 26° slope, [code]0.3[/code] is 45°, and the default [code]0.6[/code] is about 66°.
+		[b]If the layer never shows up[/b], that is almost always the reason: [member slope_threshold] sits above the steepest slope the terrain actually produces. Terrain steepness is set by [member TerrainConfiguration.height_scale] against [member TerrainConfiguration.noise_base_frequency], and gentle settings simply never reach 66°. The threshold has to fall below roughly the terrain's 95th-percentile slope for the layer to appear on more than a stray pixel, so either lower it, or raise [member TerrainConfiguration.height_scale].
+		Emits [signal Resource.changed], so edits update the terrain live.
+	</description>
+	<tutorials>
+	</tutorials>
+	<members>
+		<member name="albedo_texture" type="Texture2D" setter="set_albedo_texture" getter="get_albedo_texture">
+			Base colour texture for this layer. Without it the layer contributes no visible material.
+		</member>
+		<member name="ao_texture" type="Texture2D" setter="set_ao_texture" getter="get_ao_texture">
+			Ambient occlusion map, multiplied into the layer's indirect lighting.
+		</member>
+		<member name="height_texture" type="Texture2D" setter="set_height_texture" getter="get_height_texture">
+			Height (displacement) map driving parallax occlusion mapping. Only used when [member pom_depth] is above zero.
+		</member>
+		<member name="normal_texture" type="Texture2D" setter="set_normal_texture" getter="get_normal_texture">
+			Tangent-space normal map, in OpenGL convention (green channel pointing up).
+		</member>
+		<member name="pom_depth" type="float" setter="set_pom_depth" getter="get_pom_depth" default="0.0">
+			Depth of the parallax occlusion effect, in UV-space units. [code]0.0[/code] disables parallax for this layer entirely, which is the cheapest option and the right one for layers with no [member height_texture].
+			Small values read as surface texture; large ones make silhouettes swim at grazing angles. Step counts and distance fade are shared across layers and set on [TerrainConfiguration] under [b]Parallax[/b].
+			Range [code]0.0[/code] to [code]0.25[/code], and it accepts larger values.
+		</member>
+		<member name="roughness_texture" type="Texture2D" setter="set_roughness_texture" getter="get_roughness_texture">
+			Roughness map. Read from the red channel; white is fully rough, black is mirror-smooth.
+		</member>
+		<member name="slope_blend_range" type="float" setter="set_slope_blend_range" getter="get_slope_blend_range" default="0.15">
+			Half-width of the smoothstep either side of [member slope_threshold]. The layer fades in from [code]threshold - range[/code] and is fully opaque by [code]threshold + range[/code].
+			Do not drive this toward zero to get a crisp rock line. Slope is view-independent but the transition it produces is not perceptually stable at a hard edge: a near-zero blend range makes the boundary alias and appear to crawl as the camera moves. Keep it wide enough to cover a few pixels of slope variation.
+			Range [code]0.01[/code] to [code]1.0[/code]. Clamped to a minimum of [code]0.001[/code] in the shader.
+		</member>
+		<member name="slope_threshold" type="float" setter="set_slope_threshold" getter="get_slope_threshold" default="0.6">
+			Steepness at which this layer reaches half coverage, as [code]1.0 - dot(normal, UP)[/code], [code]0.0[/code] is flat, [code]1.0[/code] is vertical. The default [code]0.6[/code] is roughly a 66° slope, which gentle terrain never reaches; see the class description if the layer is not showing up.
+			Range [code]0.0[/code] to [code]1.0[/code].
+		</member>
+		<member name="uv_scale" type="float" setter="set_uv_scale" getter="get_uv_scale" default="0.1">
+			How many times the layer's textures repeat per world unit. Lower values stretch the texture over more ground; higher values tile it more tightly and show tiling artifacts sooner.
+			Range [code]0.001[/code] to [code]2.0[/code], and it accepts larger values.
+		</member>
+	</members>
+</class>

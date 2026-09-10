@@ -1,0 +1,15 @@
+[gd_resource type="TerrainSlopeLayer" format=3 uid="uid://b4ka8e0wrei88"]
+
+[ext_resource type="Texture2D" uid="uid://cb8h045bxx3u7" path="res://addons/terrain_server/assets/textures/ice/ice_cliff_diff_2k.png" id="1_r5n0h"]
+[ext_resource type="Texture2D" uid="uid://btp4pt0dtmf0n" path="res://addons/terrain_server/assets/textures/ice/ice_cliff_ao_2k.png" id="2_h5w5t"]
+[ext_resource type="Texture2D" uid="uid://dytdokah13368" path="res://addons/terrain_server/assets/textures/ice/ice_cliff_disp_2k.png" id="3_dujui"]
+[ext_resource type="Texture2D" uid="uid://u4wuemvjcpf4" path="res://addons/terrain_server/assets/textures/ice/ice_cliff_nor_gl_2k.png" id="4_o0tof"]
+[ext_resource type="Texture2D" uid="uid://bl4yvso07vpgb" path="res://addons/terrain_server/assets/textures/ice/ice_cliff_rough_2k.png" id="5_8cwd3"]
+
+[resource]
+albedo_texture = ExtResource("1_r5n0h")
+normal_texture = ExtResource("4_o0tof")
+roughness_texture = ExtResource("5_8cwd3")
+height_texture = ExtResource("3_dujui")
+ao_texture = ExtResource("2_h5w5t")
+pom_depth = 0.25

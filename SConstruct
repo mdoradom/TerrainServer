@@ -21,6 +21,10 @@ for root, dirs, files in os.walk(source_path):
         if file.endswith(".cpp"):
             sources.append(os.path.join(root, file))
 
+# Class reference XML, compiled in so the editor can show it (F1)
+if env["target"] in ["editor", "template_debug"]:
+    sources.append(env.GodotCPPDocData("gen/doc_data.gen.cpp", source=Glob("doc_classes/*.xml")))
+
 # Platform specific build configuration
 if env["platform"] == "macos":
     # In macOS, we build a .framework
@@ -56,3 +60,27 @@ else:
     )
 
 Default(library)
+
+# BENCHMARKS
+# -------------------------------------------------------------------------
+# `scons benchmark` builds the extension and then runs the benchmark suite through Godot
+# itself, so there is no shell script and no platform-specific runner. Depending on `library`
+# is the point: a benchmark that measured a stale binary would be worse than no benchmark.
+#
+#   scons benchmark
+#   scons benchmark scenarios=@sweep rounds=2
+#   scons benchmark godot=/path/to/godot out=/tmp/bench device=laptop-win
+# -------------------------------------------------------------------------
+benchmark_args = " ".join(
+    "--{}={}".format(name, ARGUMENTS[name])
+    for name in ("scenarios", "rounds", "out", "device")
+    if name in ARGUMENTS
+)
+benchmark = env.Alias(
+    "benchmark",
+    library,
+    '"{}" --headless --path demo res://benchmark/run_benchmarks.tscn -- {}'.format(
+        ARGUMENTS.get("godot", "godot"), benchmark_args
+    ),
+)
+env.AlwaysBuild(benchmark)
