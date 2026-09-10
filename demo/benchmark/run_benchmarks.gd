@@ -76,6 +76,7 @@ func _measure(scenario: String, round_index: int) -> String:
 	var arguments := PackedStringArray([
 		"--path", ProjectSettings.globalize_path("res://"),
 		"--rendering-driver", _driver(),
+		"--audio-driver", "Dummy",
 		"--resolution", RESOLUTION,
 		"--disable-vsync",
 		BENCH_SCENE,
