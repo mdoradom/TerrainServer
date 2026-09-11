@@ -80,12 +80,12 @@ Open `demo/project.godot` in Godot and run `demo/trailer/trailer.tscn` (once it 
       > Result: source `klsr - Bliss.flac` (145.28s). 178 cues, 43 `strong`. Bridge snapped to
       > **63.94s** from a `--bridge-hint 67` (user confirmed "aprox 1m 7s" by ear, to be
       > fine-tuned with a fade in the final edit — the automatic guess doesn't need to be exact).
-      > `demo/trailer/audio_cues.json` is generated, not yet committed — pending review.
+      > `demo/trailer/audio_cues.json` is generated and committed.
       *Verify:* cue count and spacing look right against a manual listen/waveform check; the
       bridge cue lands within a fraction of a second of the audible transition. **Done above**,
       bridge precision explicitly deferred to the user's own edit.
 
-- [ ] **T1 — `debug_view` uniform + bound API.**
+- [x] **T1 — `debug_view` uniform + bound API.**
       `demo/addons/terrain_server/shaders/terrain.gdshader`: add `uniform int debug_view = 0;`
       near the existing uniform block, and additive branches at the very end of `fragment()`
       (~line 600–613, before the final `ALBEDO`/`NORMAL` writes) for: 1 = raw noise grayscale,
@@ -101,6 +101,14 @@ Open `demo/project.godot` in Godot and run `demo/trailer/trailer.tscn` (once it 
       *Verify:* rebuild (`scons platform=linux target=template_debug`), open
       `demo/terrain_server.tscn`, confirm `debug_view == 0` looks identical to before the
       change, then exercise 1/2/3 from a throwaway script call.
+      > Result: debug modes write to `EMISSION` (with `ALBEDO` zeroed) rather than `ALBEDO`
+      > directly, so the debug color reads unshaded/unlit instead of being modulated by
+      > scene lighting. Verified via a throwaway `SceneTree` script driving
+      > `demo/terrain_server.tscn`, stepping `debug_view` 0→1→2→3 and capturing a viewport
+      > screenshot at each: 0 is pixel-identical in kind to the pre-change shading (normal
+      > lit terrain), 1 shows a height-based grayscale gradient, 2 shows flat per-biome
+      > colors (clean splatmap look), 3 shows `normal_ws` as RGB. No shader compile errors
+      > in any mode.
 
 - [ ] **T2 — `demo/trailer/` scene scaffold + shared camera rig.**
       `demo/trailer/trailer.tscn` (a `Terrain3D`, `WorldEnvironment`, `DirectionalLight3D`,

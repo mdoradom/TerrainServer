@@ -84,6 +84,9 @@ public:
 	void reload_shader();
 	void rebuild();
 
+	void set_debug_view(int p_debug_view);
+	int get_debug_view() const;
+
 	static const std::vector<Terrain3D *> &get_editor_instances();
 };
 

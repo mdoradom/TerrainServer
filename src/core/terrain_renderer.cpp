@@ -47,6 +47,8 @@ void TerrainRenderer::_bind_methods() {
 	ClassDB::bind_method(D_METHOD("get_snapped_focus_xz"), &TerrainRenderer::get_snapped_focus_xz);
 	ClassDB::bind_method(D_METHOD("get_clipmap_level_origin", "level"), &TerrainRenderer::get_clipmap_level_origin);
 	ClassDB::bind_method(D_METHOD("request_shader_reload"), &TerrainRenderer::request_shader_reload);
+	ClassDB::bind_method(D_METHOD("set_debug_view", "debug_view"), &TerrainRenderer::set_debug_view);
+	ClassDB::bind_method(D_METHOD("get_debug_view"), &TerrainRenderer::get_debug_view);
 }
 
 TerrainRenderer::TerrainRenderer() = default;
@@ -749,6 +751,8 @@ void TerrainRenderer::rebuild_mesh(const float p_size, const int p_resolution) {
 		rs->material_set_param(material, "pom_fade_end", _config->get_pom_fade_end());
 		rs->material_set_param(material, "triplanar_sharpness", _config->get_triplanar_sharpness());
 
+		rs->material_set_param(material, "debug_view", _debug_view);
+
 		const float level_scale = p_size * powf(2.0f, static_cast<float>(i));
 		rs->instance_geometry_set_material_override(instance, material);
 
@@ -826,6 +830,19 @@ void TerrainRenderer::set_configuration(const Ref<TerrainConfiguration> &p_confi
 
 void TerrainRenderer::request_shader_reload() {
 	_shader_reload_pending = true;
+}
+
+void TerrainRenderer::set_debug_view(const int p_debug_view) {
+	_debug_view = p_debug_view;
+
+	RenderingServer *rs = RenderingServer::get_singleton();
+	for (const auto &level : _clipmap_levels) {
+		rs->material_set_param(level.material_rid, "debug_view", _debug_view);
+	}
+}
+
+int TerrainRenderer::get_debug_view() const {
+	return _debug_view;
 }
 
 int TerrainRenderer::get_clipmap_level_count() const {

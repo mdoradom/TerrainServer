@@ -75,6 +75,10 @@ uniform float pom_fade_start = 40.0;
 uniform float pom_fade_end = 120.0;
 uniform float triplanar_sharpness = 4.0;
 
+// Debug visualization (trailer/tooling only): 0 = normal shading, 1 = raw noise grayscale,
+// 2 = biome id as flat color (splatmap look), 3 = normal_ws visualized as RGB.
+uniform int debug_view = 0;
+
 varying vec2 v_world_xz;
 varying vec3 v_normal_ws;
 varying float v_height;
@@ -322,6 +326,12 @@ vec3 whiteout_z(vec3 p_t, vec3 p_n) { return vec3(p_t.x + p_n.x, p_t.y + p_n.y, 
 
 vec3 whiteout(vec3 p_t, vec3 p_n, int p_axis) {
 	return p_axis == 0 ? whiteout_x(p_t, p_n) : (p_axis == 1 ? whiteout_y(p_t, p_n) : whiteout_z(p_t, p_n));
+}
+
+// Hue-only HSV->RGB (saturation = value = 1), used to give each biome id a distinct flat color.
+vec3 debug_id_color(int p_id) {
+	float hue = fract(float(p_id) * 0.61803398875);
+	return clamp(abs(mod(hue * 6.0 + vec3(0.0, 4.0, 2.0), 6.0) - 3.0) - 1.0, 0.0, 1.0);
 }
 
 vec4 triplanar_array(sampler2DArray p_tex, int p_layer, vec3 p_pos, vec3 p_ddx, vec3 p_ddy, float p_scale, vec3 p_w) {
@@ -608,6 +618,19 @@ void fragment()
 		ROUGHNESS = mix(ROUGHNESS, rock_roughness, rock_alpha);
 		AO = mix(AO, rock_ao, rock_alpha);
 		normal_ws = mix(normal_ws, rock_normal, rock_alpha);
+	}
+
+	if (debug_view != 0) {
+		vec3 debug_color = vec3(0.0);
+		if (debug_view == 1) {
+			debug_color = vec3(clamp(v_height / max(height_scale, 0.0001) * 0.5 + 0.5, 0.0, 1.0));
+		} else if (debug_view == 2) {
+			debug_color = debug_id_color(pom_layers.x);
+		} else if (debug_view == 3) {
+			debug_color = normal_ws * 0.5 + 0.5;
+		}
+		ALBEDO = vec3(0.0);
+		EMISSION = debug_color;
 	}
 
 	NORMAL = normalize((VIEW_MATRIX * vec4(normal_ws, 0.0)).xyz);
