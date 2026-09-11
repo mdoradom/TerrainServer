@@ -1,0 +1,36 @@
+[gd_scene load_steps=5 format=3]
+
+[ext_resource type="Script" path="res://trailer/trailer_rig.gd" id="1_trailer"]
+
+[sub_resource type="ProceduralSkyMaterial" id="ProceduralSkyMaterial_trailer"]
+sky_horizon_color = Color(0.66224277, 0.6717428, 0.6867428, 1)
+ground_horizon_color = Color(0.66224277, 0.6717428, 0.6867428, 1)
+
+[sub_resource type="Sky" id="Sky_trailer"]
+sky_material = SubResource("ProceduralSkyMaterial_trailer")
+
+[sub_resource type="Environment" id="Environment_trailer"]
+background_mode = 2
+sky = SubResource("Sky_trailer")
+tonemap_mode = 4
+ssao_enabled = true
+glow_enabled = true
+fog_sky_affect = 0.0
+fog_height_density = 0.4077
+
+[node name="Trailer" type="Node3D"]
+script = ExtResource("1_trailer")
+
+[node name="WorldEnvironment" type="WorldEnvironment" parent="."]
+environment = SubResource("Environment_trailer")
+
+[node name="DirectionalLight3D" type="DirectionalLight3D" parent="."]
+transform = Transform3D(-0.70710678, 0.20678, -0.67617, 0, 0.95630476, 0.29237, 0.70710678, 0.20678, -0.67617, 0, 500, 0)
+shadow_enabled = true
+shadow_normal_bias = 0.05
+shadow_blur = 10.0
+
+[node name="Camera3D" type="Camera3D" parent="."]
+
+[node name="Terrain3D" type="Terrain3D" parent="."]
+focus_path = NodePath("../Camera3D")

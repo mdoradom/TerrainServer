@@ -110,7 +110,7 @@ Open `demo/project.godot` in Godot and run `demo/trailer/trailer.tscn` (once it 
       > colors (clean splatmap look), 3 shows `normal_ws` as RGB. No shader compile errors
       > in any mode.
 
-- [ ] **T2 — `demo/trailer/` scene scaffold + shared camera rig.**
+- [x] **T2 — `demo/trailer/` scene scaffold + shared camera rig.**
       `demo/trailer/trailer.tscn` (a `Terrain3D`, `WorldEnvironment`, `DirectionalLight3D`,
       `Camera3D`) and `demo/trailer/trailer_rig.gd`: frame-indexed camera movement (reusing the
       `CAMERA_STEP`-per-frame pattern from `demo/benchmark/benchmark.gd`),
@@ -121,6 +121,15 @@ Open `demo/project.godot` in Godot and run `demo/trailer/trailer.tscn` (once it 
       unblock development in parallel.
       *Verify:* scene opens and runs in-editor for each `--shot=` value with no console errors,
       and shot durations printed at runtime match the expected cue gaps.
+      > Result: `SHOT_RANGES` assigns each of `genesis`/`erosion`/`debug`/`cinematic` a
+      > `[start_sec, end_sec]` window snapped to real `audio_cues.json` "strong" cue
+      > timestamps — the pre-bridge span (beats 1-4) split roughly into thirds, cinematic
+      > running bridge (63.936s) to the track's end as a placeholder until T6 picks its real
+      > trimmed endpoint. `_position_camera()` is a placeholder ground-hugging travelling shot
+      > for T3-T6 to replace. Verified headlessly (`xvfb-run godot --path demo
+      > res://trailer/trailer.tscn -- --shot=<name>`) for all four shots plus an unknown-shot
+      > case: each prints its window/frame-range/cue-count with no console errors, and a full
+      > run (genesis, 1237 frames) completes and quits cleanly.
 
 - [ ] **T3 — Shot: wireframe genesis + flyover.**
       Pure GDScript/scene work on top of T2, no engine changes: `Viewport.debug_draw =
