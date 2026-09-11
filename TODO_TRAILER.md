@@ -131,13 +131,32 @@ Open `demo/project.godot` in Godot and run `demo/trailer/trailer.tscn` (once it 
       > case: each prints its window/frame-range/cue-count with no console errors, and a full
       > run (genesis, 1237 frames) completes and quits cleanly.
 
-- [ ] **T3 — Shot: wireframe genesis + flyover.**
+- [x] **T3 — Shot: wireframe genesis + flyover.**
       Pure GDScript/scene work on top of T2, no engine changes: `Viewport.debug_draw =
       DEBUG_DRAW_WIREFRAME`, `Environment.background_mode` = solid black, camera starts near
       edge-on/far, swoops down to a fast ground-level travelling over the wireframe mountains.
       Hard cuts inside the shot (if any) land on T0's cue timestamps.
       *Verify:* recorded clip (see T7) opens a flat line at frame 0 and reads as a full deformed
       wireframe plane within the shot, with internal cuts landing on the marked hits.
+      > Result: the terrain is an infinite recentering clipmap, so there is no literal "outside
+      > it, far away" vantage, and this config's mountains are tall/frequent enough that a
+      > ground-hugging grazing angle never collapses to a flat line either — some peak always
+      > intrudes nearby. The reveal instead looks from high above (height_scale x 3) with a
+      > dead-level pitch and a needle-narrow FOV aimed exactly at the horizon via the outermost
+      > clipmap ring's own extent (queried at runtime): near field is out of frame, and the far
+      > terrain that is in view is angularly negligible, so it reads as a flat line regardless of
+      > local roughness. Widening the FOV and dropping altitude/pitch over the reveal grows that
+      > line into the full deformed wireframe plane; a hard cut on the nearest "strong" cue
+      > (9.451s) then jumps to a higher, wider mountain-flyover pose. Verified by rendering with
+      > `--write-movie` and inspecting extracted frames: frame 0 is a thin wireframe sliver at the
+      > very bottom of an otherwise black frame, growing through intermediate frames into a full
+      > jagged mountain range, with a numerically-confirmed discontinuous camera jump (altitude,
+      > pitch, FOV) exactly at the cue frame. Also fixed a T2 bug found along the way:
+      > `_process()` compared the global tick counter against an absolute end-frame instead of
+      > the shot's own duration, so any shot not starting at t=0 (erosion/debug/cinematic) would
+      > have rendered far more frames than intended, most of them at a nonsensical negative local
+      > frame. Re-verified all four `--shot=` values complete in exactly their intended frame
+      > count after the fix.
 
 - [ ] **T4 — Shot: erosion particles.**
       `GPUParticles3D` cyan rain grounded via `get_height_at()`, one scripted
