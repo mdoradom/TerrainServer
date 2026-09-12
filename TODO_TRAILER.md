@@ -297,6 +297,32 @@ viewport being captured.
       > are sized for beats lasting seconds, and the cinematic reuses the biomes chapter for over a
       > minute — inherited, its -8/s dolly would have pulled the camera 650 units in by the end.
 
+- [x] **T11 — The track under the preview (`--controls`).**
+      `demo/trailer/trailer_music.gd` plays the music beneath the editor, and **while it plays it is
+      the clock**: `trailer_rig.gd` hands it the moment it wants heard and takes back the stream's
+      own position. Accumulating `delta` on the visual side instead would drift against the sound
+      card within seconds, which is precisely the error the preview exists to expose. It re-seeks
+      after a scrub, a cue jump or a loop wrap, follows the preview speed with `pitch_scale`, and
+      toggles with M.
+      Godot 4.7 has no FLAC loader at all — `ResourceLoader` reports no loader for the master, and
+      `--import` produces no sidecar for it — so the editor plays an Ogg Vorbis transcode made by
+      `tools/make_preview_audio.sh`. It is loaded with `AudioStreamOggVorbis.load_from_file()`, which
+      reads the file directly and so needs no `.import` (gitignored anyway) and no editor pass. Cues
+      and waveform are still extracted from the master, never from the transcode.
+      *Verify:* the clock must actually follow the audio, and no sound may reach a recording.
+      > Result: verified on both the Dummy and PulseAudio drivers — the stream clock advances
+      > monotonically with real time; `sync()` given a matching time returns the audio's position
+      > without re-seeking; given a 20-second jump it re-seeks for real (the clock lands at 52.015);
+      > and given a paused preview it stops. The player is built only inside `_setup_controls()`,
+      > which already refuses to run when `Engine.get_write_movie_path()` is set, so a recording
+      > cannot reach it — recorded clips stay silent by design.
+      > Two traps worth keeping: `AudioStreamPlayer.play()` fails ("Playback can only happen when a
+      > node is inside the scene tree") if the node is added during a `SceneTree` script's
+      > `_initialize()`, which made a first sync probe report success while measuring nothing; and
+      > `get_playback_position()` only moves per mixed buffer, so the clock adds
+      > `AudioServer.get_time_since_last_mix()` and subtracts the output latency, without which the
+      > playhead visibly stair-steps against a smoothly moving image.
+
 - [ ] **T7 — Recording convention.**
       Document the exact `--write-movie` invocation per shot (1920x1080 @ 60fps) in a short
       section at the bottom of this file, once T3–T6 exist to be recorded.
@@ -307,6 +333,11 @@ viewport being captured.
 ## Out of scope
 
 Titles, logo card, music mixing, color grading and final cut assembly — the user does all of
-this themselves outside the repo. No ffmpeg/Remotion assembly step, no `AudioStreamPlayer` or
-audio mixing inside Godot, no ambition to make `--write-movie`'s output itself the finished
-trailer.
+this themselves outside the repo. No ffmpeg/Remotion assembly step, no audio mixing inside
+Godot, no ambition to make `--write-movie`'s output itself the finished trailer: every recorded
+clip is silent.
+
+The one `AudioStreamPlayer` in the project (T11) is a tuning instrument, not part of the output.
+It exists only on the `--controls` path — which refuses to run during a recording — so it cannot
+reach a rendered frame. It plays the track under the editor so a cut can be judged by ear
+instead of against a list of timestamps.

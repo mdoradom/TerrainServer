@@ -32,6 +32,10 @@ const KIND_BRIDGE := 2
 const LAYER_TERRAIN := 1
 const LAYER_DIORAMA := 2
 
+# Preview-only, and built only on the --controls path, which already refuses to run during a
+# recording -- so the music can never reach a rendered clip. See trailer_music.gd.
+const MUSIC_SCRIPT := preload("res://trailer/trailer_music.gd")
+
 var timeline := {}
 
 var _shot := "build"
@@ -39,6 +43,8 @@ var _preview_start := 0.0
 var _preview_frames := 0
 var _controls_requested := false
 var _controls_active := false
+var _music_requested := true
+var _music: AudioStreamPlayer
 
 var _config: TerrainConfiguration
 var _cue_times := PackedFloat32Array()
@@ -149,6 +155,11 @@ func _process(delta: float) -> void:
 				_time = from
 			elif _time < from:
 				_time = from
+		# While the track is rolling it, not the frame clock, says where we are -- otherwise the
+		# picture drifts against the sound within seconds, which is the very error this is here to
+		# reveal. sync() also re-seeks after a scrub or a loop wrap, and is a no-op when muted.
+		if _music != null:
+			_time = _music.sync(_time, _playing, _speed)
 		_apply_time(_time)
 		_controls.sync_time(_time)
 		return
@@ -224,6 +235,24 @@ func get_loop_start() -> float:
 
 func get_loop_end() -> float:
 	return _loop_region.y if has_loop_region() else _shot_end
+
+
+func has_music() -> bool:
+	return _music != null
+
+
+func is_music_enabled() -> bool:
+	return _music != null and _music.is_enabled()
+
+
+func set_music_enabled(p_enabled: bool) -> void:
+	if _music != null:
+		_music.set_enabled(p_enabled)
+
+
+func set_music_volume(p_db: float) -> void:
+	if _music != null:
+		_music.volume_db = p_db
 
 
 func get_cue_times() -> PackedFloat32Array:
@@ -335,7 +364,24 @@ func _setup_controls() -> void:
 		return
 
 	_controls_active = true
+	_setup_music()
 	_controls.setup(self)
+
+
+# Built here rather than in the scene so it cannot exist at all outside a --controls session, and so
+# a checkout with no preview audio simply tunes without sound instead of erroring.
+func _setup_music() -> void:
+	if not _music_requested:
+		return
+
+	var music: AudioStreamPlayer = MUSIC_SCRIPT.new()
+	music.name = "Music"
+	# In the tree before setup(): AudioStreamPlayer refuses to play from outside it.
+	add_child(music)
+	if music.setup():
+		_music = music
+	else:
+		music.queue_free()
 
 
 func _apply_time(t: float) -> void:
@@ -707,6 +753,8 @@ func _parse_args() -> void:
 			_preview_frames = arg.substr("--frames=".length()).to_int()
 		elif arg == "--controls":
 			_controls_requested = true
+		elif arg == "--no-music":
+			_music_requested = false
 
 
 func _load_timeline() -> bool:

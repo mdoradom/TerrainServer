@@ -148,6 +148,7 @@ var _status_label: Label
 var _play_button: Button
 var _save_button: Button
 var _loop_button: Button
+var _music_button: Button
 var _chapter_label: Label
 var _filter: LineEdit
 var _content_box: VBoxContainer
@@ -234,6 +235,27 @@ func _build_bottom_bar() -> void:
 			"Cycle shot / chapter looping  (L).  Drag on the ruler with the right button for a free region.")
 	transport.add_child(_loop_button)
 
+	# Judging whether a cut lands on a hit is an ear job, so the track plays under the preview and
+	# drives the clock while it does. Absent only when there is no preview audio to play.
+	if _rig.has_music():
+		_music_button = _button("Music: on", _toggle_music, "Play the track under the preview  (M)")
+		transport.add_child(_music_button)
+
+		var volume := HSlider.new()
+		volume.min_value = -40.0
+		volume.max_value = 6.0
+		volume.step = 1.0
+		volume.value = 0.0
+		volume.custom_minimum_size.x = 92.0
+		volume.size_flags_vertical = Control.SIZE_SHRINK_CENTER
+		volume.tooltip_text = "Music volume (dB)"
+		volume.value_changed.connect(func(v: float): _rig.set_music_volume(v))
+		transport.add_child(volume)
+	else:
+		var missing := _hint("no preview audio")
+		missing.tooltip_text = "Run demo/trailer/tools/make_preview_audio.sh to generate it"
+		transport.add_child(missing)
+
 	transport.add_child(_button("Undo", _undo_last, "Undo the last edit  (Ctrl+Z)"))
 	transport.add_child(_button("Redo", _redo_last, "Redo  (Ctrl+Shift+Z)"))
 	_save_button = _button("Save", _on_save_pressed, "Write trailer_timeline.json  (Ctrl+S)")
@@ -270,7 +292,7 @@ func _build_left_panel() -> void:
 	scroll.add_child(column)
 
 	column.add_child(_heading("TRAILER CONTROLS"))
-	column.add_child(_hint("space play   <- -> step   [ ] cue   , . chapter   L loop"))
+	column.add_child(_hint("space play   <- -> step   [ ] cue   , . chapter   L loop   M music"))
 	column.add_child(_hint("ctrl+S save   ctrl+Z undo   1-6 chapter   H hide"))
 
 	_filter = LineEdit.new()
@@ -601,6 +623,12 @@ func _refresh_loop_button() -> void:
 	_loop_button.text = ["Loop: shot", "Loop: chapter", "Loop: region"][_loop_mode]
 
 
+func _toggle_music() -> void:
+	var enabled: bool = not _rig.is_music_enabled()
+	_rig.set_music_enabled(enabled)
+	_music_button.text = "Music: on" if enabled else "Music: off"
+
+
 func _on_play_pressed() -> void:
 	_rig.set_playing(not _rig.is_playing())
 	_play_button.text = "Pause" if _rig.is_playing() else "Play"
@@ -766,6 +794,9 @@ func _unhandled_input(p_event: InputEvent) -> void:
 			_jump_chapter(1)
 		KEY_L:
 			_cycle_loop_mode()
+		KEY_M:
+			if _rig.has_music():
+				_toggle_music()
 		KEY_H:
 			_left.visible = not _left.visible
 			_bottom.visible = _left.visible
