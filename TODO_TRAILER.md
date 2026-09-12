@@ -55,8 +55,7 @@ for tooling. See T12.
   handback rather than marking the box.
 - **T0 gates T3–T6's real timing** (they can be built against placeholder cue timestamps in the
   meantime, but must be re-verified once T0's real `audio_cues.json` lands). **T1 gates T5.**
-  T2 depends on T0 for real data but can stub it. T7 comes last — it documents the recording
-  commands for clips that already exist.
+  T2 depends on T0 for real data but can stub it.
 
 ## Build and verify commands
 
@@ -65,8 +64,9 @@ scons platform=linux target=template_debug   # standard build (T1 only)
 clang-format -i <files>                      # before committing C++ changes (T1 only)
 ```
 
-Open `demo/project.godot` in Godot and run `demo/trailer/trailer.tscn` (once it exists) with
-`--shot=<name>` to preview a shot before ever recording it.
+Open `demo/project.godot` in Godot and run `demo/trailer/trailer.tscn` with `--shot=<name>` to
+preview a shot before ever recording it. For the recording commands themselves, see
+[Recording the clips](#recording-the-clips).
 
 ```sh
 # tune it by eye: scrub, jump cue to cue, drag sliders, Save writes trailer_timeline.json
@@ -76,7 +76,7 @@ godot --path demo res://trailer/trailer.tscn -- --shot=build --start=50 --frames
 ```
 
 `--controls` is refused during a `--write-movie` recording, since the panel draws into the very
-viewport being captured.
+viewport being captured — `trailer_rig.gd` tests `Engine.get_write_movie_path()` for it.
 
 > [!WARNING]
 > **Stale binary trap.** `*.so` is gitignored, so `demo/addons/terrain_server/bin/` survives
@@ -507,10 +507,94 @@ viewport being captured.
       > and what makes the chapter's two halves the same surface — the normal field, then that field
       > lit. The rule for the whole block is now simply: only view 0 shows the textured surface.
 
-- [ ] **T7 — Recording convention.**
-      Document the exact `--write-movie` invocation per shot (1920x1080 @ 60fps) in a short
-      section at the bottom of this file, once T3–T6 exist to be recorded.
+- [x] **T7 — Recording convention.**
+      Documented in [Recording the clips](#recording-the-clips) at the bottom of this file.
       *Verify:* a reader can reproduce any clip from the command alone.
+      > Result: written from commands that were actually run, not from the docs. Four traps were
+      > found that way and are all called out in the section: `--write-movie` is silently ignored if
+      > it lands after the `--` separator (it becomes a script arg, the run completes, nothing is
+      > written and nothing warns); Godot does not create the output directory, and a missing one
+      > fails with `ERR_CANT_OPEN` at `write_begin` followed by one `write_frame` error per frame; a
+      > relative path resolves against the **project** directory, not the shell's cwd; and the
+      > quality setting is `editor/movie_writer/video_quality`, not the `mjpeg_quality` the older
+      > docs name — that one does not exist in 4.7, and setting it produces a byte-identical file
+      > with no error.
+      > The writer comparison below is measured, 30 frames of the biomes beat at 1920x1080 against
+      > the PNG sequence as ground truth. The headline is that **MJPEG cannot be fixed by raising
+      > the quality**: it writes `yuvj420p`, and the chroma subsampling is what destroys the flat
+      > biome colours and the thin wireframe lines, so 1.0 buys 2.6 dB for 5.6x the size and still
+      > looks compressed. Theora beats it at any setting. Only the PNG sequence is lossless.
+
+---
+
+## Recording the clips
+
+Each shot is one process, frame-indexed, so the output is identical on any machine and at any
+render speed. `demo/project.godot` fixes the recording size at 1920x1080 @ 60 FPS — `--resolution`
+does **not** move it, because Movie Maker reads `display/window/size/viewport_*` before the scene
+loads.
+
+```sh
+mkdir -p ~/Videos/trailer/build ~/Videos/trailer/cinematic
+
+godot --path demo --write-movie ~/Videos/trailer/build/frame.png \
+      res://trailer/trailer.tscn -- --shot=build
+
+godot --path demo --write-movie ~/Videos/trailer/cinematic/frame.png \
+      res://trailer/trailer.tscn -- --shot=cinematic
+```
+
+`build` is 3836 frames (0s–63.936s), `cinematic` 4880 (63.936s–145.276s). A `.png` path selects
+Godot's lossless writer: you get `frame00000000.png` upward, zero-based and 8-digit, plus a
+`frame.wav` alongside — silent, by design (see Out of scope). Budget ~2.0 MB a frame, so ~7.7 GB
+for `build` and ~9.8 GB for `cinematic`.
+
+Preview a single beat without rendering what precedes it by adding `--start=<sec> --frames=<n>`.
+
+### Four things that will waste your time
+
+- **`--write-movie` must come before the `--`.** After it, it is a script argument: the run
+  completes normally, writes nothing, and warns about nothing.
+- **Create the output directory first.** Godot opens the file but will not create parent
+  directories. A missing one gives `ERR_CANT_OPEN` at `write_begin`, then one `write_frame` error
+  per frame, and no file.
+- **A relative path resolves against the project directory**, not your shell's cwd — so
+  `--write-movie clip.avi` with `--path demo` writes `demo/clip.avi`. A `res://` path works too but
+  its directory must already exist. Prefer an absolute path outside the project: a 1080p clip
+  inside `res://` gets picked up by the editor's filesystem scan, and nothing in `.gitignore`
+  covers it.
+- **`--controls` is refused during a recording**, since the panel draws into the very viewport
+  being captured. `trailer_rig.gd` checks `Engine.get_write_movie_path()` for this.
+
+### Why the PNG sequence and not a video file
+
+Measured on 30 frames of the biomes beat, against the PNG sequence as ground truth:
+
+| Path extension | Writer | `video_quality` | Size (30f) | Pixel format | PSNR | Worst channel error |
+| --- | --- | --- | --- | --- | --- | --- |
+| `.png` | `MovieWriterPNGWAV` | n/a | 60 MB | RGB8 | lossless | 0 |
+| `.ogv` | `MovieWriterOGV` | 1.0 | 8.1 MB | yuv420p | 34.80 dB | 113 |
+| `.avi` | `MovieWriterMJPEG` | 1.0 | 49.2 MB | yuvj420p | 29.27 dB | 158 |
+| `.avi` | `MovieWriterMJPEG` | 0.75 (default) | 8.8 MB | yuvj420p | 26.70 dB | 196 |
+
+The quality knob is `editor/movie_writer/video_quality` (0..1), and raising it does not rescue the
+`.avi` path: MJPEG writes `yuvj420p`, and Godot's writer does not expose the subsampling, so the
+flat biome colours and the one-pixel wireframe lines stay mangled however high it goes. If a single
+lossy file is wanted anyway, `.ogv` is strictly the better choice — 5.5 dB better than MJPEG at a
+sixth of the size.
+
+To hand an editor one file instead of a sequence, wrap the PNGs losslessly afterwards. Both of
+these were run and checked; the FFV1 round-trip is bit-exact against the source frames:
+
+```sh
+# lossless RGB
+ffmpeg -framerate 60 -i ~/Videos/trailer/cinematic/frame%08d.png \
+       -c:v ffv1 -level 3 -pix_fmt rgb24 cinematic_master.mkv
+
+# 4:4:4 10-bit, smaller, if Resolve/Premiere prefers it
+ffmpeg -framerate 60 -i ~/Videos/trailer/cinematic/frame%08d.png \
+       -c:v prores_ks -profile:v 4444 -pix_fmt yuv444p10le cinematic_master.mov
+```
 
 ---
 
