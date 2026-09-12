@@ -443,6 +443,26 @@ const vec3 DEBUG_CLAY_ALBEDO = vec3(0.85);
 const float DEBUG_FLAT_ROUGHNESS = 0.85;
 const float DEBUG_GRID_EPSILON = 1e-8;
 
+// The climate ramps colour a data field, not a shape. temperature_at() leans on altitude, so its
+// ramp happens to double as a height map and the relief comes through by accident; moisture_at() is
+// a pure world-XZ field with no height term at all, so it carries no shape whatsoever -- and since
+// both views are emission, there is no lighting to supply what the data does not. The terrain stops
+// reading as terrain and becomes a texture pasted over the frame.
+//
+// So the ramps are shaded by the geometric normal against a fixed diagram sun. Wrapped rather than
+// clamped lambert: a face turned away darkens instead of going black, which keeps the ramp's own
+// hue -- the thing the view exists to show -- readable at every slope. The direction is fixed, not
+// the scene's key light: these views never see that light, and pinning the shading to the diagram
+// keeps a chapter's relief steady while the real light swings underneath it. Pre-normalised because
+// the sun is authored here and nowhere else.
+const vec3 DEBUG_RELIEF_SUN = vec3(-0.449, 0.778, 0.439);
+const float DEBUG_RELIEF_FLOOR = 0.45;
+
+float debug_relief(vec3 p_geo_normal_ws) {
+	float wrapped = clamp(dot(p_geo_normal_ws, DEBUG_RELIEF_SUN) * 0.5 + 0.5, 0.0, 1.0);
+	return mix(DEBUG_RELIEF_FLOOR, 1.0, wrapped);
+}
+
 // How far past the wipe front this fragment lies: 0 entirely behind it (the A side), 1 entirely
 // ahead of it (the B side), ramping across debug_wipe_glow in between. r_seam is 1 exactly on the
 // front and 0 a band away, for the highlight that rides it.
@@ -573,10 +593,12 @@ void debug_view_sample(int p_view, vec3 p_albedo, vec3 p_geo_normal_ws, int p_bi
 		float t = clamp((temperature_at(v_world_xz, v_height) - TEMPERATURE_MIN_C) /
 				(TEMPERATURE_MAX_C - TEMPERATURE_MIN_C), 0.0, 1.0);
 		r_emission = debug_ramp(vec3(0.05, 0.16, 0.62), vec3(0.16, 0.68, 0.86),
-				vec3(0.96, 0.86, 0.42), vec3(0.86, 0.18, 0.10), t);
+				vec3(0.96, 0.86, 0.42), vec3(0.86, 0.18, 0.10), t) *
+				debug_relief(p_geo_normal_ws);
 	} else if (p_view == 5) {
 		r_emission = debug_ramp(vec3(0.62, 0.44, 0.20), vec3(0.78, 0.72, 0.34),
-				vec3(0.28, 0.72, 0.52), vec3(0.08, 0.34, 0.86), moisture_at(v_world_xz));
+				vec3(0.28, 0.72, 0.52), vec3(0.08, 0.34, 0.86), moisture_at(v_world_xz)) *
+				debug_relief(p_geo_normal_ws);
 	} else if (p_view == 6) {
 		r_albedo = DEBUG_CLAY_ALBEDO;
 		r_unlit = 0.0;

@@ -145,8 +145,6 @@
 			"wire_opacity": 0.0
 		},
 		{
-			"breath_duration": 4.8,
-			"breath_start": 44.6,
 			"camera": {
 				"blend_in": 0.0,
 				"distance": 4000.0,
@@ -160,8 +158,7 @@
 				"yaw_rate": 0.45
 			},
 			"fill": 1.0,
-			"fill_breath": 0.08,
-			"moisture_time": 43.537,
+			"moisture_time": 39.706,
 			"moisture_view_a": 4.0,
 			"moisture_view_b": 5.0,
 			"moisture_wipe_dir": [
@@ -185,10 +182,10 @@
 		},
 		{
 			"biome_reveal_times": [
+				43.537,
 				50.085,
 				53.534,
-				54.637,
-				55.449
+				54.637
 			],
 			"camera": {
 				"blend_in": 0.0,
@@ -213,7 +210,7 @@
 				1.0,
 				0.0
 			],
-			"start": 50.085,
+			"start": 43.537,
 			"texture_duration": 2.6,
 			"texture_time": 60.825,
 			"texture_view_a": 2.0,

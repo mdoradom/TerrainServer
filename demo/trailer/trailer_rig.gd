@@ -699,15 +699,10 @@ func _apply_build(t: float) -> void:
 				wipe = _ease_in_out(_ramp(t, float(chapter["moisture_time"]),
 						float(chapter["wipe_duration"])))
 				wipe_dir = _to_vector2(chapter["moisture_wipe_dir"])
-			# Into the track's silence the whole diagram dims down to almost nothing, so the biome
-			# hit lands on a near-black frame.
-			var breath := _ease_in_out(_ramp(t, float(chapter["breath_start"]),
-					float(chapter["breath_duration"])))
-			fill = lerpf(fill, float(chapter["fill_breath"]), breath)
-			wire_intensity = lerpf(wire_intensity, float(look["wire_intensity_dim"]), breath)
 
 		"biomes":
-			# Snap back out of the breath, overshooting bright on the hit itself.
+			# Overshooting bright on the hit itself, so the cut lands as a flash rather than a
+			# straight swap of one full-brightness diagram for another.
 			fill += float(chapter["fill_snap"]) * exp(
 					-maxf(t - float(chapter["start"]), 0.0) / float(chapter["fill_snap_decay"]))
 
