@@ -1058,30 +1058,99 @@ func _step_resolution(p_chapter: Dictionary, t: float, p_default: int) -> int:
 # camera, the cut's settle-in, and the slow drift that keeps a locked-off shot from reading as a
 # freeze. All four rates are per second and default to zero, so a chapter that sets none is exactly
 # as static as it was.
+#
+# A chapter whose camera authors `shot_yaw_step` also re-frames on every one of its own beats
+# instead of holding one angle for its whole length -- see _shot_framing().
 func _camera_state(p_chapter: Dictionary, t: float) -> Dictionary:
 	var effects: Dictionary = timeline["effects"]
 	var camera: Dictionary = p_chapter["camera"]
 	var elapsed := maxf(t - float(p_chapter["start"]), 0.0)
 
-	var settle := _ease_out(_ramp(t, float(p_chapter["start"]), float(effects["cut_settle_duration"])))
-	return {
+	var state := {
 		"yaw": float(camera["yaw"]) + float(camera.get("yaw_rate", 0.0)) * elapsed,
 		"pitch": float(camera["pitch"]) + float(camera.get("pitch_rate", 0.0)) * elapsed,
-		"distance": (float(camera["distance"]) + float(camera.get("distance_rate", 0.0)) * elapsed)
-				* (1.0 - float(effects["cut_settle"]) * settle),
+		"distance": float(camera["distance"]) + float(camera.get("distance_rate", 0.0)) * elapsed,
 		"fov": float(camera["fov"]),
 		"height": float(camera["height"]) + float(camera.get("height_rate", 0.0)) * elapsed,
 	}
 
+	# The cut the settle-in is measured from is the chapter's own, unless the chapter cuts between
+	# shots of its own, in which case every one of them gets it.
+	var cut := float(p_chapter["start"])
+	if camera.has("shot_yaw_step"):
+		cut = _shot_framing(p_chapter, t, state)
+
+	var settle := _ease_out(_ramp(t, cut, float(effects["cut_settle_duration"])))
+	state["distance"] = float(state["distance"]) * (1.0 - float(effects["cut_settle"]) * settle)
+	return state
+
+
+# Re-frames a chapter on each of its own beats, and returns the beat the current framing cut on.
+#
+# A chapter that holds one angle for six seconds reads as a still no matter what is moving in it, so
+# `relief` cuts around its terrain as it rises. Each shot is a fixed `shot_yaw_step` further round
+# the patch, with its pitch, distance and height taken off the same golden-angle sequence the seeds
+# walk: the angles spread evenly and never quite repeat, and there is no list of them to author or
+# to run out. Inside a shot the framing keeps moving by the `shot_pan_*` rates, which is what stops
+# each one reading as a still of its own.
+#
+# Shot 0 is the authored camera untouched -- sin(0) is 0 and no pan time has passed -- so a chapter
+# that cuts between shots still starts exactly where its `camera` block says it does.
+func _shot_framing(p_chapter: Dictionary, t: float, r_state: Dictionary) -> float:
+	var camera: Dictionary = p_chapter["camera"]
+	var shots := _beat_times(p_chapter)
+	if shots.is_empty():
+		return float(p_chapter["start"])
+
+	var index := _shot_index(p_chapter, t)
+	var n := float(index)
+	var elapsed := maxf(t - shots[index], 0.0)
+
+	r_state["yaw"] = float(r_state["yaw"]) + float(camera["shot_yaw_step"]) * n \
+			+ float(camera.get("shot_pan_yaw", 0.0)) * elapsed
+	# Pitch only ever steepens, never flattens, which is why this one swings through an absolute
+	# value where the others are free to go either way: a flatter aerial puts the top of the frame
+	# past the clipmap's outermost edge and fills it with the black behind the diagram (measured at
+	# this chapter's framing, anything shallower than about -34 degrees reaches beyond the mesh).
+	# Clamped as well, since the pans keep moving it after the shot's own angle is set.
+	r_state["pitch"] = clampf(float(r_state["pitch"])
+			- float(camera.get("shot_pitch_swing", 0.0)) * absf(sin(GOLDEN_ANGLE * n))
+			+ float(camera.get("shot_pan_pitch", 0.0)) * elapsed, -85.0, -34.0)
+	r_state["distance"] = maxf(float(r_state["distance"])
+			+ float(camera.get("shot_distance_swing", 0.0)) * sin(GOLDEN_ANGLE * (n + 0.5))
+			+ float(camera.get("shot_pan_distance", 0.0)) * elapsed, 200.0)
+	r_state["height"] = float(r_state["height"]) \
+			+ float(camera.get("shot_height_swing", 0.0)) * cos(GOLDEN_ANGLE * n) \
+			+ float(camera.get("shot_pan_height", 0.0)) * elapsed
+	return shots[index]
+
+
+# Which of a chapter's own shots is on screen at t: 0 until its second beat, then one per beat.
+func _shot_index(p_chapter: Dictionary, t: float) -> int:
+	var shots := _beat_times(p_chapter)
+	var index := 0
+	for i in shots.size():
+		if t >= shots[i]:
+			index = i
+	return index
+
 
 func _apply_camera(p_chapter: Dictionary, t: float, p_pulse: float) -> void:
 	var state := _camera_state(p_chapter, t)
+	var camera: Dictionary = p_chapter["camera"]
+	var index := get_chapter_index(t)
+
+	# A chapter's first shot can be the previous chapter's framing rather than a cut to its own:
+	# the predecessor's camera simply keeps going, drift and all, until this chapter's second beat
+	# cuts away from it. That is what makes the last field the noise chapter builds and the first
+	# moment of it standing up into relief read as one continuous shot.
+	if index > 0 and bool(camera.get("inherit", false)) and _shot_index(p_chapter, t) == 0:
+		state = _camera_state(timeline["chapters"][index - 1], t)
 
 	# A chapter can ease out of the previous chapter's framing instead of cutting to its own.
 	# blend_in is 0 everywhere by default -- the storyboard is built on hard cuts -- and exists for
 	# the beats where a cut turns out to be too abrupt once there is music under it.
-	var blend_in := float((p_chapter["camera"] as Dictionary).get("blend_in", 0.0))
-	var index := get_chapter_index(t)
+	var blend_in := float(camera.get("blend_in", 0.0))
 	if blend_in > 0.0 and index > 0:
 		var blend := _ease_in_out(_ramp(t, float(p_chapter["start"]), blend_in))
 		# The predecessor keeps drifting past its own cut, so the blend starts from where that shot

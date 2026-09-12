@@ -98,6 +98,15 @@ const CAMERA_ROWS := [
 	["Rise/s", ["chapter", "camera", "height_rate"], -60.0, 60.0, 0.5],
 	["Blend in", ["chapter", "camera", "blend_in"], 0.0, 6.0, 0.05],
 	["Cut at", ["chapter", "start"], 0.0, 145.0, 0.001, TIME],
+	# Only shown for a chapter that cuts between shots of its own on its beats.
+	["Shot yaw step", ["chapter", "camera", "shot_yaw_step"], -180.0, 180.0, 1.0],
+	["Shot pitch down", ["chapter", "camera", "shot_pitch_swing"], 0.0, 45.0, 0.5],
+	["Shot dolly +/-", ["chapter", "camera", "shot_distance_swing"], 0.0, 4000.0, 25.0],
+	["Shot rise +/-", ["chapter", "camera", "shot_height_swing"], 0.0, 1000.0, 10.0],
+	["Shot pan yaw/s", ["chapter", "camera", "shot_pan_yaw"], -30.0, 30.0, 0.1],
+	["Shot pan pitch/s", ["chapter", "camera", "shot_pan_pitch"], -15.0, 15.0, 0.1],
+	["Shot pan dolly/s", ["chapter", "camera", "shot_pan_distance"], -800.0, 800.0, 5.0],
+	["Shot pan rise/s", ["chapter", "camera", "shot_pan_height"], -200.0, 200.0, 1.0],
 ]
 
 # Content rows are per chapter: only those whose keys the current chapter actually has are shown.

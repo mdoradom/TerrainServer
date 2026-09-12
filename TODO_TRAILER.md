@@ -605,6 +605,49 @@ viewport being captured — `trailer_rig.gd` tests `Engine.get_write_movie_path(
       > rather than the mesh's own edge, so the flipped front's *far* end sits in frame as a black
       > wedge with a lit seam for the rest of the cycle.
 
+- [x] **T15 — Relief chapter: hand the camera over seamlessly, then cut around the terrain per beat.**
+      Two camera changes, both asked for after seeing T14.
+      The cut into `relief` no longer cuts the camera. `camera.inherit` makes a chapter's *first*
+      shot the previous chapter's framing, continued — `_apply_camera()` simply evaluates the
+      predecessor's `_camera_state()` at the current time, drift and all, until this chapter's second
+      beat cuts away from it. So the last field the noise chapter built stands up into relief under
+      the camera that was already watching it, which is the one moment in the build-up where a hard
+      cut hid what the two chapters have in common. (It is a bool, so the control panel — whose rows
+      are numeric sliders — does not show it; it is a JSON edit.)
+      The chapter is then a montage instead of one six-second angle. A camera whose block authors
+      `shot_yaw_step` re-frames on every beat of its own chapter (`step_min_gap`, the same key the
+      noise chapter paces its build with): each shot is a fixed yaw step further round the patch,
+      with its pitch, distance and height taken off the same golden-angle sequence the seeds walk,
+      so the angles spread evenly and never quite repeat, and there is no list of them to author or
+      to run out of. Inside a shot the `shot_pan_*` rates keep the framing moving, which is what
+      stops each one reading as a still, and the existing `cut_settle` now re-triggers per shot so
+      every cut gets its small push-in. Shot 0 is the authored camera untouched, so a chapter that
+      cuts between shots still starts exactly where its `camera` block says it does.
+      *Verify:* no camera jump at the cut; every shot framed on terrain, none of them looking off
+      the edge of the clipmap; nothing after the chapter may move.
+      > Result: the seam is measured, not eyeballed — across the 24.950s cut the frame-to-frame
+      > difference goes 0.02 → 0.29 of a level and then decays smoothly, which is the terrain
+      > starting to lift under a camera that did not move (a cut that moves it reads as ~17 on the
+      > same scale, e.g. the chapter cuts elsewhere).
+      > **4 shots at `step_min_gap` 1.4, a cut every ~1.5s.** It was built at 0.45 first — a cut on
+      > every beat, 10 of them — and that read as a stutter rather than as coverage: a shot was gone
+      > before its angle registered. With four, each cut carries more, so `shot_yaw_step` went 37° →
+      > 80° and consecutive shots now look at plainly different sides of the patch instead of at a
+      > slight rotation of the same one. The first of the four is the inherited framing, so the
+      > whole 1.6s lift plays out under the camera that was already there and the montage starts
+      > after it.
+      > **Pitch swings one way only, and that is not a style choice.** With a symmetric ±12°, three
+      > of the ten shots put the top of the frame past the clipmap's outermost edge and filled it
+      > with the black behind the diagram. At this chapter's framing anything shallower than about
+      > -34° reaches beyond the mesh (the top ray sits at pitch + fov/2, so at -26° it travels ~37k
+      > units before it meets the ground, against a 16384 half-width), so the swing subtracts an
+      > absolute value and the result is clamped at -34°. Re-rendered and measured for black pixels
+      > every time the shots changed — ten at 0.45, then four at 1.4 with the wider yaw step: 0.0%
+      > in every one.
+      > `normals` (33s), `climate` (45s), `biomes` (52s) and the texture handover (62s) are still
+      > byte-identical to the pre-T14 rig — restructuring `_camera_state()` around the per-shot cut
+      > left every chapter that authors no shots exactly where it was.
+
 - [x] **T7 — Recording convention.**
       Documented in [Recording the clips](#recording-the-clips) at the bottom of this file.
       *Verify:* a reader can reproduce any clip from the command alone.
