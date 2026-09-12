@@ -1,5 +1,5 @@
 {
-	"_comment": "Every tunable of the trailer. trailer_rig.gd reads this file and holds no authored numbers of its own; `--controls` edits it live and Save writes it back. `patch` picks the world position the clipmap is focused on. Chapter values marked with a time land on a cue in audio_cues.json, so the ruler's tick marks are what they are dialled against. `view_a`/`view_b` are terrain.gdshader's debug views: 0 shaded, 1 height, 2 biome id, 3 normals, 4 temperature, 5 moisture, 6 clay, 7 blank.",
+	"_comment": "Every tunable of the trailer. trailer_rig.gd reads this file and holds no authored numbers of its own; `--controls` edits it live and Save writes it back. `patch` picks the world position the clipmap is focused on. Chapter values marked with a time land on a cue in audio_cues.json, so the ruler's tick marks are what they are dialled against. The `noise` chapter is the exception: rather than authoring a time per step it beats on every cue in its own window at least `step_min_gap` apart, splits each of those intervals into `step_subdivisions` to reach the track's fast rhythm, and runs one cycle of the generator a step at a time (an octave of fBm per step, then ridge, warp, continent and redistribution, each easing in over `shaping_duration`) until the field is exactly what the demo configuration renders, then re-seeds — a patch `seed_distance` away along a spiral, the last cycle always `patch` itself — and builds it again. Those four terms are therefore in by the time `relief` cuts, and it only lifts and re-meshes what they made. `view_a`/`view_b` are terrain.gdshader's debug views: 0 shaded, 1 height, 2 biome id, 3 normals, 4 temperature, 5 moisture, 6 clay, 7 blank.",
 	"bridge": 63.936,
 	"chapters": [
 		{
@@ -51,15 +51,11 @@
 			"fill": 1.0,
 			"mesh_resolution": 64.0,
 			"name": "noise",
-			"octave_times": [
-				9.451,
-				10.6,
-				11.656,
-				13.758,
-				15.023,
-				17.31
-			],
+			"seed_distance": 12000.0,
+			"shaping_duration": 0.1,
 			"start": 9.451,
+			"step_min_gap": 0.45,
+			"step_subdivisions": 6.0,
 			"view_a": 7.0,
 			"view_b": 1.0,
 			"wipe_dir": [
@@ -86,25 +82,17 @@
 				"yaw": -28.0,
 				"yaw_rate": 0.65
 			},
-			"continent_duration": 1.1,
-			"continent_time": 26.9,
 			"fill": 1.0,
 			"lift_duration": 1.6,
 			"name": "relief",
-			"redistribution_duration": 0.8,
-			"redistribution_time": 29.013,
 			"resolution_start": 64.0,
 			"resolution_times": [
 				24.95,
 				29.013
 			],
-			"ridge_duration": 0.7,
-			"ridge_time": 23.069,
 			"start": 24.95,
 			"view_a": 1.0,
 			"view_b": 1.0,
-			"warp_duration": 0.9,
-			"warp_time": 24.95,
 			"wire_opacity": 0.0
 		},
 		{

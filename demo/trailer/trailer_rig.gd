@@ -59,6 +59,19 @@ const RAMPED_PROPERTIES := [
 	"noise_redistribution", "pom_fade_start", "pom_fade_end",
 ]
 
+# What the generator adds on top of its fBm, in the order the noise chapter's cycles add it: one
+# term per beat once every octave is in, each ramping from neutral to the demo configuration's own
+# value, so the step the cycle ends on leaves exactly the heightmap the plugin renders. The names
+# are keys into the shaping dictionary `_noise_build_at()` returns and `_apply_build()` maps onto
+# TerrainConfiguration properties -- `continent` carries the three that arrive together (influence,
+# elevation and the relief floor they lift the land off).
+const NOISE_SHAPING_STEPS := ["ridge", "warp", "continent", "redistribution"]
+
+# 2*PI / phi^2, the angle a sunflower packs its seeds at. The noise chapter walks its patches
+# around a spiral of these, which is what keeps consecutive fields far apart without any two of
+# them ever landing on the same place. See _seed_offset().
+const GOLDEN_ANGLE := 2.3999632297
+
 # Preview-only, and built only on the --controls path, which already refuses to run during a
 # recording -- so the music can never reach a rendered clip. See trailer_music.gd.
 const MUSIC_SCRIPT := preload("res://trailer/trailer_music.gd")
@@ -113,7 +126,9 @@ var _built_resolution := -1
 var _build_clipmap_levels := 1
 
 # The diagram's patch, taken from the real clipmap rather than authored: the centre it is focused
-# on and the half-width of its outermost level.
+# on and the half-width of its outermost level. `_center` is the patch the current frame is built
+# on, which the noise chapter moves off `_patch_center` to re-seed its field -- see `_apply_seed()`.
+var _patch_center := Vector2.ZERO
 var _center := Vector2.ZERO
 var _extent := 1.0
 
@@ -161,8 +176,23 @@ func _ready() -> void:
 	_apply_time(_time)
 
 	print("[trailer] shot=%s window=%.3fs-%.3fs start=%.3fs frames=%d centre=%s extent=%.0f viewport=%s controls=%s" % [
-			_shot, _shot_start, _shot_end, _time, _shot_duration_frames, str(_center), _extent,
+			_shot, _shot_start, _shot_end, _time, _shot_duration_frames, str(_patch_center), _extent,
 			str(get_viewport().size), str(_controls_active)])
+
+	# The noise chapter's schedule is derived from the cues rather than authored, so it is worth
+	# saying out loud: how many beats it found, and how many times the field gets rebuilt on them.
+	var noise := _chapter_named("noise")
+	if _shot == "build" and not noise.is_empty():
+		var beats := _beat_times(noise)
+		var times := _step_times(noise)
+		var per_cycle := maxi(int(_full["noise_octaves"]), 1) + NOISE_SHAPING_STEPS.size()
+		var span := _chapter_end(noise) - float(noise["start"])
+		print("[trailer] noise: %.3fs-%.3fs, %d beats at >=%.2fs x%d = %d steps (%.1f/s), %d per cycle (%d octaves + %s), %d cycles, %d steps holding" % [
+				float(noise["start"]), _chapter_end(noise), beats.size(),
+				float(noise.get("step_min_gap", 0.0)), maxi(int(noise.get("step_subdivisions", 1)), 1),
+				times.size(), float(times.size()) / maxf(span, 0.001), per_cycle,
+				int(_full["noise_octaves"]), ", ".join(NOISE_SHAPING_STEPS),
+				maxi(times.size() / per_cycle, 1), times.size() % per_cycle])
 
 
 # Takes over the instanced demo scene: its camera and its physics test rig have no place in a
@@ -225,7 +255,8 @@ func _setup_scenario() -> bool:
 	_config.clipmap_levels = _build_clipmap_levels
 	_built_levels = _build_clipmap_levels
 	_terrain.rebuild()
-	_center = Vector2(_focus.global_position.x, _focus.global_position.z)
+	_patch_center = Vector2(_focus.global_position.x, _focus.global_position.z)
+	_center = _patch_center
 	_extent = _level_extent(maxi(_terrain.get_clipmap_level_count() - 1, 0))
 
 	_demo_environment = _world_environment.environment
@@ -534,10 +565,6 @@ func _apply_build(t: float) -> void:
 	var effects: Dictionary = timeline["effects"]
 	var chapter: Dictionary = timeline["chapters"][get_chapter_index(t)]
 
-	var pulse := _pulse_at(t)
-	_apply_camera(chapter, t, pulse)
-	_apply_light(t)
-
 	# Defaults every chapter starts from, then overrides below. Keeping them here (rather than
 	# letting values persist) is what makes any single frame renderable on its own.
 	var levels := _build_clipmap_levels
@@ -547,7 +574,6 @@ func _apply_build(t: float) -> void:
 	var ripple_strength := _ripple_off_array(0.0)
 	var height_scale := float(_full["height_scale"])
 	var octaves := int(_full["noise_octaves"])
-	var shaping := 1.0
 	var parallax := 1.0
 	# -1 on both sides leaves the shader's own biome_layer_count alone; see the biomes chapter.
 	var biome_count_a := -1
@@ -565,6 +591,20 @@ func _apply_build(t: float) -> void:
 	var fill := float(chapter.get("fill", 1.0))
 	var wire_intensity := float(chapter.get("wire_intensity", look["wire_intensity"]))
 	var wire_opacity := float(chapter.get("wire_opacity", look["wire_opacity"]))
+
+	# The generator's own state at this moment, which is the noise chapter's business wherever we
+	# are on the timeline: it builds the field beat by beat inside each of its cycles, and every
+	# other chapter reads that same state clamped -- nothing shaped before the chapter, the demo
+	# configuration's own heightmap after it. Resolved before the camera because re-seeding the
+	# field relocates the patch, and the camera orbits the patch.
+	var noise_build := _noise_build_at(_chapter_named("noise"), t)
+	var shaping: Dictionary = noise_build["shaping"]
+	var seed_offset: Vector2 = noise_build["seed"]
+	_apply_seed(seed_offset, resolution)
+
+	var pulse := _pulse_at(t)
+	_apply_camera(chapter, t, pulse)
+	_apply_light(t)
 
 	match chapter["name"]:
 		"grid":
@@ -597,20 +637,30 @@ func _apply_build(t: float) -> void:
 				ripple_strength[i] = ripples[i].y
 			height_scale = 0.0
 			octaves = int(chapter["octaves"])
-			shaping = 0.0
 			parallax = 0.0
 
 		"noise":
-			# Flat still: this beat is about the noise field itself, not the relief, so the height
-			# view wipes in over the lattice and gains an octave per hit.
+			# Flat still: this beat is about the height field itself, not the relief, so the height
+			# view wipes in over the lattice and the generator runs on it a step per beat -- an
+			# octave of the plugin's own fBm at a time, then each term the configuration shapes it
+			# with, ending on exactly the heightmap the demo scene renders.
+			#
+			# It runs more than once. When the last step lands, the next beat re-seeds the field and
+			# the same build starts over on a different one. See _noise_build_at().
 			height_scale = 0.0
-			octaves = _step_count(t, chapter["octave_times"], 1)
-			shaping = 0.0
+			octaves = int(noise_build["octaves"])
 			parallax = 0.0
+			# Only the chapter's own entry wipes anything in: the field is global, so there is no
+			# wiping an old one out against a new one, and a re-seed is the field changing outright
+			# on the beat. (Sweeping each new field back in over the blank lattice was tried and
+			# dropped: the front starts off-frame, so it costs a black frame or two every time.)
 			wipe = _ease_in_out(_ramp(t, float(chapter["start"]), float(chapter["wipe_duration"])))
 
 		"relief":
-			# The field stands up into terrain, then the shaping parameters arrive one per hit.
+			# The finished field stands up into terrain, and gains the mesh resolution to carry the
+			# detail it already has. The shaping parameters are not re-staged here: the noise
+			# chapter's cycles have already arrived every one of them, and what lifts is the
+			# heightmap they left.
 			height_scale *= _back_out(_ramp(t, float(chapter["start"]), float(chapter["lift_duration"])))
 			parallax = 0.0
 			resolution = _step_resolution(chapter, t, resolution)
@@ -701,14 +751,14 @@ func _apply_build(t: float) -> void:
 	var config_values := {
 		"height_scale": height_scale,
 		"noise_octaves": octaves,
-		"noise_ridge_amount": float(_full["noise_ridge_amount"]) * _shaping_at(t, "ridge") * shaping,
-		"noise_warp_amount": float(_full["noise_warp_amount"]) * _shaping_at(t, "warp") * shaping,
-		"noise_continent_influence": float(_full["noise_continent_influence"]) * _shaping_at(t, "continent") * shaping,
-		"noise_continent_elevation": float(_full["noise_continent_elevation"]) * _shaping_at(t, "continent") * shaping,
+		"noise_ridge_amount": float(_full["noise_ridge_amount"]) * float(shaping["ridge"]),
+		"noise_warp_amount": float(_full["noise_warp_amount"]) * float(shaping["warp"]),
+		"noise_continent_influence": float(_full["noise_continent_influence"]) * float(shaping["continent"]),
+		"noise_continent_elevation": float(_full["noise_continent_elevation"]) * float(shaping["continent"]),
 		# Both of these are 1.0 when absent rather than 0.0: 1.0 is the neutral value the shader
 		# multiplies or exponentiates by, so the ramp runs from there to the config's own value.
-		"noise_relief_floor": lerpf(1.0, float(_full["noise_relief_floor"]), _shaping_at(t, "continent") * shaping),
-		"noise_redistribution": lerpf(1.0, float(_full["noise_redistribution"]), _shaping_at(t, "redistribution") * shaping),
+		"noise_relief_floor": lerpf(1.0, float(_full["noise_relief_floor"]), float(shaping["continent"])),
+		"noise_redistribution": lerpf(1.0, float(_full["noise_redistribution"]), float(shaping["redistribution"])),
 		# Parallax is switched off by collapsing its fade window to nothing rather than by a
 		# separate flag: pom_fade_end at zero puts every fragment past the fade, so the raymarch is
 		# skipped outright, and the ramp opens the window back up to the config's own distances.
@@ -746,13 +796,143 @@ func _apply_build(t: float) -> void:
 	})
 
 
-# How far one of the relief chapter's shaping parameters has arrived at time t. They ramp in one
-# per hit and stay at the config's own value afterwards.
-func _shaping_at(t: float, p_key: String) -> float:
-	var relief := _chapter_named("relief")
-	if relief.is_empty():
-		return 1.0
-	return _ease_out(_ramp(t, float(relief["%s_time" % p_key]), float(relief["%s_duration" % p_key])))
+# --- The noise chapter's build cycles -------------------------------------------------------
+
+# How far the generator has got at time t: the octave count, how far each shaping term has arrived,
+# and which patch the field is being built on. Every chapter reads this, not just the noise one --
+# before the chapter's own cut nothing is shaped, after its last beat everything is, so a later
+# chapter simply gets the demo configuration's own heightmap out of it.
+#
+# The noise chapter is every beat between its own cut and the next, and one cycle of the generator
+# walks them a step at a time: an octave of fBm per beat until the sum is complete, then one
+# NOISE_SHAPING_STEPS term per beat until the field is exactly what the plugin renders. The next
+# beat re-seeds it and the same build starts over on a different field, so the chapter shows the
+# generation process itself, several times over, rather than one pass of it.
+#
+# Only whole cycles run. Any beats left over at the end hold the finished field, which is the frame
+# the relief chapter lifts -- and the last cycle is always the authored patch, so what stands up
+# into relief is the field that was just finished rather than a stranger.
+func _noise_build_at(p_chapter: Dictionary, t: float) -> Dictionary:
+	var full_octaves := maxi(int(_full["noise_octaves"]), 1)
+	var full_shaping := NOISE_SHAPING_STEPS.size()
+	var times := _step_times(p_chapter) if not p_chapter.is_empty() else PackedFloat32Array()
+	# No chapter, or no cue file to step against: the field is simply the finished one.
+	if times.is_empty():
+		return _noise_state(full_octaves, full_shaping, 1.0, Vector2.ZERO)
+	# Before the chapter's own cut: bare lattice, nothing built, patch unmoved.
+	if t < times[0]:
+		return _noise_state(1, 0, 0.0, Vector2.ZERO)
+
+	var per_cycle := full_octaves + full_shaping
+	var cycles := maxi(times.size() / per_cycle, 1)
+	var steps := mini(cycles * per_cycle, times.size())
+
+	var reached := 0
+	for i in steps:
+		if t >= times[i]:
+			reached = i + 1
+	var index := clampi(reached - 1, 0, steps - 1)
+	var step := index % per_cycle
+
+	return _noise_state(mini(step + 1, full_octaves), maxi(step + 1 - full_octaves, 0),
+			_ease_out(_ramp(t, times[index], float(p_chapter.get("shaping_duration", 0.0)))),
+			_seed_offset(p_chapter, index / per_cycle, cycles))
+
+
+# One moment of the build, as `_apply_build()` wants it. p_shaped is how many of
+# NOISE_SHAPING_STEPS are in, the last of them at p_arriving: a term ramps up over its own beat
+# rather than snapping on, the way the relief chapter's parameters used to arrive, while the octave
+# count (an integer the shader loops on) can only step.
+func _noise_state(p_octaves: int, p_shaped: int, p_arriving: float, p_seed: Vector2) -> Dictionary:
+	var shaping := {}
+	for i in NOISE_SHAPING_STEPS.size():
+		var arrived := 0.0
+		if i < p_shaped - 1:
+			arrived = 1.0
+		elif i == p_shaped - 1:
+			arrived = p_arriving
+		shaping[NOISE_SHAPING_STEPS[i]] = arrived
+	return {"octaves": p_octaves, "shaping": shaping, "seed": p_seed}
+
+
+# The moments a chapter's build actually steps on: its beats, each interval then split evenly into
+# `step_subdivisions`. A detected onset is as fine as audio_cues.json goes (its own picker refuses
+# to mark two hits closer than 0.25s), and the track's fastest rhythm runs several times denser than
+# that, so stepping on the beats alone is far slower than the music. Subdividing keeps every step
+# phase-locked to a real hit -- each beat is still a step, the extra ones sit evenly between them --
+# and follows the music's own density, because a tighter run of beats subdivides tighter.
+func _step_times(p_chapter: Dictionary) -> PackedFloat32Array:
+	var beats := _beat_times(p_chapter)
+	var splits := maxi(int(p_chapter.get("step_subdivisions", 1)), 1)
+	if splits == 1 or beats.is_empty():
+		return beats
+
+	# The last beat has no successor to divide against, so it borrows the chapter's own end.
+	var end := _chapter_end(p_chapter)
+	var times := PackedFloat32Array()
+	for i in beats.size():
+		var from := beats[i]
+		var to := beats[i + 1] if i + 1 < beats.size() else end
+		for k in splits:
+			times.append(from + (to - from) * float(k) / float(splits))
+	return times
+
+
+# The beats a chapter steps on: the detected cues inside its own window, thinned to a minimum
+# spacing the way extract_cues.py picks its strong set out of the same list. Every step then lands
+# on a real hit, and a dense run of onsets steps the field once rather than strobing it.
+#
+# Derived per frame rather than cached. It is a scan of a 178-entry array, and keeping it a pure
+# function of the timeline is what lets --controls drag `step_min_gap` and see the new pacing on
+# the paused frame immediately.
+func _beat_times(p_chapter: Dictionary) -> PackedFloat32Array:
+	var start := float(p_chapter["start"])
+	var end := _chapter_end(p_chapter)
+	var min_gap := float(p_chapter.get("step_min_gap", 0.0))
+	var times := PackedFloat32Array()
+	var last := -INF
+	for time in _cue_times:
+		if time < start - 0.001:
+			continue
+		if time >= end:
+			break
+		if time - last < min_gap:
+			continue
+		times.append(time)
+		last = time
+	return times
+
+
+# The patch a cycle is built on, as an offset from the authored one. The last cycle is always the
+# authored patch itself (offset zero): the relief chapter cuts straight out of it, and it is the
+# patch every later chapter -- and the tool that picked it for biome balance -- is measured against.
+#
+# The earlier cycles walk a sunflower spiral out of it -- golden angle, radius growing as the square
+# root of the cycle number, so neighbouring patches sit about `seed_distance` apart however many
+# there turn out to be. Generated rather than authored as a list because how many cycles a chapter
+# runs changes with every edit to the step rate, and a list would either run out or start repeating
+# patches the moment it did.
+func _seed_offset(p_chapter: Dictionary, p_cycle: int, p_cycles: int) -> Vector2:
+	var distance := float(p_chapter.get("seed_distance", 0.0))
+	if p_cycle >= p_cycles - 1 or distance <= 0.0:
+		return Vector2.ZERO
+	var n := float(p_cycle + 1)
+	return Vector2(cos(GOLDEN_ANGLE * n), sin(GOLDEN_ANGLE * n)) * distance * sqrt(n)
+
+
+# Re-seeds the field by relocating the patch. The noise has no seed -- it is one infinite
+# world-space function, and another heightmap out of it is another place in it -- so a new field is
+# the focus the clipmap centres on and the camera that orbits it moving together by the same
+# offset, which leaves the framing and the geometry where they were and changes only what the
+# height function returns underneath them.
+#
+# The offset is snapped to the coarsest clipmap level's own snapping step, which every finer
+# level's divides: without that, the levels re-snap by up to a cell each and the mesh shifts under
+# a camera that moved by the exact offset, which reads as a jolt rather than as a new field.
+func _apply_seed(p_offset: Vector2, p_resolution: int) -> void:
+	var step := 4.0 * _extent / float(maxi(p_resolution, 1))
+	_center = _patch_center + Vector2(roundf(p_offset.x / step), roundf(p_offset.y / step)) * step
+	_focus.global_position = Vector3(_center.x, _focus.global_position.y, _center.y)
 
 
 # The half-width of clipmap level p_level, from the plugin's own numbers rather than authored.
@@ -890,7 +1070,9 @@ func _apply_cinematic(t: float) -> void:
 	var cinematic: Dictionary = timeline["cinematic"]
 	var bridge := float(timeline["bridge"])
 
-	# Full plugin render: the demo scene's configuration, untouched, and no overlay at all.
+	# Full plugin render: the demo scene's configuration, untouched, and no overlay at all, on the
+	# authored patch -- the noise chapter's re-seeding is the build shot's own business.
+	_apply_seed(Vector2.ZERO, int(_full["mesh_resolution"]))
 	_apply_geometry(int(_full["clipmap_levels"]), int(_full["mesh_resolution"]))
 	var config_values := {}
 	for property in RAMPED_PROPERTIES:
@@ -960,6 +1142,16 @@ func _chapter_named(p_name: String) -> Dictionary:
 		if chapter["name"] == p_name:
 			return chapter
 	return {}
+
+
+# Where a chapter's window closes: the next chapter's cut, or the end of the shot for the last one.
+func _chapter_end(p_chapter: Dictionary) -> float:
+	var chapters: Array = timeline["chapters"]
+	for i in chapters.size():
+		if chapters[i]["name"] != p_chapter["name"]:
+			continue
+		return float(chapters[i + 1]["start"]) if i + 1 < chapters.size() else _shot_end
+	return _shot_end
 
 
 # How many of p_times have passed at t, floored at p_minimum. Used wherever a beat list steps a

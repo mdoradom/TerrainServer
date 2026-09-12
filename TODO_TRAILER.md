@@ -8,9 +8,10 @@ storyboard beat, whose internal timing already lands on the chosen track's marke
 
 The trailer is in two halves, split by the track's bridge cue. Everything before it is one
 continuous **build-up diagram**: an aerial on the real clipmap terrain floating in black, assembling
-itself to the beat — the clipmap draws itself outward and gains a ring per hit, the noise field
-appears on it and gains an octave per hit, the surface stands up into relief as `height_scale` ramps
-and each shaping parameter arrives on its own hit, and the shot then wipes through what the shader
+itself to the beat — the clipmap draws itself outward and gains a ring per hit, the generator then
+runs on it a step per beat (an octave of fBm at a time, then each term the configuration shapes it
+with) until the field is exactly the demo's own heightmap, re-seeds and builds another one, the
+surface stands up into relief as `height_scale` ramps, and the shot then wipes through what the shader
 derives from that surface (normals, lighting, temperature, moisture) before the biomes arrive one
 per hit, each sweeping in on the same wipe front the views change on, and hand over to the plugin's
 own textured render. Everything after the bridge is that same render in the demo scene's own sky and
@@ -41,6 +42,7 @@ for tooling. See T12.
 | Wireframe is drawn in-shader from the mesh's own UV grid, not `Viewport.debug_draw` and not barycentrics           | `DEBUG_DRAW_WIREFRAME` cannot be coloured, faded or pulsed on the beat. Barycentrics needed unindexed geometry of the trailer's own; `TerrainGenerator` lays out every mesh (block, ring fixup, trim) so that `UV * resolution` is the cell coordinate, which puts the lines on the real mesh's real quad edges with no vertex attribute and no geometry change — and makes each clipmap level show its own cell size for free. Lines are measured in pixels and fade out as their spacing closes on `debug_wire_min_spacing`, without which a high `mesh_resolution` seen from far off fills in to a solid wash |
 | Every on-screen value is a pure function of shot time; no state accumulates between frames                         | Any moment can be previewed alone with `--start=<sec> --frames=<n>` without rendering what precedes it, and `--write-movie` is reproducible across machines. This is what made tuning the look practical at all                                                                                                                                                                                                                                                                                                                                                                                                  |
 | The clipmap is focused on a hand-picked world position, not the origin                                             | Temperature and moisture are noise fields with wavelengths about one patch wide, so most of the world falls inside a single climate band and renders as one biome. `demo/trailer/tools/pick_patch_center.gd` scores candidate patches on real samples for biome balance and relief                                                                                                                                                                                                                                                                                                                               |
+| The noise chapter re-seeds by relocating the patch, not by a seed parameter (**T14**)                              | The plugin's noise has no seed: it is one infinite world-space function, and another heightmap out of it is another place in it. Moving the focus and the camera together by the same (snap-aligned) offset leaves the framing and the geometry exactly where they were and changes only what the height function returns underneath, so a re-seed is the real generator on a real new field rather than a plugin feature invented for the trailer                                                                                                                             |
 | Every authored number lives in `trailer_timeline.json`, edited live by an in-scene panel                           | Tuning a trailer is a look-at-it-and-adjust loop, and editing constants in GDScript between renders is the slowest possible version of it. The rig keeps the choreography (which parameter a chapter ramps, in what order); the file keeps the values. Moving them out was verified to change nothing on screen                                                                                                                                                                                                                                                                                                  |
 | `demo/project.godot` sets a 1920x1080 viewport                                                                     | `--write-movie` fixes its recording size before the scene loads, from `display/window/size/viewport_*` alone — neither `--resolution` nor a runtime resize moves it (both change the viewport while the movie keeps recording at the project size). `demo/benchmark` passes `--resolution 1920x1080` to every run it spawns, so its measurements already ran at this size and do not move                                                                                                                                                                                                                        |
 | A configuration value is animated by writing it with `changed` blocked, then `refresh_parameters()`                | The signal is the right response to an editor edit and far too much for a value moving every frame: `Terrain3D` answers it with a full `rebuild_mesh()`. `Object.set_block_signals()` around the writes plus a uniform re-push gets the value on screen without touching geometry. The two values that genuinely change the mesh — `mesh_resolution` and `clipmap_levels` — do get a real `rebuild()`, but only on a beat                                                                                                                                                                                        |
@@ -506,6 +508,80 @@ viewport being captured — `trailer_rig.gd` tests `Engine.get_write_movie_path(
       > finite-differences out of the height field, which is both the honest answer for a debug view
       > and what makes the chapter's two halves the same surface — the normal field, then that field
       > lit. The rule for the whole block is now simply: only view 0 shows the textured surface.
+
+- [x] **T14 — Noise chapter: run the whole generator a step per beat, then re-seed and run it again.**
+      The chapter used to author six `octave_times` and step `noise_octaves` 1→6 across its whole
+      window, which left most of its beats with nothing happening on them, showed the plugin's
+      generation once, and showed only half of it: `shaping` was pinned to 0, so what built was bare
+      fBm and not the heightmap the demo configuration actually renders.
+      It now steps on **every beat** between its own cut and the relief cut, and one cycle of the
+      generator walks those beats a step at a time — an octave of fBm per beat until the sum is
+      complete, then `NOISE_SHAPING_STEPS` (ridge, warp, continent, redistribution) one term per
+      beat, each easing in over `shaping_duration`, until the field is exactly what the demo
+      configuration renders. The next beat re-seeds it and the same build starts over on another
+      field. `trailer_rig.gd` derives the beats from `audio_cues.json` rather than from authored
+      times — the cues in the chapter's window thinned to a `step_min_gap` minimum spacing, the same
+      greedy pick `extract_cues.py` uses for its strong set — and then splits each beat interval
+      evenly into `step_subdivisions`, because a detected onset is as fine as the cue file goes (its
+      picker refuses to mark two hits closer than 0.25s) and the track's fast rhythm runs several
+      times denser than that. Every step stays phase-locked to a real hit that way, and the rate
+      follows the music's own density: a tighter run of beats subdivides tighter. Two numbers re-pace
+      the whole chapter.
+      Those four terms consequently **move out of the `relief` chapter**, which used to arrive them
+      one per hit: they are already in by the time it cuts, so it now lifts and re-meshes the
+      finished heightmap and nothing else. `_shaping_at()` is gone with them, and so are the
+      chapter's eight `*_time`/`*_duration` keys; `_noise_build_at()` is what every chapter reads
+      for the generator's state, clamped to nothing-shaped before the noise chapter and
+      everything-shaped after it.
+      Re-seeding is **relocating the patch**, not a new plugin parameter (see the decisions table):
+      `_apply_seed()` moves the focus node and `_center` together by an offset `seed_distance` out
+      along a sunflower spiral (golden angle, radius as √cycle, so neighbouring patches sit about
+      that far apart however many cycles there turn out to be — generated rather than authored as a
+      list, since the step-rate knobs change how many there are), which the camera orbits, so only
+      the height function underneath changes. The
+      offset is snapped to the coarsest clipmap level's own snapping step (`4 * _extent /
+      mesh_resolution`), which every finer level's divides — without that the levels re-snap by up
+      to a cell each and the mesh shifts under a camera that moved by the exact offset. Only whole
+      cycles run, and the last one is always the authored patch, so the field the relief chapter
+      lifts is the one that was just finished.
+      A re-seed has no transition: the field is global, so there is nothing to wipe an old one out
+      against, and it simply changes outright on the beat. Only the chapter's own entry still wipes
+      anything in.
+      *Verify:* the chapter must step on every beat and complete its build a whole number of times,
+      the last one on the authored patch and on the demo configuration's own noise; nothing after
+      the shaping is fully in may move.
+      > Result: 24 beats at `step_min_gap` 0.45, each split ×6 = **144 steps, 0.075–0.147s apart
+      > (6.8–13.3 a second, mean 9.3)** — stepping on the beats alone was 2.2 a second and read as
+      > far slower than the track. 10 steps a cycle (6 octaves + 4 shaping terms) makes that 14
+      > complete cycles of about 1.07s each, with 4 steps left holding the finished field into the
+      > relief cut (it completes at 24.476s + its 0.1s ramp, against a 24.950s cut). The rig prints
+      > the whole schedule and its rate at startup, so a re-paced chapter says what it became.
+      > Each shaping step reads distinctly at the chapter's framing, which is the point of putting
+      > them here: ridge turns the grey fBm into ridgelines, warp bends them, continent sweeps a
+      > lowland mass across the frame, redistribution re-curves the contrast. The octave steps do
+      > not read equally — measured frame by frame, octave 4 moves the picture about a fifth as much
+      > as octave 3 and octave 6 a twentieth, because an octave's amplitude is `gain^n`. That is the
+      > generator being honest, not a pacing bug: what carries a cycle visually is the early
+      > octaves, the four shaping steps and the re-seed.
+      > Everything from the point the shaping is fully in is **byte-identical** to the pre-change
+      > rig, checked by rendering the same still from each and comparing MD5s: `normals` (33s),
+      > `climate` (45s), `biomes` (52s) and the texture handover (62s) are unchanged. That identity
+      > is also the proof that a completed cycle *is* the demo configuration's own noise: those
+      > frames are the old rig's fully-arrived shaping values, so reproducing them exactly means the
+      > new shaping path lands on the same numbers. `relief` (27s) and the noise chapter's own last
+      > frame (24.6s) do move, as intended — the chapter now hands over a fully shaped field instead
+      > of bare fBm, and relief lifts that rather than staging the four terms itself. A re-seeded
+      > cycle differs from the final one on 88.8% of pixels at the same framing, i.e. it is a
+      > genuinely different field rather than the same one shifted slightly.
+      > Sweeping each re-seeded field in over the blank lattice, on the chapter's own front, was
+      > built first and dropped on review — worth knowing why before anyone builds it again. The
+      > chapter's front starts at `wipe_start` -6200, well off-frame, so roughly the first 45% of
+      > its travel is invisible and the frame is *black* for it: measured at the re-seed beat, a
+      > 0.4s sweep spends ~0.15s near-black before the new field appears and a 0.25s one ~0.05s.
+      > And alternating its direction the way the biomes reveals alternate theirs is worse still —
+      > T13's rule about a front's travel range again — because this chapter authors `wipe_end` 3400
+      > rather than the mesh's own edge, so the flipped front's *far* end sits in frame as a black
+      > wedge with a lit seam for the rest of the cycle.
 
 - [x] **T7 — Recording convention.**
       Documented in [Recording the clips](#recording-the-clips) at the bottom of this file.
