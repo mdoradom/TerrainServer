@@ -529,6 +529,8 @@ func _apply_build(t: float) -> void:
 	var levels := int(_full["clipmap_levels"])
 	var resolution := int(chapter.get("mesh_resolution", _full["mesh_resolution"]))
 	var reveal_radius := -1.0
+	var ripple_radius := _ripple_off_array(-1.0)
+	var ripple_strength := _ripple_off_array(0.0)
 	var height_scale := float(_full["height_scale"])
 	var octaves := int(_full["noise_octaves"])
 	var shaping := 1.0
@@ -556,6 +558,23 @@ func _apply_build(t: float) -> void:
 			for i in rings:
 				reveal_radius = maxf(reveal_radius, _ease_out(_ramp(t, float(chapter["ring_times"][i]),
 						float(chapter["ring_duration"]))) * _level_extent(i + 1))
+			# A ring expanding out of the centre on the same hit that grows the mesh -- a raindrop
+			# landing on still water each time a level arrives, layering on top of any earlier ring
+			# still fading rather than replacing it. Each ripple's own speed is its level's extent
+			# over the same duration the lattice takes to reveal it, so the wave always lands on the
+			# new edge exactly as that ring's growth animation stops, at any level: short first
+			# hops read as a slow wave because they are a short distance over level0_duration, and
+			# each doubling level travels twice as far in the same ring_duration rather than
+			# lagging behind it.
+			var ripple_hits: Array = [Vector3(float(chapter["first_hit"]), _level_extent(0),
+					float(chapter["level0_duration"]))]
+			for i in chapter["ring_times"].size():
+				ripple_hits.append(Vector3(float(chapter["ring_times"][i]), _level_extent(i + 1),
+						float(chapter["ring_duration"])))
+			var ripples := _ripples_at(t, ripple_hits, float(effects["ripple_decay"]))
+			for i in ripples.size():
+				ripple_radius[i] = ripples[i].x
+				ripple_strength[i] = ripples[i].y
 			height_scale = 0.0
 			octaves = int(chapter["octaves"])
 			shaping = 0.0
@@ -693,6 +712,10 @@ func _apply_build(t: float) -> void:
 		"debug_extent": _extent,
 		"debug_reveal_radius": reveal_radius,
 		"debug_reveal_edge": float(look["reveal_edge"]),
+		"debug_ripple_radius": ripple_radius,
+		"debug_ripple_strength": ripple_strength,
+		"debug_ripple_width": float(effects["ripple_width"]),
+		"debug_ripple_lift": float(effects["ripple_lift"]),
 		"debug_wire_opacity": wire_opacity,
 		"debug_wire_color": _to_linear_vector3(look["wire_color"]),
 		"debug_wire_intensity": wire_intensity * (1.0 + float(effects["pulse_gain"]) * pulse),
@@ -718,6 +741,44 @@ func _shaping_at(t: float, p_key: String) -> float:
 # The half-width of clipmap level p_level, from the plugin's own numbers rather than authored.
 func _level_extent(p_level: int) -> float:
 	return _config.terrain_size * pow(2.0, float(p_level)) * 0.5
+
+
+# Every ripple still bright enough to matter, most recent first, one per past time in p_times: age
+# grows the radius, decay fades the strength. Each is independent -- a new ripple does not replace
+# an older one still fading, it just occupies the next slot -- capped at DEBUG_RIPPLE_MAX (the
+# shader's array size) and cut off once a hit is too faint to be worth a slot.
+const DEBUG_RIPPLE_MAX := 4
+const DEBUG_RIPPLE_CUTOFF := 0.01
+
+func _ripple_off_array(p_value: float) -> PackedFloat32Array:
+	var values := PackedFloat32Array()
+	values.resize(DEBUG_RIPPLE_MAX)
+	values.fill(p_value)
+	return values
+
+
+# p_hits are (time, distance, duration) triples: distance is what the ripple has to cover, duration
+# is how long it has to cover it in -- normally the same duration the reveal front takes to grow to
+# that distance, so the wave lands on the new edge exactly as that ring's own growth animation
+# stops, at any level. A short first hop reads as a slow wave because it is a short distance over a
+# long duration, and each doubling level travels twice as far in the same duration rather than
+# lagging behind it. Age still drives strength's decay on its own clock, so a ring keeps glowing a
+# little after it lands rather than vanishing the instant it arrives.
+func _ripples_at(t: float, p_hits: Array, p_decay: float) -> Array:
+	var ripples: Array = []
+	for i in range(p_hits.size() - 1, -1, -1):
+		var hit: Vector3 = p_hits[i]
+		var age := t - hit.x
+		if age < 0.0:
+			continue
+		var strength := exp(-age / p_decay)
+		if strength < DEBUG_RIPPLE_CUTOFF:
+			break
+		var speed := hit.y / maxf(hit.z, 0.001)
+		ripples.append(Vector2(age * speed, strength))
+		if ripples.size() >= DEBUG_RIPPLE_MAX:
+			break
+	return ripples
 
 
 # mesh_resolution steps up through the relief chapter, so the surface visibly gains the detail the
@@ -824,6 +885,8 @@ func _apply_cinematic(t: float) -> void:
 		"debug_wipe": 0.0,
 		"debug_fill": 1.0,
 		"debug_reveal_radius": -1.0,
+		"debug_ripple_radius": _ripple_off_array(-1.0),
+		"debug_ripple_strength": _ripple_off_array(0.0),
 		"debug_wire_opacity": 0.0,
 		"debug_vignette": 0.0,
 		"debug_biome_count": -1,

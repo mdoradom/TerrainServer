@@ -118,6 +118,18 @@ uniform float debug_extent = 1024.0;
 uniform float debug_reveal_radius = -1.0;
 uniform float debug_reveal_edge = 0.0;
 
+// Rings expanding out of debug_center on a beat -- raindrops hitting still water. A fixed number
+// of independent slots rather than one, so a new ripple layers on top of an older one still fading
+// instead of replacing it. A slot with negative radius or zero strength (the defaults) is off.
+// Godot's shader uniform arrays cannot carry a default value, so these read as all-zero (radius 0,
+// strength 0) until the trailer first pushes real slot data -- still off, since debug_ripple()
+// requires strength > 0.
+const int DEBUG_RIPPLE_MAX = 4;
+uniform float debug_ripple_radius[DEBUG_RIPPLE_MAX];
+uniform float debug_ripple_strength[DEBUG_RIPPLE_MAX];
+uniform float debug_ripple_width = 70.0;
+uniform float debug_ripple_lift = 0.0;
+
 // Wireframe, measured on the clipmap mesh's own UV grid, so the lines are the real quad edges and
 // every clipmap level shows its own cell size. Widths are in pixels, and a grid fades out once
 // its on-screen spacing closes on debug_wire_min_spacing -- without that, a high mesh_resolution
@@ -135,6 +147,20 @@ uniform float debug_wire_min_spacing = 7.0;
 uniform int debug_wire_major = 8;
 
 uniform float debug_vignette = 0.0;
+
+// Sum of every active ripple slot's Gaussian band at p_distance: 0 outside a ring's width, peaking
+// at its strength on it. Slots are independent, so overlapping rings add rather than replace.
+float debug_ripple(float p_distance) {
+	float total = 0.0;
+	for (int i = 0; i < DEBUG_RIPPLE_MAX; i++) {
+		if (debug_ripple_strength[i] <= 0.0 || debug_ripple_radius[i] < 0.0) {
+			continue;
+		}
+		float x = (p_distance - debug_ripple_radius[i]) / max(debug_ripple_width, 0.001);
+		total += debug_ripple_strength[i] * exp(-x * x);
+	}
+	return total;
+}
 
 varying vec2 v_world_xz;
 varying vec3 v_normal_ws;
@@ -319,6 +345,8 @@ void vertex() {
 		float coarse_height = mix(mix(h00, h10, t.x), mix(h01, h11, t.x), t.y);
 		final_height = mix(final_height, coarse_height, morph_factor);
 	}
+
+	final_height += debug_ripple(length(v_world_xz - debug_center)) * debug_ripple_lift;
 
 	VERTEX.y = final_height / length(MODEL_MATRIX[1].xyz);
 	v_height = final_height;
@@ -913,6 +941,9 @@ void fragment()
 				emission += debug_wire_color * debug_wire_intensity * debug_wire_opacity *
 						(1.0 - clamp(inside / debug_reveal_edge, 0.0, 1.0));
 			}
+
+			emission += debug_wire_color * debug_wire_intensity *
+					debug_ripple(length(v_world_xz - debug_center));
 		}
 
 		if (debug_vignette > 0.0) {

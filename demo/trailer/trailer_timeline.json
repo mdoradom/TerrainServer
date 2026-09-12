@@ -247,7 +247,10 @@
 		"pulse_decay": 0.11,
 		"pulse_gain": 3.0,
 		"pulse_onset_amplitude": 0.5,
-		"pulse_strength_weight": 0.5
+		"pulse_strength_weight": 0.5,
+		"ripple_decay": 0.15,
+		"ripple_lift": 20.0,
+		"ripple_width": 70.0
 	},
 	"look": {
 		"ambient_color": [
