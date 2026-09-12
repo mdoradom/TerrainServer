@@ -1,5 +1,5 @@
 {
-	"_comment": "Every tunable of the trailer. trailer_rig.gd reads this file and holds no authored numbers of its own; `--controls` edits it live and Save writes it back. `patch` picks the world position the clipmap is focused on. Chapter values marked with a time land on a cue in audio_cues.json, so the ruler's tick marks are what they are dialled against. Two exceptions. `biome_reveal_times` past the first: the section they sit in is the loudest in the track but sustained, so the onset detector finds nothing there to mark and there is no cue to land on — those three are peaks of the RMS envelope in audio_peaks.json instead, the swell's own pulse, and they will not line up with a ruler tick. And the `noise` chapter: rather than authoring a time per step it beats on every cue in its own window at least `step_min_gap` apart, splits each of those intervals into `step_subdivisions` to reach the track's fast rhythm, and runs one cycle of the generator a step at a time (an octave of fBm per step, then ridge, warp, continent and redistribution, each easing in over `shaping_duration`) until the field is exactly what the demo configuration renders, then re-seeds — a patch `seed_distance` away along a spiral, the last cycle always `patch` itself — and builds it again. It runs whole cycles only, and stops early enough that the last field it finishes is left sitting there for `hold_duration` before `relief` cuts in and lifts it, with the steps over the last `settle_duration` spreading out so the build eases to a stop rather than halting mid-stride. Those four terms are therefore in by the time `relief` cuts, and it only lifts and re-meshes what they made. `view_a`/`view_b` are terrain.gdshader's debug views: 0 shaded, 1 height, 2 biome id, 3 normals, 4 temperature, 5 moisture, 6 clay, 7 blank, and `wire_opacity`/`wire_opacity_b` are the lattice on the near and far side of that wipe front, so it can be swept out by the same line instead of cutting. A camera's `continue` means the chapter is not a cut at all: it picks the framing up wherever the previous chapter's drift had arrived by its start and goes on from there, which makes its own `yaw`/`pitch`/`distance`/`height` unused -- they are kept at the values of the handover as of this writing, so switching it off cuts nothing either.",
+	"_comment": "Every tunable of the trailer. trailer_rig.gd reads this file and holds no authored numbers of its own; `--controls` edits it live and Save writes it back. `patch` picks the world position the clipmap is focused on. Chapter values marked with a time land on a cue in audio_cues.json, so the ruler's tick marks are what they are dialled against. Two exceptions. `biome_reveal_times` past the first: the section they sit in is the loudest in the track but sustained, so the onset detector finds nothing there to mark and there is no cue to land on — those three are peaks of the RMS envelope in audio_peaks.json instead, the swell's own pulse, and they will not line up with a ruler tick. And the `noise` chapter: rather than authoring a time per step it beats on every cue in its own window at least `step_min_gap` apart, splits each of those intervals into `step_subdivisions` to reach the track's fast rhythm, and runs one cycle of the generator a step at a time (an octave of fBm per step, then ridge, warp, continent and redistribution, each easing in over `shaping_duration`) until the field is exactly what the demo configuration renders, then re-seeds — a patch `seed_distance` away along a spiral, the last cycle always `patch` itself — and builds it again. It runs whole cycles only, and stops early enough that the last field it finishes is left sitting there for `hold_duration` before `relief` cuts in and lifts it, with the steps over the last `settle_duration` spreading out so the build eases to a stop rather than halting mid-stride. Those four terms are therefore in by the time `relief` cuts, and it only lifts and re-meshes what they made. `view_a`/`view_b` are terrain.gdshader's debug views: 0 shaded, 1 height, 2 biome id, 3 normals, 4 temperature, 5 moisture, 6 clay, 7 blank, and `wire_opacity`/`wire_opacity_b` are the lattice on the near and far side of that wipe front, so it can be swept out by the same line instead of cutting. A camera's `continue` means the chapter is not a cut at all: it picks the framing up wherever the previous chapter's drift had arrived by its start and goes on from there, which makes its own `yaw`/`pitch`/`distance`/`height` unused -- they are kept at the values of the handover as of this writing, so switching it off cuts nothing either. `arrive` is the same at the other end: the framing walks to the next chapter's own authored camera over the chapter's length, so the `*_rate` values go unused too. The `noise` chapter authors both, which makes the whole build-up one move -- `grid` hands it a framing, `relief` decides where it has to end. So `grid`'s yaw is what sets how much of a turn there is in between: it is authored so that turn is 7 degrees, in the same direction `grid` was already going, and moving it spins `noise` instead of retiming it. `noise`'s `wipe_dir` is in world space and has to be rotated with it, or the front stops entering from off camera.",
 	"bridge": 63.936,
 	"chapters": [
 		{
@@ -12,7 +12,7 @@
 				"height_rate": 0.0,
 				"pitch": -42.0,
 				"pitch_rate": 0.0,
-				"yaw": 35.0,
+				"yaw": -127.12,
 				"yaw_rate": 1.6
 			},
 			"first_hit": 0.035,
@@ -38,6 +38,7 @@
 		{
 			"camera": {
 				"blend_in": 0.0,
+				"arrive": true,
 				"continue": true,
 				"distance": 5956.6,
 				"distance_rate": -30.0,
@@ -46,7 +47,7 @@
 				"height_rate": 0.0,
 				"pitch": -42.0,
 				"pitch_rate": 0.0,
-				"yaw": 50.12,
+				"yaw": -112.0,
 				"yaw_rate": -0.45
 			},
 			"fill": 1.0,
@@ -62,8 +63,8 @@
 			"view_a": 7.0,
 			"view_b": 1.0,
 			"wipe_dir": [
-				1.0,
-				0.0
+				-0.95171,
+				0.307
 			],
 			"wipe_duration": 1.8,
 			"wipe_end": 4200.0,
@@ -76,13 +77,12 @@
 		{
 			"camera": {
 				"blend_in": 0.0,
-				"distance": 3800.0,
+				"distance": 2700.0,
 				"distance_rate": -26.0,
 				"fov": 44.0,
 				"height": 300.0,
 				"height_rate": 3.0,
-				"inherit": true,
-				"pitch": -38.0,
+				"pitch": -34.0,
 				"pitch_rate": 0.0,
 				"shot_distance_swing": 900.0,
 				"shot_height_swing": 160.0,
@@ -92,7 +92,7 @@
 				"shot_pan_yaw": 4.0,
 				"shot_pitch_swing": 12.0,
 				"shot_yaw_step": 80.0,
-				"yaw": -28.0,
+				"yaw": -105.0,
 				"yaw_rate": 0.65
 			},
 			"fill": 1.0,

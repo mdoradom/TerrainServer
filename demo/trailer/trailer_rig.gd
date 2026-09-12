@@ -1066,7 +1066,9 @@ func _step_resolution(p_chapter: Dictionary, t: float, p_default: int) -> int:
 # instead of holding one angle for its whole length -- see _shot_framing().
 #
 # A chapter whose camera authors `continue` does not cut at all: it picks the framing up where the
-# previous chapter left it and drifts on from there.
+# previous chapter left it and drifts on from there. `arrive` is the same thing at the other end --
+# it lands the framing on the next chapter's authored camera -- and a chapter that authors both is
+# one move from the shot before it to the shot after it.
 func _camera_state(p_chapter: Dictionary, t: float) -> Dictionary:
 	var effects: Dictionary = timeline["effects"]
 	var camera: Dictionary = p_chapter["camera"]
@@ -1082,11 +1084,12 @@ func _camera_state(p_chapter: Dictionary, t: float) -> Dictionary:
 	# `inherit` is the other half of this family and a different thing: there the predecessor's
 	# camera keeps moving the shot, where this only borrows where it got to and then drifts on its
 	# own rates from there.
+	var chapters: Array = timeline["chapters"]
 	var index := get_chapter_index(start)
 	var seamless := bool(camera.get("continue", false)) and index > 0
 	var base: Dictionary = camera
 	if seamless:
-		base = _camera_state(timeline["chapters"][index - 1], start)
+		base = _camera_state(chapters[index - 1], start)
 
 	var state := {
 		"yaw": float(base["yaw"]) + float(camera.get("yaw_rate", 0.0)) * elapsed,
@@ -1095,6 +1098,34 @@ func _camera_state(p_chapter: Dictionary, t: float) -> Dictionary:
 		"fov": float(base["fov"]),
 		"height": float(base["height"]) + float(camera.get("height_rate", 0.0)) * elapsed,
 	}
+
+	# And the same seam from the other side: `arrive` walks the framing from wherever the chapter
+	# starts to the framing the next chapter opens on, across the chapter's whole length, so that
+	# cut is a continuation as well. It has to be this chapter that gives, because the framing that
+	# matters there is the one the next chapter cuts to -- its shot of its own subject -- and rates
+	# hand-solved to land on it would have to be solved again on every retime and every nudge of
+	# that shot. It replaces this chapter's own drift rates rather than adding to them.
+	#
+	# The target is the next chapter's own state at its start, not its authored `camera` block:
+	# those differ, because a chapter that cuts between shots of its own is already inside shot 0
+	# at its start, and shot 0 is not the authored framing -- its distance and height swings are
+	# sin(GOLDEN_ANGLE * 0.5) and cos(0), neither of them zero. Landing on the authored block
+	# instead left exactly the jump this is meant to remove. Asking for the state does mean this
+	# cannot resolve a next chapter that is itself a `continue`: that would bounce straight back
+	# here, and the two of them deriving their framing from each other has no answer anyway.
+	var next_index := index + 1
+	if bool(camera.get("arrive", false)) and next_index < chapters.size() \
+			and not bool((chapters[next_index]["camera"] as Dictionary).get("continue", false)):
+		var next_chapter: Dictionary = chapters[next_index]
+		var next_start := float(next_chapter["start"])
+		var target := _camera_state(next_chapter, next_start)
+		var k := clampf(elapsed / maxf(next_start - start, 0.001), 0.0, 1.0)
+		for key in state:
+			var to := float(target[key])
+			# The orbit takes the shorter way round rather than unwinding the long way.
+			if key == "yaw":
+				to = float(base["yaw"]) + wrapf(to - float(base["yaw"]), -180.0, 180.0)
+			state[key] = lerpf(float(base[key]), to, k)
 
 	# The cut the settle-in is measured from is the chapter's own, unless the chapter cuts between
 	# shots of its own, in which case every one of them gets it.
