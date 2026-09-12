@@ -6,10 +6,17 @@ tool. The user assembles the finished trailer themselves — cuts, music mix, ti
 — so the scope here stops at **exporting a handful of on-brand, silent clips**, one per
 storyboard beat, whose internal timing already lands on the chosen track's marked hits.
 
-Storyboard beats covered: (1) a wireframe "genesis" opening — a flat line revealing itself as a
-deformed plane, fast ground-level travelling; (2) a wireframe mountain flyover; (3) an "erosion"
-shot — particles raining onto the terrain with a visible before/after; (4) fast cuts through
-splatmap/normal-map debug views of biomes; (5) a photorealistic, SDFGI-lit cinematic flythrough.
+The trailer is in two halves, split by the track's bridge cue. Everything before it is one
+continuous **build-up diagram**: a static ~45-degree aerial on a wireframe patch of terrain floating
+in black, assembling itself to the beat — the clipmap grid draws itself, noise appears on it and
+gains an octave per hit, the sheet stands up into relief, each shaping parameter arrives on its own
+hit, and the shot then wipes through what the shader derives from that surface (normals, lighting,
+temperature, moisture) before the biomes light up one by one over a Whittaker chart. Everything
+after the bridge is the photorealistic, SDFGI-lit payoff on the real terrain.
+
+Each beat is its own static camera, cut on a marked hit — no travelling, no flythrough until the
+payoff. The build-up is deliberately *not* a faithful reproduction of the plugin's workflow; it is
+the generation pipeline staged so it reads at a glance and lands on the music.
 
 ## Decisions already made
 
@@ -19,8 +26,12 @@ splatmap/normal-map debug views of biomes; (5) a photorealistic, SDFGI-lit cinem
 | Export via `godot --path demo res://trailer/trailer.tscn --write-movie <file> -- --shot=<name>`, 1920x1080 @ 60fps | Deterministic, frame-accurate, one process per clip |
 | New work lives in `demo/trailer/`, mirroring `demo/benchmark/` | Dedicated scene + script; `demo/terrain_server.tscn` stays untouched |
 | Camera moves on a fixed step indexed by frame number, never `delta` | Matches `demo/benchmark/benchmark.gd`'s existing convention; reproducible across machines |
-| Wireframe look = `Viewport.debug_draw = DEBUG_DRAW_WIREFRAME` over the real `Terrain3D` mesh, not a custom wireframe shader | A custom shader would need the vertex displacement extracted into a shared `.gdshaderinc` — a real refactor of the shipped, benchmarked production shader for a one-off cosmetic need. `debug_draw` gets the same real noise-displaced geometry for free |
-| "Line becomes a plane" opening is a camera-framing trick, not new geometry | Frame the real wireframe mesh near edge-on and far away at t=0, then swoop down/around to reveal the full plane. No synthetic mesh system |
+| The build-up runs on a purpose-built "diorama", not on the `Terrain3D` node | `Terrain3D` rebuilds its whole clipmap mesh on any `TerrainConfiguration` edit (see `CLAUDE.md`), which rules out animating a noise parameter per frame, and it owns its `RenderingServer` material, which rules out adding diagram-only uniforms. The diorama is clipmap-shaped geometry (centre block + rings) built in GDScript with its own shader |
+| The diorama's shader **splices** the production shader rather than copying or `#include`-ing it | `diorama.gd` concatenates everything `terrain.gdshader` declares before its `void vertex()` (uniforms, varyings, noise/climate functions) with `diorama_body.gdshaderinc`. So the heights on screen are the plugin's own heights and the animated parameters are the plugin's own parameters, with no copy that can drift and no refactor of the shipped, benchmarked shader. `#include` was not an option: `TerrainRenderer` feeds the shader to `RenderingServer::shader_set_code`, which does not run the preprocessor |
+| Wireframe is drawn in-shader from barycentric coordinates, not `Viewport.debug_draw` | `DEBUG_DRAW_WIREFRAME` cannot be coloured, faded, dimmed per clipmap level, or pulsed on the beat — all of which the build-up depends on. Unindexed geometry carries barycentrics in `COLOR`, and the third axis is always the vertex opposite the quad diagonal, so the shared diagonal can be drawn fainter than the quad edges |
+| Every on-screen value is a pure function of shot time; no state accumulates between frames | Any moment can be previewed alone with `--start=<sec> --frames=<n>` without rendering what precedes it, and `--write-movie` is reproducible across machines. This is what made tuning the look practical at all |
+| The diorama sits at a hand-picked world position, not the origin | Temperature and moisture are noise fields with wavelengths about one diorama wide, so most of the world falls inside a single climate band and renders as one biome. `demo/trailer/tools/pick_diorama_center.gd` scores candidate patches on real samples for biome balance and relief |
+| `demo/project.godot` sets a 1920x1080 viewport | `--write-movie` fixes its recording size before the scene loads, from `display/window/size/viewport_*` alone — neither `--resolution` nor a runtime resize moves it (both change the viewport while the movie keeps recording at the project size). `demo/benchmark` passes `--resolution 1920x1080` to every run it spawns, so its measurements already ran at this size and do not move |
 | Erosion shot = `GPUParticles3D` + one real `TerrainConfiguration` swap, not per-frame mesh animation | The renderer isn't built for per-frame config edits — `changed` triggers a full `rebuild_mesh()` (see `CLAUDE.md`) |
 | Clip timing is driven by real audio cues, not guessed timestamps | Track is "Bliss" by Klsr, trimmed to ~1:07 with a bridge at that point separating the track's two halves — lines up with the storyboard's own pivot into the cinematic reveal. Cuts landing on the track's marked hits means the eventual edit needs minimal manual nudging |
 | The one real plugin change is a `debug_view` shader uniform + bound setter | Only the splatmap/normal-map "diagram" cuts need fragment-internal values (biome blend weights, `normal_ws`) that GDScript can't otherwise reach. Everything else needs no C++/shader work |
@@ -130,51 +141,66 @@ Open `demo/project.godot` in Godot and run `demo/trailer/trailer.tscn` (once it 
       > res://trailer/trailer.tscn -- --shot=<name>`) for all four shots plus an unknown-shot
       > case: each prints its window/frame-range/cue-count with no console errors, and a full
       > run (genesis, 1237 frames) completes and quits cleanly.
+      > Amended by T3: those four windows are now two — `build` (0s–63.936s) and `cinematic`
+      > (63.936s–end) — and `--start=<sec>`/`--frames=<n>` were added so a single beat can be
+      > previewed or recorded without rendering everything before it.
 
-- [x] **T3 — Shot: wireframe genesis + flyover.**
-      Pure GDScript/scene work on top of T2, no engine changes: `Viewport.debug_draw =
-      DEBUG_DRAW_WIREFRAME`, `Environment.background_mode` = solid black, camera starts near
-      edge-on/far, swoops down to a fast ground-level travelling over the wireframe mountains.
-      Hard cuts inside the shot (if any) land on T0's cue timestamps.
-      *Verify:* recorded clip (see T7) opens a flat line at frame 0 and reads as a full deformed
-      wireframe plane within the shot, with internal cuts landing on the marked hits.
-      > Result: the terrain is an infinite recentering clipmap, so there is no literal "outside
-      > it, far away" vantage, and this config's mountains are tall/frequent enough that a
-      > ground-hugging grazing angle never collapses to a flat line either — some peak always
-      > intrudes nearby. The reveal instead looks from high above (height_scale x 3) with a
-      > dead-level pitch and a needle-narrow FOV aimed exactly at the horizon via the outermost
-      > clipmap ring's own extent (queried at runtime): near field is out of frame, and the far
-      > terrain that is in view is angularly negligible, so it reads as a flat line regardless of
-      > local roughness. Widening the FOV and dropping altitude/pitch over the reveal grows that
-      > line into the full deformed wireframe plane; a hard cut on the nearest "strong" cue
-      > (9.451s) then jumps to a higher, wider mountain-flyover pose. Verified by rendering with
-      > `--write-movie` and inspecting extracted frames: frame 0 is a thin wireframe sliver at the
-      > very bottom of an otherwise black frame, growing through intermediate frames into a full
-      > jagged mountain range, with a numerically-confirmed discontinuous camera jump (altitude,
-      > pitch, FOV) exactly at the cue frame. Also fixed a T2 bug found along the way:
-      > `_process()` compared the global tick counter against an absolute end-frame instead of
-      > the shot's own duration, so any shot not starting at t=0 (erosion/debug/cinematic) would
-      > have rendered far more frames than intended, most of them at a nonsensical negative local
-      > frame. Re-verified all four `--shot=` values complete in exactly their intended frame
-      > count after the fix.
+- [x] **T3 — Shot: the build-up diagram (`--shot=build`, 0s–63.936s).**
+      Supersedes the original "genesis + flyover" travelling shot, which was built and then
+      replaced: the trailer's build-up is now a static ~45-degree aerial on a wireframe diorama in
+      black, assembling itself to the beat. Six chapters, each its own static camera cut on a
+      "strong" cue — `grid` (0.035s, the clipmap draws itself, ring by ring), `noise` (9.451s, the
+      field appears flat on the grid, one octave per hit to 17.310s), `relief` (20.619s, the sheet
+      springs up, then ridge/warp/continent/redistribution each arrive on their own hit), `normals`
+      (30.906s, wipe to world normals, then to lit clay at 36.943s), `climate` (42.388s,
+      temperature then moisture, dimming out into the track's 44–50s silence), `biomes` (50.085s,
+      the four biomes light up one per hit over a Whittaker chart, slope/cliff overlay at 60.825s,
+      flash into the bridge).
+      Files: `demo/trailer/diorama.gd` + `diorama_body.gdshaderinc` (geometry, spliced shader,
+      the diagram views), `trailer_rig.gd` (timeline, cue envelopes, cameras),
+      `whittaker_overlay.gd` (the 2D chart), `tools/pick_diorama_center.gd` (patch selection).
+      *Verify:* every chapter renders as intended, on its cue, with no shader or script errors.
+      > Result: the wireframe is drawn in-shader from barycentrics rather than with
+      > `debug_draw`, and all displacement comes from the production shader's own noise, spliced
+      > in at load (see the decisions table). Two findings worth keeping: `--write-movie` records
+      > at `demo/project.godot`'s viewport size and ignores `--resolution`, so the project now
+      > declares 1920x1080; and the terrain's climate fields are narrow enough that the origin
+      > renders as a single-biome patch, which is why the diorama sits at (5632, -4608), chosen by
+      > the tool on biome balance and relief.
+      > Verified by rendering stills at 1920x1080 across the whole window (16 beats, then 6 more
+      > after tuning) and inspecting them: the grid draws out and the clipmap rings pop in, the
+      > noise field is legible and gains detail per hit, the sheet springs into relief and each
+      > parameter visibly reshapes it, the normal/lit/temperature/moisture wipes read distinctly,
+      > and at 61.5s all four biomes appear on the terrain with a matching scatter in the chart.
+      > No shader or script errors in any run. The look needed two tuning passes — the first was
+      > blown out to white by glow plus an over-bright fill, and a 128-quad grid read as fabric
+      > rather than wireframe.
+      > End-to-end: `--shot=build` runs its full 3836 frames (63.936s at 60fps) and
+      > `--shot=cinematic` its preview window, both quitting cleanly with exit code 0.
 
-- [ ] **T4 — Shot: erosion particles.**
-      `GPUParticles3D` cyan rain grounded via `get_height_at()`, one scripted
-      `TerrainConfiguration` swap mid-shot for a real before/after rebuild, timed to a cue from
-      T0.
-      *Verify:* recorded clip shows a visible surface change coincident with both the particle
-      pass and the timed audio cue.
+- [~] **T4 — Shot: erosion particles. Dropped from the storyboard.**
+      The build-up has no travelling shot left to rain onto, and its "parameter arrives on a hit,
+      surface visibly reshapes" beats already carry the before/after idea that the erosion shot
+      existed to show — with the plugin's real parameters rather than a scripted config swap.
+      Revive only if the cut wants a distinct particle beat; nothing in T3 depends on it.
 
-- [ ] **T5 — Shot: biome/normal debug-view cuts.**
-      Depends on T0 and T1. Fast cuts toggling `Terrain3D.set_debug_view(1|2|3)` over one or two
-      configs, one cut per cue in this shot's cue range rather than a fixed ~1s guess.
-      *Verify:* each debug mode renders distinctly, without shader errors, and each cut lands on
-      its cue frame in the recorded clip.
+- [x] **T5 — Shot: biome/normal debug-view cuts. Absorbed into T3.**
+      These are now the `normals`, `climate` and `biomes` chapters of the build-up, wiped in on
+      their cues instead of hard-cut, over the diorama rather than the `Terrain3D` node.
+      > Note: that makes **T1's `debug_view` uniform unused by the trailer**. The diorama's shader
+      > computes its own diagram views, because it needs values T1 does not expose (per-biome
+      > weights for the one-at-a-time reveal, temperature and moisture as separate fields) and
+      > needs them on geometry `debug_view` cannot reach. `debug_view` is still a working,
+      > documented plugin feature and T6 may yet use it; it is simply no longer load-bearing here.
 
 - [ ] **T6 — Shot: cinematic final.**
-      Depends on T0 for its start time (the ~1:07 bridge cue). Reuses `demo/river_terrain.tres`
-      as-is; enable SDFGI on the scene's `WorldEnvironment`; smooth camera move,
-      `debug_view = 0`.
+      Depends on T0 for its start time (the ~1:07 bridge cue). Enable SDFGI on the scene's
+      `WorldEnvironment`; smooth camera move, `debug_view = 0`.
+      Currently a placeholder: `_apply_cinematic()` holds the build-up's last framing — same
+      centre, same ~45-degree angle — on the real `Terrain3D` with the sky environment and SDFGI
+      on, easing in slowly, so the bridge reads as the same world switching from diagram to
+      render. It still needs a real camera move, a chosen endpoint, and a look pass; it has only
+      been checked for running cleanly, never for how it looks.
       *Verify:* recorded clip is fully shaded/textured with SDFGI visibly contributing (bounce
       light change when panning past geometry), starting exactly at the bridge cue.
 
