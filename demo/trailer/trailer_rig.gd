@@ -108,6 +108,10 @@ var _finished := false
 var _built_levels := -1
 var _built_resolution := -1
 
+# The build-up's final ring count, computed once in `_setup_scenario()` from the "grid" chapter's
+# `ring_times`. Every build chapter defaults its clipmap level count to this.
+var _build_clipmap_levels := 1
+
 # The diagram's patch, taken from the real clipmap rather than authored: the centre it is focused
 # on and the half-width of its outermost level.
 var _center := Vector2.ZERO
@@ -201,6 +205,12 @@ func _setup_scenario() -> bool:
 	_full["clipmap_levels"] = source.clipmap_levels
 	_full["mesh_resolution"] = source.mesh_resolution
 
+	# The build-up's own final ring count, from "grid" reaching its last `ring_times` hit -- not
+	# the demo scene's `clipmap_levels`, which is a different (and generally lower) number. Every
+	# build chapter after "grid" defaults to this so the clipmap never shrinks back down once
+	# "grid" has grown it, which is what left a black gap past the mesh's edge in later chapters.
+	_build_clipmap_levels = 1 + _chapter_named("grid")["ring_times"].size()
+
 	_config = source.duplicate()
 	_terrain.configuration = _config
 
@@ -210,6 +220,10 @@ func _setup_scenario() -> bool:
 
 	# The patch the diagram is measured against comes from the plugin's own numbers, not from
 	# authored ones: the focus the clipmap snaps to, and the half-width of its outermost level.
+	# Built at `_build_clipmap_levels` rather than the demo config's own (smaller) count, so
+	# `_extent` matches the actual outermost ring the build-up chapters render.
+	_config.clipmap_levels = _build_clipmap_levels
+	_built_levels = _build_clipmap_levels
 	_terrain.rebuild()
 	_center = Vector2(_focus.global_position.x, _focus.global_position.z)
 	_extent = _level_extent(maxi(_terrain.get_clipmap_level_count() - 1, 0))
@@ -526,7 +540,7 @@ func _apply_build(t: float) -> void:
 
 	# Defaults every chapter starts from, then overrides below. Keeping them here (rather than
 	# letting values persist) is what makes any single frame renderable on its own.
-	var levels := int(_full["clipmap_levels"])
+	var levels := _build_clipmap_levels
 	var resolution := int(chapter.get("mesh_resolution", _full["mesh_resolution"]))
 	var reveal_radius := -1.0
 	var ripple_radius := _ripple_off_array(-1.0)
@@ -542,6 +556,12 @@ func _apply_build(t: float) -> void:
 	var view_b := int(chapter.get("view_b", view_a))
 	var wipe := 0.0
 	var wipe_dir := _to_vector2(chapter.get("wipe_dir", [1.0, 0.0]))
+	# Where the front starts and ends, as world-space distance along wipe_dir from _center, and how
+	# soft its band is -- all authored per chapter rather than derived from the clipmap's own size,
+	# so a chapter can land the front short of the mesh's true edge (e.g. out of camera view).
+	var wipe_start := float(chapter.get("wipe_start", -_extent))
+	var wipe_end := float(chapter.get("wipe_end", _extent))
+	var wipe_width := float(chapter.get("wipe_width", look["wipe_glow"]))
 	var fill := float(chapter.get("fill", 1.0))
 	var wire_intensity := float(chapter.get("wire_intensity", look["wire_intensity"]))
 	var wire_opacity := float(chapter.get("wire_opacity", look["wire_opacity"]))
@@ -702,14 +722,11 @@ func _apply_build(t: float) -> void:
 		"debug_view_b": view_b,
 		"debug_wipe": wipe,
 		"debug_wipe_dir": wipe_dir,
-		"debug_wipe_glow": float(look["wipe_glow"]),
+		"debug_wipe_start": wipe_start,
+		"debug_wipe_end": wipe_end,
+		"debug_wipe_glow": wipe_width,
 		"debug_fill": fill * float(look["fill_gain"]),
 		"debug_center": _center,
-		# The patch the wipe has to clear, so wipe 1.0 means every fragment has converted. This is
-		# the clipmap's own outermost half-width and nothing else: shortening it to make the sweep
-		# read faster on screen only leaves the far terrain behind, to pop the instant the wipe
-		# completes. Pacing is the duration's job, not this.
-		"debug_extent": _extent,
 		"debug_reveal_radius": reveal_radius,
 		"debug_reveal_edge": float(look["reveal_edge"]),
 		"debug_ripple_radius": ripple_radius,

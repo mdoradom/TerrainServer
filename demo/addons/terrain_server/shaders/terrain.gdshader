@@ -95,9 +95,14 @@ uniform float triplanar_sharpness = 4.0;
 // Both are optional and independent, and the front only exists while one of them is in play.
 uniform int debug_view = 0;
 uniform int debug_view_b = 0;
-// Wipes debug_view across to debug_view_b along debug_wipe_dir: 0 = all A, 1 = all B.
+// Wipes debug_view across to debug_view_b along debug_wipe_dir: 0 = all A, 1 = all B. The front
+// travels in a straight line from debug_wipe_start to debug_wipe_end (world-space distance along
+// debug_wipe_dir, measured from debug_center), so a chapter picks exactly where it starts and ends
+// rather than the front always spanning the clipmap's own outermost edge.
 uniform float debug_wipe = 0.0;
 uniform vec2 debug_wipe_dir = vec2(1.0, 0.0);
+uniform float debug_wipe_start = -1024.0;
+uniform float debug_wipe_end = 1024.0;
 uniform float debug_wipe_glow = 1.0;
 
 // The same wipe front, applied to how many biome layers the Whittaker blend may choose from:
@@ -109,9 +114,9 @@ uniform int debug_biome_count_b = -1;
 // Scales the whole diagram, so a chapter can dim down to black without touching the wireframe.
 uniform float debug_fill = 1.0;
 
-// The patch the reveal and the wipe are measured against, in world XZ.
+// The patch the reveal is measured against, in world XZ. The wipe is measured from debug_center
+// too, but along debug_wipe_dir out to debug_wipe_start/debug_wipe_end above rather than this.
 uniform vec2 debug_center = vec2(0.0);
-uniform float debug_extent = 1024.0;
 
 // Chebyshev radius around debug_center outside which fragments are dropped, so the terrain can
 // draw itself outward from its centre. Negative disables it.
@@ -442,17 +447,16 @@ const float DEBUG_GRID_EPSILON = 1e-8;
 // ahead of it (the B side), ramping across debug_wipe_glow in between. r_seam is 1 exactly on the
 // front and 0 a band away, for the highlight that rides it.
 //
-// debug_wipe 0 and 1 are guaranteed to be *complete*: the front travels from one corner of the
-// debug_extent square to the other along debug_wipe_dir, plus the band's own width at each end so
-// the last fragment finishes converting rather than stopping half-blended. The reach is the
-// square's true projection onto the direction, so a diagonal wipe covers the corners too instead
-// of leaving a wedge behind.
+// The front travels in a straight line from debug_wipe_start to debug_wipe_end as debug_wipe goes
+// 0 to 1, both measured as world-space distance along debug_wipe_dir from debug_center -- picked
+// per chapter rather than derived, so where the sweep starts, where it ends, and how far short of
+// full completeness it lands (leaving unconverted fragments beyond debug_wipe_end, e.g. out of
+// camera view) are all authored choices.
 float debug_wipe_at(vec2 p_world_xz, out float r_seam) {
 	vec2 dir = normalize(debug_wipe_dir + vec2(DEBUG_GRID_EPSILON, 0.0));
 	float along = dot(p_world_xz - debug_center, dir);
 	float band = max(debug_wipe_glow, DEBUG_GRID_EPSILON);
-	float reach = debug_extent * (abs(dir.x) + abs(dir.y)) + band;
-	float front = mix(-reach, reach, clamp(debug_wipe, 0.0, 1.0));
+	float front = mix(debug_wipe_start, debug_wipe_end, clamp(debug_wipe, 0.0, 1.0));
 
 	r_seam = 1.0 - clamp(abs(along - front) / band, 0.0, 1.0);
 	return clamp((front - along) / band + 0.5, 0.0, 1.0);

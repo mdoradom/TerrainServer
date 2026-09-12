@@ -66,7 +66,10 @@
 				1.0,
 				0.0
 			],
-			"wipe_duration": 2.2,
+			"wipe_duration": 1.5,
+			"wipe_end": 3400.0,
+			"wipe_start": -6200.0,
+			"wipe_width": 110.0,
 			"wire_intensity": 0.85,
 			"wire_opacity": 0.0
 		},
@@ -97,7 +100,7 @@
 			],
 			"ridge_duration": 0.7,
 			"ridge_time": 23.069,
-			"start": 20.619,
+			"start": 24.95,
 			"view_a": 1.0,
 			"view_b": 1.0,
 			"warp_duration": 0.9,
@@ -135,6 +138,9 @@
 				1.0
 			],
 			"wipe_duration": 2.0,
+			"wipe_end": 16384.0,
+			"wipe_start": -16384.0,
+			"wipe_width": 110.0,
 			"wire_intensity": 0.85,
 			"wire_opacity": 0.0
 		},
@@ -171,6 +177,9 @@
 				0.0
 			],
 			"wipe_duration": 1.1,
+			"wipe_end": 16384.0,
+			"wipe_start": -16384.0,
+			"wipe_width": 110.0,
 			"wire_intensity": 0.8,
 			"wire_opacity": 0.0
 		},
@@ -220,6 +229,9 @@
 				0.0
 			],
 			"wipe_duration": 2.6,
+			"wipe_end": 16384.0,
+			"wipe_start": -16384.0,
+			"wipe_width": 110.0,
 			"wire_intensity": 0.75,
 			"wire_opacity": 0.2
 		}
