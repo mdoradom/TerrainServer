@@ -6,7 +6,7 @@
 			"camera": {
 				"blend_in": 0.0,
 				"distance": 420.0,
-				"distance_rate": 520.0,
+				"distance_rate": 600.0,
 				"fov": 42.0,
 				"height": 0.0,
 				"height_rate": 0.0,
@@ -22,11 +22,13 @@
 			"octaves": 1.0,
 			"ring_duration": 0.5,
 			"ring_times": [
-				1.057,
+				1.0,
+				1.881,
+				2.67,
 				3.32,
-				4.934,
-				6.316,
-				8.173
+				3.889,
+				4.423,
+				4.934
 			],
 			"start": 0.0,
 			"view_a": 7.0,
@@ -179,11 +181,6 @@
 				54.637,
 				55.449
 			],
-			"reveal_duration": 0.78,
-			"reveal_wipe_dir": [
-				1.0,
-				0.0
-			],
 			"camera": {
 				"blend_in": 0.0,
 				"distance": 1720.0,
@@ -202,6 +199,11 @@
 			"name": "biomes",
 			"parallax_duration": 2.0,
 			"parallax_time": 60.825,
+			"reveal_duration": 0.78,
+			"reveal_wipe_dir": [
+				1.0,
+				0.0
+			],
 			"start": 50.085,
 			"texture_duration": 2.6,
 			"texture_time": 60.825,
@@ -243,7 +245,7 @@
 		"light_yaw_offset": 0.0,
 		"light_yaw_rate": 0.18,
 		"pulse_decay": 0.11,
-		"pulse_gain": 1.5,
+		"pulse_gain": 3.0,
 		"pulse_onset_amplitude": 0.5,
 		"pulse_strength_weight": 0.5
 	},
@@ -259,7 +261,7 @@
 		"glow_hdr_threshold": 1.0,
 		"glow_intensity": 0.35,
 		"glow_strength": 0.85,
-		"reveal_edge": 24.0,
+		"reveal_edge": 4.0,
 		"vignette": 0.32,
 		"wipe_glow": 110.0,
 		"wire_color": [
@@ -267,11 +269,11 @@
 			0.82,
 			1.0
 		],
-		"wire_diagonal": 0.12,
+		"wire_diagonal": 1.0,
 		"wire_intensity": 1.15,
 		"wire_intensity_dim": 0.7,
 		"wire_major": 8.0,
-		"wire_min_spacing": 8.0,
+		"wire_min_spacing": 1.0,
 		"wire_opacity": 0.0,
 		"wire_width": 1.1
 	},
