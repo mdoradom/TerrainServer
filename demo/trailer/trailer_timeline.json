@@ -1,5 +1,5 @@
 {
-	"_comment": "Every tunable of the trailer. trailer_rig.gd reads this file and holds no authored numbers of its own; `--controls` edits it live and Save writes it back. `patch` picks the world position the clipmap is focused on. Chapter values marked with a time land on a cue in audio_cues.json, so the ruler's tick marks are what they are dialled against. The `noise` chapter is the exception: rather than authoring a time per step it beats on every cue in its own window at least `step_min_gap` apart, splits each of those intervals into `step_subdivisions` to reach the track's fast rhythm, and runs one cycle of the generator a step at a time (an octave of fBm per step, then ridge, warp, continent and redistribution, each easing in over `shaping_duration`) until the field is exactly what the demo configuration renders, then re-seeds — a patch `seed_distance` away along a spiral, the last cycle always `patch` itself — and builds it again. It runs whole cycles only, and stops early enough that the last field it finishes is left sitting there for `hold_duration` before `relief` cuts in and lifts it, with the steps over the last `settle_duration` spreading out so the build eases to a stop rather than halting mid-stride. Those four terms are therefore in by the time `relief` cuts, and it only lifts and re-meshes what they made. `view_a`/`view_b` are terrain.gdshader's debug views: 0 shaded, 1 height, 2 biome id, 3 normals, 4 temperature, 5 moisture, 6 clay, 7 blank.",
+	"_comment": "Every tunable of the trailer. trailer_rig.gd reads this file and holds no authored numbers of its own; `--controls` edits it live and Save writes it back. `patch` picks the world position the clipmap is focused on. Chapter values marked with a time land on a cue in audio_cues.json, so the ruler's tick marks are what they are dialled against. Two exceptions. `biome_reveal_times` past the first: the section they sit in is the loudest in the track but sustained, so the onset detector finds nothing there to mark and there is no cue to land on — those three are peaks of the RMS envelope in audio_peaks.json instead, the swell's own pulse, and they will not line up with a ruler tick. And the `noise` chapter: rather than authoring a time per step it beats on every cue in its own window at least `step_min_gap` apart, splits each of those intervals into `step_subdivisions` to reach the track's fast rhythm, and runs one cycle of the generator a step at a time (an octave of fBm per step, then ridge, warp, continent and redistribution, each easing in over `shaping_duration`) until the field is exactly what the demo configuration renders, then re-seeds — a patch `seed_distance` away along a spiral, the last cycle always `patch` itself — and builds it again. It runs whole cycles only, and stops early enough that the last field it finishes is left sitting there for `hold_duration` before `relief` cuts in and lifts it, with the steps over the last `settle_duration` spreading out so the build eases to a stop rather than halting mid-stride. Those four terms are therefore in by the time `relief` cuts, and it only lifts and re-meshes what they made. `view_a`/`view_b` are terrain.gdshader's debug views: 0 shaded, 1 height, 2 biome id, 3 normals, 4 temperature, 5 moisture, 6 clay, 7 blank.",
 	"bridge": 63.936,
 	"chapters": [
 		{
@@ -121,7 +121,7 @@
 				"yaw_rate": -0.5
 			},
 			"fill": 1.0,
-			"lit_duration": 1.4,
+			"lit_duration": 1.5,
 			"lit_time": 32.485,
 			"lit_view_a": 3.0,
 			"lit_view_b": 6.0,
@@ -137,9 +137,9 @@
 				0.0,
 				1.0
 			],
-			"wipe_duration": 1.4,
-			"wipe_end": 16384.0,
-			"wipe_start": -16384.0,
+			"wipe_duration": 1.5,
+			"wipe_end": 10600.0,
+			"wipe_start": -6200.0,
 			"wipe_width": 110.0,
 			"wire_intensity": 0.85,
 			"wire_opacity": 0.0
@@ -173,9 +173,9 @@
 				1.0,
 				0.0
 			],
-			"wipe_duration": 1.1,
-			"wipe_end": 16384.0,
-			"wipe_start": -16384.0,
+			"wipe_duration": 1.5,
+			"wipe_end": 4400.0,
+			"wipe_start": -6200.0,
 			"wipe_width": 110.0,
 			"wire_intensity": 0.8,
 			"wire_opacity": 0.0
@@ -183,9 +183,9 @@
 		{
 			"biome_reveal_times": [
 				43.537,
-				50.085,
-				53.534,
-				54.637
+				44.567,
+				45.967,
+				47.067
 			],
 			"camera": {
 				"blend_in": 0.0,
@@ -204,15 +204,15 @@
 			"fill_snap_decay": 0.3,
 			"name": "biomes",
 			"parallax_duration": 2.0,
-			"parallax_time": 60.825,
-			"reveal_duration": 0.78,
+			"parallax_time": 50.085,
+			"reveal_duration": 1.0,
 			"reveal_wipe_dir": [
 				1.0,
 				0.0
 			],
 			"start": 43.537,
-			"texture_duration": 2.6,
-			"texture_time": 60.825,
+			"texture_duration": 1.5,
+			"texture_time": 50.085,
 			"texture_view_a": 2.0,
 			"texture_view_b": 0.0,
 			"texture_wipe_dir": [
@@ -225,9 +225,9 @@
 				1.0,
 				0.0
 			],
-			"wipe_duration": 2.6,
-			"wipe_end": 16384.0,
-			"wipe_start": -16384.0,
+			"wipe_duration": 1.0,
+			"wipe_end": 3400.0,
+			"wipe_start": -6200.0,
 			"wipe_width": 110.0,
 			"wire_intensity": 0.75,
 			"wire_opacity": 0.2
