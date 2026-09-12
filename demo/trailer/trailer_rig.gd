@@ -17,8 +17,14 @@ extends Node3D
 
 const CONFIG_PATH := "res://addons/terrain_server/assets/terrains/demo_terrain_configuration.tres"
 const CUES_PATH := "res://trailer/audio_cues.json"
+const PEAKS_PATH := "res://trailer/audio_peaks.json"
 const TIMELINE_PATH := "res://trailer/trailer_timeline.json"
 const FPS := 60.0
+
+# Cue kinds as the editor's ruler wants them, flattened out of audio_cues.json's string field.
+const KIND_ONSET := 0
+const KIND_STRONG := 1
+const KIND_BRIDGE := 2
 
 # Visual layers: the diorama draws on layer 2, the real Terrain3D on layer 1, and the camera's cull
 # mask picks one. Terrain3D owns its RenderingServer instances directly and has no `visible`, so a
@@ -37,11 +43,20 @@ var _controls_active := false
 var _config: TerrainConfiguration
 var _cue_times := PackedFloat32Array()
 var _cue_amplitudes := PackedFloat32Array()
+var _cue_kinds := PackedByteArray()
 var _strong_times := PackedFloat32Array()
+
+# Waveform envelope for the editor's ruler. Display-only: nothing in the choreography reads it.
+var _peaks := PackedFloat32Array()
+var _peaks_rms := PackedFloat32Array()
+var _peaks_fps := FPS
 
 var _frame := 0
 var _time := 0.0
 var _playing := true
+var _speed := 1.0
+# Vector2(-1, -1) means "no region": preview loops the whole shot window.
+var _loop_region := Vector2(-1.0, -1.0)
 var _shot_start := 0.0
 var _shot_end := 0.0
 var _shot_duration_frames := 0
@@ -86,6 +101,7 @@ func _ready() -> void:
 
 	_terrain.configuration = _config
 	_load_cues()
+	_load_peaks()
 
 	var window: Array = shots[_shot]
 	_shot_start = window[0]
@@ -119,13 +135,18 @@ func _process(delta: float) -> void:
 	if _finished:
 		return
 
-	# Interactive tuning runs on wall-clock time and loops the shot window; recording stays indexed
-	# by frame number so --write-movie is reproducible regardless of machine speed.
+	# Interactive tuning runs on wall-clock time and loops the shot window (or the region the ruler
+	# has set); recording stays indexed by frame number so --write-movie is reproducible regardless
+	# of machine speed.
 	if _controls_active:
 		if _playing:
-			_time += delta
-			if _time >= _shot_end:
-				_time = _shot_start
+			_time += delta * _speed
+			var from := get_loop_start()
+			var to := get_loop_end()
+			if _time >= to:
+				_time = from
+			elif _time < from:
+				_time = from
 		_apply_time(_time)
 		_controls.sync_time(_time)
 		return
@@ -171,8 +192,70 @@ func is_playing() -> bool:
 	return _playing
 
 
+func set_speed(p_speed: float) -> void:
+	_speed = maxf(p_speed, 0.01)
+
+
+func get_speed() -> float:
+	return _speed
+
+
+# An empty region (to <= from) restores looping over the whole shot window.
+func set_loop_region(p_from: float, p_to: float) -> void:
+	if p_to <= p_from:
+		_loop_region = Vector2(-1.0, -1.0)
+	else:
+		_loop_region = Vector2(clampf(p_from, _shot_start, _shot_end), clampf(p_to, _shot_start, _shot_end))
+
+
+func get_loop_region() -> Vector2:
+	return _loop_region
+
+
+func has_loop_region() -> bool:
+	return _loop_region.y > _loop_region.x
+
+
+func get_loop_start() -> float:
+	return _loop_region.x if has_loop_region() else _shot_start
+
+
+func get_loop_end() -> float:
+	return _loop_region.y if has_loop_region() else _shot_end
+
+
 func get_cue_times() -> PackedFloat32Array:
 	return _cue_times
+
+
+func get_cue_kinds() -> PackedByteArray:
+	return _cue_kinds
+
+
+func get_strong_cue_times() -> PackedFloat32Array:
+	return _strong_times
+
+
+func get_peaks() -> PackedFloat32Array:
+	return _peaks
+
+
+func get_peaks_rms() -> PackedFloat32Array:
+	return _peaks_rms
+
+
+func get_peaks_fps() -> float:
+	return _peaks_fps
+
+
+# Throws away every unsaved edit by re-reading the file the panel writes. The diorama's own
+# uniforms are all re-pushed from the timeline every frame, so re-applying the current moment is
+# all it takes for the revert to show.
+func reload_timeline() -> bool:
+	if not _load_timeline():
+		return false
+	refresh()
+	return true
 
 
 func get_chapter_index(p_time: float) -> int:
@@ -611,10 +694,31 @@ func _load_cues() -> void:
 	var onset_amplitude := float(timeline["effects"]["pulse_onset_amplitude"])
 	for cue in parsed["cues"]:
 		var time := float(cue["time_sec"])
+		var kind := str(cue["kind"])
 		_cue_times.append(time)
-		_cue_amplitudes.append(onset_amplitude if cue["kind"] == "onset" else 1.0)
-		if cue["kind"] != "onset":
+		_cue_amplitudes.append(onset_amplitude if kind == "onset" else 1.0)
+		_cue_kinds.append(KIND_ONSET if kind == "onset" else (KIND_BRIDGE if kind == "bridge" else KIND_STRONG))
+		if kind != "onset":
 			_strong_times.append(time)
+
+
+# The waveform the editor's ruler draws. Optional: a missing file just means the ruler shows cue
+# ticks over an empty lane, so a checkout without it still tunes.
+func _load_peaks() -> void:
+	var file := FileAccess.open(PEAKS_PATH, FileAccess.READ)
+	if file == null:
+		return
+
+	var parsed: Variant = JSON.parse_string(file.get_as_text())
+	if typeof(parsed) != TYPE_DICTIONARY or not parsed.has("peak"):
+		printerr("[trailer] could not parse %s" % PEAKS_PATH)
+		return
+
+	for value in parsed["peak"]:
+		_peaks.append(float(value))
+	for value in parsed.get("rms", []):
+		_peaks_rms.append(float(value))
+	_peaks_fps = float(parsed.get("fps", FPS))
 
 
 func _abort(message: String) -> void:

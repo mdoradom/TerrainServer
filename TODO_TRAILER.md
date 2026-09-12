@@ -238,6 +238,43 @@ viewport being captured.
       > `Engine.get_write_movie_path()`, verified: `--write-movie` together with `--controls`
       > prints "--controls ignored", records at 1920x1080 and exits 0.
 
+- [x] **T9 — Editor: timeline ruler, transport and reversible editing.**
+      T8 made every value editable; this makes them tunable. `demo/trailer/trailer_timeline_ruler.gd`
+      is a full-width bottom strip drawing four lanes against the shot window — the chapter bands,
+      the track's waveform, the detected cues (onset / strong / bridge, each distinct) and a second
+      ruler — with a draggable playhead. Tuning this trailer means landing authored values on musical
+      hits, and that is far easier when the hits are a visible shape rather than a list of
+      timestamps. `demo/trailer/tools/extract_peaks.py` generates that waveform
+      (`audio_peaks.json`, one peak + RMS bin per frame at 60fps) with ffmpeg + numpy, mirroring
+      `extract_cues.py`'s fallback decoder; a missing file just leaves the lane empty.
+      `trailer_controls.gd` gains: a spin box beside every slider (exact entry, not just a drag),
+      per-row revert plus "set to playhead" / "snap to nearest cue" buttons on every row whose value
+      is a moment, a dirty marker per row and an unsaved count, coalesced undo/redo, a parameter
+      filter, collapsible sections, chapter/cue/frame stepping, playback speed, and shot / chapter /
+      free-region looping (drag the ruler with the right button). `trailer_rig.gd` grows the clock
+      side of that — speed, loop region, cue kinds, the waveform, and `reload_timeline()` for
+      "revert all" — leaving `_apply_build()` and the frame-indexed recording path untouched.
+      *Verify:* the panel must never reach a recorded frame, and must not change what one looks like.
+      > Result: the recording path is byte-identical — stills at 7.2s, 25.6s, 47.4s and 61.5s
+      > rendered with `HEAD`'s `trailer_rig.gd` swapped back in have the same MD5s as the ones this
+      > branch renders. The rig is the only changed file a recording can reach: `trailer_controls.gd`
+      > is `queue_free()`d in `_setup_controls()` before it draws anything when `--controls` is
+      > absent, and the ruler, the waveform and the tools are only ever referenced from it. That is
+      > what the diff predicts — every change is either editor-only or additive on the `--controls`
+      > branch of `_process()`.
+      > Worth knowing before the next A/B: a fresh `git worktree` is the wrong harness for this.
+      > `*.so` is gitignored, so the extension is absent, and a cold project imports before it can
+      > register one — `Terrain3D` falls back to a placeholder node, the rig never runs, `--frames`
+      > is therefore never honoured, and `--write-movie` records thousands of empty frames rather
+      > than failing. Swapping the single file inside the already-imported project answers the same
+      > question in seconds, and `--quit-after` bounds the damage when a scene does fail to load.
+      > One bug worth remembering, caught only by reading a screenshot: the time rows were declared
+      > with `step = 0.01`, but cue timestamps carry three decimals. Both `HSlider` and `SpinBox`
+      > quantise to their step, so the panel displayed the moisture cut at 43.54 instead of 43.537
+      > and would have written that rounded value back the moment the row was touched — silently
+      > sliding an authored moment off the very beat it exists to land on. Every TIME row now steps
+      > in milliseconds.
+
 - [ ] **T7 — Recording convention.**
       Document the exact `--write-movie` invocation per shot (1920x1080 @ 60fps) in a short
       section at the bottom of this file, once T3–T6 exist to be recorded.
