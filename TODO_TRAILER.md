@@ -12,8 +12,9 @@ itself to the beat — the clipmap draws itself outward and gains a ring per hit
 appears on it and gains an octave per hit, the surface stands up into relief as `height_scale` ramps
 and each shaping parameter arrives on its own hit, and the shot then wipes through what the shader
 derives from that surface (normals, lighting, temperature, moisture) before the biomes arrive one
-per hit over a Whittaker chart and hand over to the plugin's own textured render. Everything after
-the bridge is that same render in the demo scene's own sky and light.
+per hit, each sweeping in on the same wipe front the views change on, and hand over to the plugin's
+own textured render. Everything after the bridge is that same render in the demo scene's own sky and
+light.
 
 Each beat is its own camera, cut on a marked hit. The build-up is deliberately *not* a faithful
 reproduction of the plugin's workflow; it is the generation pipeline staged so it reads at a glance
@@ -420,10 +421,8 @@ viewport being captured.
       ring cues with a real `rebuild()` behind each, `noise` steps `noise_octaves` at
       `height_scale` 0, `relief` ramps `height_scale` and steps `mesh_resolution` 64→256,
       `normals`/`climate` wipe between debug views, and `biomes` steps the shader's own
-      `biome_layer_count` 1→4 so each hit widens the set of layers the Whittaker blend may choose
-      from, then wipes the flat ids through to the textured render and opens the parallax fade
-      window. `whittaker_overlay.gd` mirrors `debug_id_color()` and `fragment()`'s own weights, so
-      a chart dot is the colour and the layer the terrain behind it shows.
+      biome count 1→4 so each hit widens the set of layers the Whittaker blend may choose from, then
+      wipes the flat ids through to the textured render and opens the parallax fade window.
       *Verify:* the plugin's normal output must not move, and every chapter must render.
       > Result: **byte-identical.** A normal render (`debug_view` 0, defaults) of the terrain from
       > a fixed camera matches `HEAD` exactly, checked separately for each half of the change — the
@@ -460,6 +459,41 @@ viewport being captured.
       > the diorama's 1536, so every camera distance, dolly rate and fill had to be re-picked
       > rather than carried over. They were set by eye on stills; the window has not been played
       > through against the music. Dial it with `--controls`.
+
+- [x] **T13 — Biomes chapter: drop the Whittaker overlay, sweep the biomes in.**
+      Two changes to the `biomes` chapter, both asked for after seeing T12's stills.
+      The 2D Whittaker chart is gone — `demo/trailer/whittaker_overlay.gd` is deleted and
+      `trailer.tscn` no longer has an `Overlay` layer. (The plugin's own `WhittakerChart` in the
+      editor dock is untouched; this was only the trailer's copy of the idea.)
+      The reveal no longer pops. `terrain.gdshader` gains `debug_biome_count` /
+      `debug_biome_count_b`, which put the *biome count* on the same wipe front the views already
+      change on: behind the line the blend may choose from the first N layers, ahead of it from the
+      first N−1, so a biome sweeps in across the terrain. It is one per-fragment integer selection
+      in front of the existing weight loop — not a second blend — and it is off at its default
+      (−1), so a normal render still uses `biome_layer_count` unchanged. The wipe front itself is
+      factored into `debug_wipe_at()` and now runs whenever it is carrying *either* a view change
+      or a biome, with the seam highlight riding it in both cases. The rig alternates
+      `reveal_wipe_dir`'s sign per hit so consecutive reveals do not all sweep the same way.
+      Particles ("fall from the sky") were the other option offered and were not taken: painting
+      biomes from particle impacts needs a splat texture the shader has no input for, so the
+      particles would have been decoration over the same pop.
+      *Verify:* the plugin's normal output must still not move, and each hit must read as a sweep.
+      > Result: the normal render is **still byte-identical to `HEAD`** on the same deterministic
+      > oracle T12 used. Each of the four hits was rendered and looked at: the front crosses frame
+      > with its seam lit, the new biome behind it, alternating direction.
+      > One thing this surfaced, and it applies to every wipe in the trailer, not just these: the
+      > front's travel range is not a look value, it is a correctness one. Shortening `debug_extent`
+      > to make a sweep read faster on screen (tried, as `look.wipe_extent` = 1800 against a ±4096
+      > patch) leaves everything past it unconverted, to snap the instant the wipe reaches 1.0 —
+      > which is a worse artefact than the pacing it was meant to fix. `debug_extent` is the
+      > clipmap's own outermost half-width, and `debug_wipe_at()` now derives the front's reach as
+      > that square's true projection onto the wipe direction (so a diagonal covers the corners too)
+      > plus the band's own width at each end (so the last fragment finishes converting rather than
+      > stopping half-blended). Verified by sampling 1 ms either side of a reveal completing, where
+      > camera drift is nil: 0.012% of pixels change, and those are the seam switching off at the
+      > far edge. Pacing is the durations' job — they were lengthened to suit the longer travel.
+      > `reveal_duration` is 0.78s because the last two biome cues are 1.10s and 0.81s apart; a
+      > longer reveal is cut off by the next front.
 
 - [ ] **T7 — Recording convention.**
       Document the exact `--write-movie` invocation per shot (1920x1080 @ 60fps) in a short

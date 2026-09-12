@@ -86,12 +86,22 @@ uniform float triplanar_sharpness = 4.0;
 // Views: 0 = the shaded render, 1 = the height field as grayscale, 2 = biome id as a flat color
 // (splatmap look), 3 = the world normal as RGB, 4 = temperature, 5 = moisture, 6 = clay (flat
 // albedo, real lighting), 7 = blank (unlit black -- what the wireframe is drawn on).
+//
+// One wipe front carries two things: a change of view, and a biome arriving (debug_biome_count).
+// Both are optional and independent, and the front only exists while one of them is in play.
 uniform int debug_view = 0;
 uniform int debug_view_b = 0;
 // Wipes debug_view across to debug_view_b along debug_wipe_dir: 0 = all A, 1 = all B.
 uniform float debug_wipe = 0.0;
 uniform vec2 debug_wipe_dir = vec2(1.0, 0.0);
 uniform float debug_wipe_glow = 1.0;
+
+// The same wipe front, applied to how many biome layers the Whittaker blend may choose from:
+// fragments behind it classify against the first debug_biome_count layers, ahead of it against
+// the first debug_biome_count_b. That lets a biome arrive on a sweeping line rather than popping
+// in everywhere at once. Negative (the default) leaves biome_layer_count alone.
+uniform int debug_biome_count = -1;
+uniform int debug_biome_count_b = -1;
 // Scales the whole diagram, so a chapter can dim down to black without touching the wireframe.
 uniform float debug_fill = 1.0;
 
@@ -385,7 +395,6 @@ vec3 whiteout(vec3 p_t, vec3 p_n, int p_axis) {
 }
 
 // Hue-only HSV->RGB (saturation = value = 1), used to give each biome id a distinct flat color.
-// The trailer's Whittaker chart mirrors this formula so its dots match the terrain on screen.
 vec3 debug_id_color(int p_id) {
 	float hue = fract(float(p_id) * 0.61803398875);
 	return clamp(abs(mod(hue * 6.0 + vec3(0.0, 4.0, 2.0), 6.0) - 3.0) - 1.0, 0.0, 1.0);
@@ -393,6 +402,26 @@ vec3 debug_id_color(int p_id) {
 
 const vec3 DEBUG_CLAY_ALBEDO = vec3(0.72, 0.70, 0.68);
 const float DEBUG_GRID_EPSILON = 1e-8;
+
+// How far past the wipe front this fragment lies: 0 entirely behind it (the A side), 1 entirely
+// ahead of it (the B side), ramping across debug_wipe_glow in between. r_seam is 1 exactly on the
+// front and 0 a band away, for the highlight that rides it.
+//
+// debug_wipe 0 and 1 are guaranteed to be *complete*: the front travels from one corner of the
+// debug_extent square to the other along debug_wipe_dir, plus the band's own width at each end so
+// the last fragment finishes converting rather than stopping half-blended. The reach is the
+// square's true projection onto the direction, so a diagonal wipe covers the corners too instead
+// of leaving a wedge behind.
+float debug_wipe_at(vec2 p_world_xz, out float r_seam) {
+	vec2 dir = normalize(debug_wipe_dir + vec2(DEBUG_GRID_EPSILON, 0.0));
+	float along = dot(p_world_xz - debug_center, dir);
+	float band = max(debug_wipe_glow, DEBUG_GRID_EPSILON);
+	float reach = debug_extent * (abs(dir.x) + abs(dir.y)) + band;
+	float front = mix(-reach, reach, clamp(debug_wipe, 0.0, 1.0));
+
+	r_seam = 1.0 - clamp(abs(along - front) / band, 0.0, 1.0);
+	return clamp((front - along) / band + 0.5, 0.0, 1.0);
+}
 
 vec3 debug_ramp(vec3 p_a, vec3 p_b, vec3 p_c, vec3 p_d, float p_t) {
 	float t = clamp(p_t, 0.0, 1.0) * 3.0;
@@ -589,16 +618,26 @@ void fragment()
 
 	vec3 tri_w = triplanar_weights(geo_normal_ws);
 
+	// How many biome layers this fragment is allowed to classify against. The configuration's own
+	// count unless the diagram overlay is sweeping a biome in, in which case the wipe front decides
+	// per fragment -- one uniform-coherent branch, so a normal render is unaffected.
+	int active_biome_count = biome_layer_count;
+	if (debug_biome_count >= 0) {
+		float unused_seam;
+		active_biome_count = clamp(debug_wipe_at(v_world_xz, unused_seam) < 0.5
+				? debug_biome_count : debug_biome_count_b, 0, biome_layer_count);
+	}
+
 	float pom_depth = 0.0;
 	float weights[32];
 	ivec2 pom_layers = ivec2(0, 0);
 	float pom_blend = 0.0;
-	if (biome_layer_count > 0) {
+	if (active_biome_count > 0) {
 		float t = temperature_at(v_world_xz, v_height);
 		float m = moisture_at(v_world_xz);
 
 		float total_weight = 0.0;
-		for (int i = 0; i < biome_layer_count; i++) {
+		for (int i = 0; i < active_biome_count; i++) {
 			float softness_t = max(WHITTAKER_TEMP_SOFTNESS_EPSILON, (biome_max_temperature[i] - biome_min_temperature[i]) * biome_blend_softness[i]);
 			float softness_m = max(WHITTAKER_MOIST_SOFTNESS_EPSILON, (biome_max_moisture[i] - biome_min_moisture[i]) * biome_blend_softness[i]);
 
@@ -614,7 +653,7 @@ void fragment()
 		float inv_total = 1.0 / total_weight;
 		float pom_w0 = 0.0;
 		float pom_w1 = 0.0;
-		for (int i = 0; i < biome_layer_count; i++) {
+		for (int i = 0; i < active_biome_count; i++) {
 			weights[i] *= inv_total;
 			pom_depth += weights[i] * biome_pom_depth[i];
 
@@ -645,7 +684,7 @@ void fragment()
 		rock_layer_a = rock_index;
 		rock_layer_b = rock_index;
 
-		if (biome_layer_count > 0) {
+		if (active_biome_count > 0) {
 			rock_layer_a = biome_rock_index[pom_layers.x];
 			rock_layer_b = rock_layer_a;
 			rock_scale_a = biome_rock_uv_scale[pom_layers.x];
@@ -749,7 +788,7 @@ void fragment()
 	vec3 sample_pos = base_pos + world_offset;
 	vec3 normal_ws = geo_normal_ws;
 
-	if (biome_layer_count == 0) {
+	if (active_biome_count == 0) {
 		// No biome layers configured, or a CPU-side size-mismatch fallback occurred.
 		ALBEDO = vec3(1.0, 0.0, 1.0);
 		ROUGHNESS = 0.8;
@@ -761,7 +800,7 @@ void fragment()
 		float ao_biome = 0.0;
 		float kept_weight = 0.0;
 
-		for (int i = 0; i < biome_layer_count; i++) {
+		for (int i = 0; i < active_biome_count; i++) {
 			float w = weights[i];
 			if (w <= BIOME_WEIGHT_EPSILON) {
 				continue;
@@ -813,26 +852,25 @@ void fragment()
 		float unlit;
 		debug_view_sample(debug_view, ALBEDO, normal_ws, pom_layers.x, albedo, emission, unlit);
 
-		if (debug_view_b != debug_view) {
-			vec3 albedo_b;
-			vec3 emission_b;
-			float unlit_b;
-			debug_view_sample(debug_view_b, ALBEDO, normal_ws, pom_layers.x, albedo_b, emission_b, unlit_b);
+		// A line sweeping across the patch rather than a crossfade, so what is behind it reads as
+		// replacing what is ahead of it instead of the two being visible at once. The front is
+		// live whenever it is carrying something -- a change of view, or a biome arriving -- and
+		// the seam rides it either way.
+		if (debug_view_b != debug_view || debug_biome_count != debug_biome_count_b) {
+			float seam;
+			float wiped = debug_wipe_at(v_world_xz, seam);
 
-			// A line sweeping across the patch rather than a crossfade, so one view reads as
-			// replacing the other instead of the two being visible at once.
-			vec2 dir = normalize(debug_wipe_dir + vec2(DEBUG_GRID_EPSILON, 0.0));
-			float along = dot(v_world_xz - debug_center, dir);
-			float front = mix(-debug_extent, debug_extent, clamp(debug_wipe, 0.0, 1.0));
-			float band = max(debug_wipe_glow, DEBUG_GRID_EPSILON);
-			float wiped = clamp((front - along) / band + 0.5, 0.0, 1.0);
+			if (debug_view_b != debug_view) {
+				vec3 albedo_b;
+				vec3 emission_b;
+				float unlit_b;
+				debug_view_sample(debug_view_b, ALBEDO, normal_ws, pom_layers.x, albedo_b, emission_b, unlit_b);
 
-			albedo = mix(albedo, albedo_b, wiped);
-			emission = mix(emission, emission_b, wiped);
-			unlit = mix(unlit, unlit_b, wiped);
+				albedo = mix(albedo, albedo_b, wiped);
+				emission = mix(emission, emission_b, wiped);
+				unlit = mix(unlit, unlit_b, wiped);
+			}
 
-			// A bright seam rides the front of the wipe.
-			float seam = 1.0 - clamp(abs(along - front) / band, 0.0, 1.0);
 			emission += debug_wire_color * debug_wire_intensity * seam * seam;
 		}
 

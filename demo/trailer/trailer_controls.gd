@@ -130,7 +130,7 @@ const CONTENT_ROWS := [
 	["Parallax time", ["chapter", "parallax_duration"], 0.05, 8.0, 0.05],
 	["Fill snap", ["chapter", "fill_snap"], 0.0, 4.0, 0.01],
 	["Snap decay", ["chapter", "fill_snap_decay"], 0.05, 2.0, 0.01],
-	["Chart fade", ["chapter", "chart_fade_duration"], 0.05, 4.0, 0.05],
+	["Reveal time", ["chapter", "reveal_duration"], 0.05, 6.0, 0.05],
 ]
 
 var _rig: Node3D

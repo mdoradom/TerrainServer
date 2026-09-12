@@ -19,8 +19,8 @@ extends Node3D
 #     `clipmap_levels` and `mesh_resolution`. That is the expanding-clipmap beat: the real
 #     parameter growing, not an animation of it.
 #   * `Terrain3D.set_shader_parameter()`, for the diagram overlay uniforms `terrain.gdshader`
-#     declares for tooling (the debug views, the wireframe, the reveal, the wipe) and for the
-#     handful of production uniforms the reveals step directly, such as `biome_layer_count`.
+#     declares for tooling: the debug views, the wireframe, the reveal radius, and the wipe front
+#     that carries both a change of view and a biome arriving.
 #
 # The two shots are split by the track's bridge cue: `build` is the diagram build-up in black,
 # `cinematic` is the same terrain in the demo scene's own environment on the other side of the cut.
@@ -123,7 +123,6 @@ var _light_basis := Basis()
 @onready var _light: DirectionalLight3D = $Scenario/DirectionalLight3D
 @onready var _focus: Node3D = $Focus
 @onready var _camera: Camera3D = $Camera3D
-@onready var _whittaker: Control = $Overlay/Whittaker
 @onready var _controls: CanvasLayer = $Controls
 
 
@@ -151,7 +150,6 @@ func _ready() -> void:
 	if _preview_frames > 0:
 		_shot_duration_frames = _preview_frames
 
-	_whittaker.setup(_config, _terrain, _center, _extent)
 	_setup_shot()
 	_setup_controls()
 
@@ -398,7 +396,6 @@ func save_timeline() -> bool:
 # --- Shot setup -----------------------------------------------------------------------------
 
 func _setup_shot() -> void:
-	_whittaker.visible = _shot == "build"
 	_setup_environment()
 
 
@@ -536,7 +533,9 @@ func _apply_build(t: float) -> void:
 	var octaves := int(_full["noise_octaves"])
 	var shaping := 1.0
 	var parallax := 1.0
-	var biome_count := _config.biome_layers.size()
+	# -1 on both sides leaves the shader's own biome_layer_count alone; see the biomes chapter.
+	var biome_count_a := -1
+	var biome_count_b := -1
 	var view_a := int(chapter.get("view_a", VIEW_SHADED))
 	var view_b := int(chapter.get("view_b", view_a))
 	var wipe := 0.0
@@ -544,7 +543,6 @@ func _apply_build(t: float) -> void:
 	var fill := float(chapter.get("fill", 1.0))
 	var wire_intensity := float(chapter.get("wire_intensity", look["wire_intensity"]))
 	var wire_opacity := float(chapter.get("wire_opacity", look["wire_opacity"]))
-	var chart_fade := 0.0
 
 	match chapter["name"]:
 		"grid":
@@ -609,17 +607,40 @@ func _apply_build(t: float) -> void:
 			# Snap back out of the breath, overshooting bright on the hit itself.
 			fill += float(chapter["fill_snap"]) * exp(
 					-maxf(t - float(chapter["start"]), 0.0) / float(chapter["fill_snap_decay"]))
-			# The biomes arrive one per hit as real classification, not as a colour overlay:
-			# biome_layer_count is the shader's own uniform, so each step widens the set of layers
-			# the Whittaker blend is allowed to choose from.
-			biome_count = _step_count(t, chapter["biome_reveal_times"], 1)
-			wipe = _ease_in_out(_ramp(t, float(chapter["start"]), float(chapter["wipe_duration"])))
+
+			# The biomes arrive one per hit as real classification, not as a colour overlay: the
+			# shader's blend is allowed one more layer to choose from per hit. And it arrives on the
+			# same sweeping line the view wipes use -- the front separates the two counts, so the
+			# biome sweeps in across the terrain instead of popping in everywhere at once.
+			#
+			# The first hit is the one that also carries the view from moisture to the flat biome
+			# ids, so it moves the view rather than the count.
+			var times: Array = chapter["biome_reveal_times"]
+			var step := _step_count(t, times, 1)
+			biome_count_a = step
+			biome_count_b = step
+
+			if step == 1:
+				wipe = _ease_in_out(_ramp(t, float(chapter["start"]), float(chapter["wipe_duration"])))
+			else:
+				view_a = view_b
+				var reveal := _ramp(t, float(times[step - 1]), float(chapter["reveal_duration"]))
+				if reveal < 1.0:
+					biome_count_a = step - 1
+					wipe = _ease_in_out(reveal)
+					# Alternating, so consecutive reveals do not all sweep the same way.
+					wipe_dir = _to_vector2(chapter["reveal_wipe_dir"])
+					if step % 2 == 0:
+						wipe_dir = -wipe_dir
+
 			# Then the flat biome ids wipe through to the textured render they stand for, and the
 			# parallax those textures carry fades in behind it -- the last thing the diagram hands
 			# over to the plugin's own output before the bridge cuts to it outright.
 			if t >= float(chapter["texture_time"]):
 				view_a = int(chapter["texture_view_a"])
 				view_b = int(chapter["texture_view_b"])
+				biome_count_a = times.size()
+				biome_count_b = times.size()
 				wipe = _ease_in_out(_ramp(t, float(chapter["texture_time"]),
 						float(chapter["texture_duration"])))
 				wipe_dir = _to_vector2(chapter["texture_wipe_dir"])
@@ -629,8 +650,6 @@ func _apply_build(t: float) -> void:
 						float(chapter["texture_duration"])))
 			parallax = _ease_out(_ramp(t, float(chapter["parallax_time"]),
 					float(chapter["parallax_duration"])))
-			chart_fade = _ease_out(_ramp(t, float(chapter["start"]),
-					float(chapter["chart_fade_duration"])))
 			# One last flash carries the cut into the bridge.
 			var bridge := float(timeline["bridge"])
 			var flash_duration := float(effects["bridge_flash_duration"])
@@ -667,6 +686,10 @@ func _apply_build(t: float) -> void:
 		"debug_wipe_glow": float(look["wipe_glow"]),
 		"debug_fill": fill * float(look["fill_gain"]),
 		"debug_center": _center,
+		# The patch the wipe has to clear, so wipe 1.0 means every fragment has converted. This is
+		# the clipmap's own outermost half-width and nothing else: shortening it to make the sweep
+		# read faster on screen only leaves the far terrain behind, to pop the instant the wipe
+		# completes. Pacing is the duration's job, not this.
 		"debug_extent": _extent,
 		"debug_reveal_radius": reveal_radius,
 		"debug_reveal_edge": float(look["reveal_edge"]),
@@ -678,10 +701,9 @@ func _apply_build(t: float) -> void:
 		"debug_wire_min_spacing": float(look["wire_min_spacing"]),
 		"debug_wire_major": int(look["wire_major"]),
 		"debug_vignette": float(look["vignette"]),
-		"biome_layer_count": biome_count,
+		"debug_biome_count": biome_count_a,
+		"debug_biome_count_b": biome_count_b,
 	})
-
-	_whittaker.set_state(chart_fade, biome_count)
 
 
 # How far one of the relief chapter's shaping parameters has arrived at time t. They ramp in one
@@ -804,7 +826,8 @@ func _apply_cinematic(t: float) -> void:
 		"debug_reveal_radius": -1.0,
 		"debug_wire_opacity": 0.0,
 		"debug_vignette": 0.0,
-		"biome_layer_count": _config.biome_layers.size(),
+		"debug_biome_count": -1,
+		"debug_biome_count_b": -1,
 	})
 	_apply_light(t)
 

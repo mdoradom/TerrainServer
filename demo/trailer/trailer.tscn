@@ -1,8 +1,7 @@
-[gd_scene load_steps=5 format=3]
+[gd_scene load_steps=4 format=3]
 
 [ext_resource type="Script" path="res://trailer/trailer_rig.gd" id="1_trailer"]
 [ext_resource type="PackedScene" uid="uid://wynwhvbc4af1" path="res://terrain_server.tscn" id="2_scenario"]
-[ext_resource type="Script" path="res://trailer/whittaker_overlay.gd" id="3_whittaker"]
 [ext_resource type="Script" path="res://trailer/trailer_controls.gd" id="4_controls"]
 
 [node name="Trailer" type="Node3D"]
@@ -13,15 +12,6 @@ script = ExtResource("1_trailer")
 [node name="Focus" type="Node3D" parent="."]
 
 [node name="Camera3D" type="Camera3D" parent="."]
-
-[node name="Overlay" type="CanvasLayer" parent="."]
-
-[node name="Whittaker" type="Control" parent="Overlay"]
-anchors_preset = 0
-offset_right = 430.0
-offset_bottom = 430.0
-mouse_filter = 2
-script = ExtResource("3_whittaker")
 
 [node name="Controls" type="CanvasLayer" parent="."]
 script = ExtResource("4_controls")
