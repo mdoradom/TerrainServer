@@ -1064,27 +1064,49 @@ func _step_resolution(p_chapter: Dictionary, t: float, p_default: int) -> int:
 #
 # A chapter whose camera authors `shot_yaw_step` also re-frames on every one of its own beats
 # instead of holding one angle for its whole length -- see _shot_framing().
+#
+# A chapter whose camera authors `continue` does not cut at all: it picks the framing up where the
+# previous chapter left it and drifts on from there.
 func _camera_state(p_chapter: Dictionary, t: float) -> Dictionary:
 	var effects: Dictionary = timeline["effects"]
 	var camera: Dictionary = p_chapter["camera"]
-	var elapsed := maxf(t - float(p_chapter["start"]), 0.0)
+	var start := float(p_chapter["start"])
+	var elapsed := maxf(t - start, 0.0)
+
+	# What the drift starts from: the authored camera, or -- for a chapter that is a continuation
+	# rather than a cut -- wherever the previous chapter had drifted to by the moment it hands over,
+	# so the two shots join with no jump at all. Derived rather than authored because the handover
+	# is the predecessor's own drift arriving at this chapter's start: retime either chapter and a
+	# hand-copied framing is silently off by whatever the drift did in between.
+	#
+	# `inherit` is the other half of this family and a different thing: there the predecessor's
+	# camera keeps moving the shot, where this only borrows where it got to and then drifts on its
+	# own rates from there.
+	var index := get_chapter_index(start)
+	var seamless := bool(camera.get("continue", false)) and index > 0
+	var base: Dictionary = camera
+	if seamless:
+		base = _camera_state(timeline["chapters"][index - 1], start)
 
 	var state := {
-		"yaw": float(camera["yaw"]) + float(camera.get("yaw_rate", 0.0)) * elapsed,
-		"pitch": float(camera["pitch"]) + float(camera.get("pitch_rate", 0.0)) * elapsed,
-		"distance": float(camera["distance"]) + float(camera.get("distance_rate", 0.0)) * elapsed,
-		"fov": float(camera["fov"]),
-		"height": float(camera["height"]) + float(camera.get("height_rate", 0.0)) * elapsed,
+		"yaw": float(base["yaw"]) + float(camera.get("yaw_rate", 0.0)) * elapsed,
+		"pitch": float(base["pitch"]) + float(camera.get("pitch_rate", 0.0)) * elapsed,
+		"distance": float(base["distance"]) + float(camera.get("distance_rate", 0.0)) * elapsed,
+		"fov": float(base["fov"]),
+		"height": float(base["height"]) + float(camera.get("height_rate", 0.0)) * elapsed,
 	}
 
 	# The cut the settle-in is measured from is the chapter's own, unless the chapter cuts between
 	# shots of its own, in which case every one of them gets it.
-	var cut := float(p_chapter["start"])
+	var cut := start
 	if camera.has("shot_yaw_step"):
 		cut = _shot_framing(p_chapter, t, state)
 
-	var settle := _ease_out(_ramp(t, cut, float(effects["cut_settle_duration"])))
-	state["distance"] = float(state["distance"]) * (1.0 - float(effects["cut_settle"]) * settle)
+	# The settle-in is the answer to a cut, so a chapter that continues the previous framing has
+	# none: pushing in 2% over the first seconds is exactly the jump it is trying not to make.
+	if not seamless:
+		var settle := _ease_out(_ramp(t, cut, float(effects["cut_settle_duration"])))
+		state["distance"] = float(state["distance"]) * (1.0 - float(effects["cut_settle"]) * settle)
 	return state
 
 

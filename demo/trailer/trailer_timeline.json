@@ -1,5 +1,5 @@
 {
-	"_comment": "Every tunable of the trailer. trailer_rig.gd reads this file and holds no authored numbers of its own; `--controls` edits it live and Save writes it back. `patch` picks the world position the clipmap is focused on. Chapter values marked with a time land on a cue in audio_cues.json, so the ruler's tick marks are what they are dialled against. Two exceptions. `biome_reveal_times` past the first: the section they sit in is the loudest in the track but sustained, so the onset detector finds nothing there to mark and there is no cue to land on — those three are peaks of the RMS envelope in audio_peaks.json instead, the swell's own pulse, and they will not line up with a ruler tick. And the `noise` chapter: rather than authoring a time per step it beats on every cue in its own window at least `step_min_gap` apart, splits each of those intervals into `step_subdivisions` to reach the track's fast rhythm, and runs one cycle of the generator a step at a time (an octave of fBm per step, then ridge, warp, continent and redistribution, each easing in over `shaping_duration`) until the field is exactly what the demo configuration renders, then re-seeds — a patch `seed_distance` away along a spiral, the last cycle always `patch` itself — and builds it again. It runs whole cycles only, and stops early enough that the last field it finishes is left sitting there for `hold_duration` before `relief` cuts in and lifts it, with the steps over the last `settle_duration` spreading out so the build eases to a stop rather than halting mid-stride. Those four terms are therefore in by the time `relief` cuts, and it only lifts and re-meshes what they made. `view_a`/`view_b` are terrain.gdshader's debug views: 0 shaded, 1 height, 2 biome id, 3 normals, 4 temperature, 5 moisture, 6 clay, 7 blank.",
+	"_comment": "Every tunable of the trailer. trailer_rig.gd reads this file and holds no authored numbers of its own; `--controls` edits it live and Save writes it back. `patch` picks the world position the clipmap is focused on. Chapter values marked with a time land on a cue in audio_cues.json, so the ruler's tick marks are what they are dialled against. Two exceptions. `biome_reveal_times` past the first: the section they sit in is the loudest in the track but sustained, so the onset detector finds nothing there to mark and there is no cue to land on — those three are peaks of the RMS envelope in audio_peaks.json instead, the swell's own pulse, and they will not line up with a ruler tick. And the `noise` chapter: rather than authoring a time per step it beats on every cue in its own window at least `step_min_gap` apart, splits each of those intervals into `step_subdivisions` to reach the track's fast rhythm, and runs one cycle of the generator a step at a time (an octave of fBm per step, then ridge, warp, continent and redistribution, each easing in over `shaping_duration`) until the field is exactly what the demo configuration renders, then re-seeds — a patch `seed_distance` away along a spiral, the last cycle always `patch` itself — and builds it again. It runs whole cycles only, and stops early enough that the last field it finishes is left sitting there for `hold_duration` before `relief` cuts in and lifts it, with the steps over the last `settle_duration` spreading out so the build eases to a stop rather than halting mid-stride. Those four terms are therefore in by the time `relief` cuts, and it only lifts and re-meshes what they made. `view_a`/`view_b` are terrain.gdshader's debug views: 0 shaded, 1 height, 2 biome id, 3 normals, 4 temperature, 5 moisture, 6 clay, 7 blank, and `wire_opacity`/`wire_opacity_b` are the lattice on the near and far side of that wipe front, so it can be swept out by the same line instead of cutting. A camera's `continue` means the chapter is not a cut at all: it picks the framing up wherever the previous chapter's drift had arrived by its start and goes on from there, which makes its own `yaw`/`pitch`/`distance`/`height` unused -- they are kept at the values of the handover as of this writing, so switching it off cuts nothing either.",
 	"bridge": 63.936,
 	"chapters": [
 		{
@@ -38,19 +38,20 @@
 		{
 			"camera": {
 				"blend_in": 0.0,
-				"distance": 4600.0,
+				"continue": true,
+				"distance": 5956.6,
 				"distance_rate": -30.0,
 				"fov": 42.0,
 				"height": 0.0,
 				"height_rate": 0.0,
-				"pitch": -48.0,
+				"pitch": -42.0,
 				"pitch_rate": 0.0,
-				"yaw": 35.0,
+				"yaw": 50.12,
 				"yaw_rate": -0.45
 			},
 			"fill": 1.0,
 			"hold_duration": 1.2,
-			"mesh_resolution": 64.0,
+			"mesh_resolution": 32.0,
 			"name": "noise",
 			"seed_distance": 12000.0,
 			"settle_duration": 1.0,
@@ -64,9 +65,9 @@
 				1.0,
 				0.0
 			],
-			"wipe_duration": 1.5,
-			"wipe_end": 3400.0,
-			"wipe_start": -6200.0,
+			"wipe_duration": 1.8,
+			"wipe_end": 4200.0,
+			"wipe_start": -9400.0,
 			"wipe_width": 110.0,
 			"wire_intensity": 1.15,
 			"wire_opacity": 1.0,
