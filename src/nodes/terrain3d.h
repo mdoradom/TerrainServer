@@ -83,6 +83,11 @@ public:
 
 	void reload_shader();
 	void rebuild();
+	void refresh_parameters();
+
+	void set_shader_parameter(const godot::StringName &p_name, const godot::Variant &p_value);
+	godot::Variant get_shader_parameter(const godot::StringName &p_name) const;
+	void clear_shader_parameters();
 
 	void set_debug_view(int p_debug_view);
 	int get_debug_view() const;

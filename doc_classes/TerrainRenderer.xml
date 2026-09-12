@@ -11,6 +11,11 @@
 	<tutorials>
 	</tutorials>
 	<methods>
+		<method name="clear_shader_parameters">
+			<return type="void" />
+			<description>
+			</description>
+		</method>
 		<method name="get_clipmap_level_count" qualifiers="const">
 			<return type="int" />
 			<description>
@@ -28,13 +33,42 @@
 			<description>
 			</description>
 		</method>
+		<method name="get_debug_view" qualifiers="const">
+			<return type="int" />
+			<description>
+			</description>
+		</method>
+		<method name="get_shader_parameter" qualifiers="const">
+			<return type="Variant" />
+			<param index="0" name="name" type="StringName" />
+			<description>
+			</description>
+		</method>
 		<method name="get_snapped_focus_xz" qualifiers="const">
 			<return type="Vector2" />
 			<description>
 			</description>
 		</method>
+		<method name="refresh_parameters">
+			<return type="void" />
+			<description>
+			</description>
+		</method>
 		<method name="request_shader_reload">
 			<return type="void" />
+			<description>
+			</description>
+		</method>
+		<method name="set_debug_view">
+			<return type="void" />
+			<param index="0" name="debug_view" type="int" />
+			<description>
+			</description>
+		</method>
+		<method name="set_shader_parameter">
+			<return type="void" />
+			<param index="0" name="name" type="StringName" />
+			<param index="1" name="value" type="Variant" />
 			<description>
 			</description>
 		</method>

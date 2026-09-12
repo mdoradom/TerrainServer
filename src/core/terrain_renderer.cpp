@@ -47,6 +47,10 @@ void TerrainRenderer::_bind_methods() {
 	ClassDB::bind_method(D_METHOD("get_snapped_focus_xz"), &TerrainRenderer::get_snapped_focus_xz);
 	ClassDB::bind_method(D_METHOD("get_clipmap_level_origin", "level"), &TerrainRenderer::get_clipmap_level_origin);
 	ClassDB::bind_method(D_METHOD("request_shader_reload"), &TerrainRenderer::request_shader_reload);
+	ClassDB::bind_method(D_METHOD("refresh_parameters"), &TerrainRenderer::refresh_parameters);
+	ClassDB::bind_method(D_METHOD("set_shader_parameter", "name", "value"), &TerrainRenderer::set_shader_parameter);
+	ClassDB::bind_method(D_METHOD("get_shader_parameter", "name"), &TerrainRenderer::get_shader_parameter);
+	ClassDB::bind_method(D_METHOD("clear_shader_parameters"), &TerrainRenderer::clear_shader_parameters);
 	ClassDB::bind_method(D_METHOD("set_debug_view", "debug_view"), &TerrainRenderer::set_debug_view);
 	ClassDB::bind_method(D_METHOD("get_debug_view"), &TerrainRenderer::get_debug_view);
 }
@@ -552,6 +556,7 @@ void TerrainRenderer::_build_rock_texture_arrays(const TypedArray<TerrainBiomeLa
 void TerrainRenderer::rebuild_mesh(const float p_size, const int p_resolution) {
 	RenderingServer *rs = RenderingServer::get_singleton();
 	_free_mesh_instances();
+	_mesh_resolution = p_resolution;
 
 	if (_shader_reload_pending) {
 		_shader_reload_pending = false;
@@ -593,11 +598,61 @@ void TerrainRenderer::rebuild_mesh(const float p_size, const int p_resolution) {
 		}
 	}
 
-	const TypedArray<TerrainBiomeLayer> biome_layers = _config->get_biome_layers();
-	_rebuild_biome_texture_arrays_if_dirty(biome_layers);
+	int num_levels = _config->get_clipmap_levels();
+	if (num_levels <= 0) {
+		num_levels = 6;
+	}
 
+	for (int i = 0; i < num_levels; i++) {
+		RID instance = rs->instance_create();
+		rs->instance_set_base(instance, (i == 0) ? _mesh_rid : _mesh_ring_rid);
+
+		RID material = rs->material_create();
+		rs->material_set_shader(material, _internal_shader_rid);
+		rs->instance_geometry_set_material_override(instance, material);
+
+		if (_parent_node && _parent_node->is_inside_tree()) {
+			rs->instance_set_scenario(instance, _parent_node->get_world_3d()->get_scenario());
+		}
+
+		ClipmapLevel level;
+		level.instance_rid = instance;
+		level.material_rid = material;
+		level.scale = p_size * powf(2.0f, static_cast<float>(i));
+
+		if (i > 0) {
+			level.trim_instance_rid = rs->instance_create();
+			rs->instance_geometry_set_material_override(level.trim_instance_rid, material);
+
+			if (_parent_node && _parent_node->is_inside_tree()) {
+				rs->instance_set_scenario(level.trim_instance_rid, _parent_node->get_world_3d()->get_scenario());
+			}
+		}
+
+		_clipmap_levels.push_back(level);
+	}
+
+	_push_parameters(true);
+}
+
+// Pushes every uniform and instance bound derived from the configuration onto the clipmap levels
+// that already exist. rebuild_mesh() calls this once the levels are created, and
+// refresh_parameters() calls it again whenever the configuration's scalars change, so a live edit
+// cannot drift from what a rebuild would have produced.
+void TerrainRenderer::_push_parameters(const bool p_rebuild_texture_arrays) {
+	if (!_config.is_valid() || _clipmap_levels.empty()) {
+		return;
+	}
+
+	RenderingServer *rs = RenderingServer::get_singleton();
+
+	const TypedArray<TerrainBiomeLayer> biome_layers = _config->get_biome_layers();
 	const Ref<TerrainSlopeLayer> rock_layer = _config->get_rock_layer();
-	_rebuild_rock_texture_arrays_if_dirty(biome_layers, rock_layer);
+
+	if (p_rebuild_texture_arrays) {
+		_rebuild_biome_texture_arrays_if_dirty(biome_layers);
+		_rebuild_rock_texture_arrays_if_dirty(biome_layers, rock_layer);
+	}
 
 	PackedFloat32Array biome_min_temperature;
 	PackedFloat32Array biome_max_temperature;
@@ -660,26 +715,23 @@ void TerrainRenderer::rebuild_mesh(const float p_size, const int p_resolution) {
 		}
 	}
 
-	int num_levels = _config->get_clipmap_levels();
-	if (num_levels <= 0) {
-		num_levels = 6;
-	}
-
+	// The mesh is flat until the vertex shader displaces it, so the instance needs an AABB tall
+	// enough for the heights the shader will produce. Re-set on every push, not only on a rebuild:
+	// height_scale can be edited live, and a stale AABB culls the terrain the moment the surface
+	// grows past it.
 	const float half_height = static_cast<float>(_config->get_height_scale()) * HEIGHT_AABB_MARGIN;
 	const AABB custom_aabb(Vector3(-0.5f, -half_height, -0.5f), Vector3(1.0f, half_height * 2.0f, 1.0f));
 
-	for (int i = 0; i < num_levels; i++) {
-		RID instance = rs->instance_create();
-		RID mesh_to_use = (i == 0) ? _mesh_rid : _mesh_ring_rid;
-		rs->instance_set_base(instance, mesh_to_use);
-		rs->instance_set_custom_aabb(instance, custom_aabb);
-
-		RID material = rs->material_create();
-		rs->material_set_shader(material, _internal_shader_rid);
+	for (const ClipmapLevel &level : _clipmap_levels) {
+		const RID material = level.material_rid;
+		rs->instance_set_custom_aabb(level.instance_rid, custom_aabb);
+		if (level.trim_instance_rid.is_valid()) {
+			rs->instance_set_custom_aabb(level.trim_instance_rid, custom_aabb);
+		}
 
 		// Physics parameters
 		rs->material_set_param(material, "height_scale", static_cast<float>(_config->get_height_scale()));
-		rs->material_set_param(material, "resolution", static_cast<float>(p_resolution));
+		rs->material_set_param(material, "resolution", static_cast<float>(_mesh_resolution));
 		rs->material_set_param(material, "morph_band_start", MORPH_BAND_START);
 
 		// Noise parameters
@@ -750,33 +802,45 @@ void TerrainRenderer::rebuild_mesh(const float p_size, const int p_resolution) {
 		rs->material_set_param(material, "pom_fade_start", _config->get_pom_fade_start());
 		rs->material_set_param(material, "pom_fade_end", _config->get_pom_fade_end());
 		rs->material_set_param(material, "triplanar_sharpness", _config->get_triplanar_sharpness());
-
-		rs->material_set_param(material, "debug_view", _debug_view);
-
-		const float level_scale = p_size * powf(2.0f, static_cast<float>(i));
-		rs->instance_geometry_set_material_override(instance, material);
-
-		if (_parent_node && _parent_node->is_inside_tree()) {
-			rs->instance_set_scenario(instance, _parent_node->get_world_3d()->get_scenario());
-		}
-
-		ClipmapLevel level;
-		level.instance_rid = instance;
-		level.material_rid = material;
-		level.scale = level_scale;
-
-		if (i > 0) {
-			level.trim_instance_rid = rs->instance_create();
-			rs->instance_set_custom_aabb(level.trim_instance_rid, custom_aabb);
-			rs->instance_geometry_set_material_override(level.trim_instance_rid, material);
-
-			if (_parent_node && _parent_node->is_inside_tree()) {
-				rs->instance_set_scenario(level.trim_instance_rid, _parent_node->get_world_3d()->get_scenario());
-			}
-		}
-
-		_clipmap_levels.push_back(level);
 	}
+
+	// Last, so a directly-set uniform wins over the configuration-derived value it shadows and
+	// survives the rebuild that replaced every material above.
+	const Array override_names = _shader_overrides.keys();
+	for (int i = 0; i < override_names.size(); i++) {
+		const StringName name = override_names[i];
+		const Variant value = _shader_overrides[override_names[i]];
+		for (const ClipmapLevel &level : _clipmap_levels) {
+			rs->material_set_param(level.material_rid, name, value);
+		}
+	}
+}
+
+void TerrainRenderer::refresh_parameters() {
+	_push_parameters(false);
+}
+
+// Sets a shader uniform directly, outside the configuration. Intended for tooling -- the editor's
+// debug views and the showreel trailer's diagram overlay -- so those do not need a
+// TerrainConfiguration field each. The value is remembered and re-applied after every rebuild,
+// and overrides the configuration-derived value if it shadows one.
+void TerrainRenderer::set_shader_parameter(const StringName &p_name, const Variant &p_value) {
+	_shader_overrides[p_name] = p_value;
+
+	RenderingServer *rs = RenderingServer::get_singleton();
+	for (const ClipmapLevel &level : _clipmap_levels) {
+		rs->material_set_param(level.material_rid, p_name, p_value);
+	}
+}
+
+Variant TerrainRenderer::get_shader_parameter(const StringName &p_name) const {
+	return _shader_overrides.get(p_name, Variant());
+}
+
+// Forgets every directly-set uniform. The materials keep the last value pushed until the next
+// rebuild re-derives them from the configuration.
+void TerrainRenderer::clear_shader_parameters() {
+	_shader_overrides.clear();
 }
 
 void TerrainRenderer::update_focus_position(const Vector3 p_focus_pos) {
@@ -833,16 +897,11 @@ void TerrainRenderer::request_shader_reload() {
 }
 
 void TerrainRenderer::set_debug_view(const int p_debug_view) {
-	_debug_view = p_debug_view;
-
-	RenderingServer *rs = RenderingServer::get_singleton();
-	for (const auto &level : _clipmap_levels) {
-		rs->material_set_param(level.material_rid, "debug_view", _debug_view);
-	}
+	set_shader_parameter("debug_view", p_debug_view);
 }
 
 int TerrainRenderer::get_debug_view() const {
-	return _debug_view;
+	return get_shader_parameter("debug_view");
 }
 
 int TerrainRenderer::get_clipmap_level_count() const {

@@ -7,16 +7,26 @@ tool. The user assembles the finished trailer themselves — cuts, music mix, ti
 storyboard beat, whose internal timing already lands on the chosen track's marked hits.
 
 The trailer is in two halves, split by the track's bridge cue. Everything before it is one
-continuous **build-up diagram**: a static ~45-degree aerial on a wireframe patch of terrain floating
-in black, assembling itself to the beat — the clipmap grid draws itself, noise appears on it and
-gains an octave per hit, the sheet stands up into relief, each shaping parameter arrives on its own
-hit, and the shot then wipes through what the shader derives from that surface (normals, lighting,
-temperature, moisture) before the biomes light up one by one over a Whittaker chart. Everything
-after the bridge is the photorealistic, SDFGI-lit payoff on the real terrain.
+continuous **build-up diagram**: an aerial on the real clipmap terrain floating in black, assembling
+itself to the beat — the clipmap draws itself outward and gains a ring per hit, the noise field
+appears on it and gains an octave per hit, the surface stands up into relief as `height_scale` ramps
+and each shaping parameter arrives on its own hit, and the shot then wipes through what the shader
+derives from that surface (normals, lighting, temperature, moisture) before the biomes arrive one
+per hit over a Whittaker chart and hand over to the plugin's own textured render. Everything after
+the bridge is that same render in the demo scene's own sky and light.
 
-Each beat is its own static camera, cut on a marked hit — no travelling, no flythrough until the
-payoff. The build-up is deliberately *not* a faithful reproduction of the plugin's workflow; it is
-the generation pipeline staged so it reads at a glance and lands on the music.
+Each beat is its own camera, cut on a marked hit. The build-up is deliberately *not* a faithful
+reproduction of the plugin's workflow; it is the generation pipeline staged so it reads at a glance
+and lands on the music.
+
+**The trailer is a front end over the plugin, not a parallel implementation of it.** It owns the
+choreography — cameras, cue envelopes, the timeline file and its editor — and nothing else. The
+picture is `demo/terrain_server.tscn`, instanced whole, so every mesh, biome blend, texture, shadow
+and grade on screen is what the plugin produces in that scene. The trailer reaches it through
+exactly three channels: animated `TerrainConfiguration` values pushed with
+`Terrain3D.refresh_parameters()`, `Terrain3D.rebuild()` on beats for the two values that change the
+mesh, and `Terrain3D.set_shader_parameter()` for the diagram overlay uniforms the shader declares
+for tooling. See T12.
 
 ## Decisions already made
 
@@ -24,18 +34,17 @@ the generation pipeline staged so it reads at a glance and lands on the music.
 | --- | --- |
 | Godot renders clips only; the user assembles the trailer | No in-Godot title cards, audio mix, beat-sync tooling, or ffmpeg/Remotion assembly step belongs in this repo |
 | Export via `godot --path demo res://trailer/trailer.tscn --write-movie <file> -- --shot=<name>`, 1920x1080 @ 60fps | Deterministic, frame-accurate, one process per clip |
-| New work lives in `demo/trailer/`, mirroring `demo/benchmark/` | Dedicated scene + script; `demo/terrain_server.tscn` stays untouched |
+| New work lives in `demo/trailer/`, mirroring `demo/benchmark/` | Dedicated scene + script. `demo/terrain_server.tscn` is never edited — `trailer.tscn` instances it as the scenario and hides the nodes that do not belong in a frame at runtime |
 | Camera moves on a fixed step indexed by frame number, never `delta` | Matches `demo/benchmark/benchmark.gd`'s existing convention; reproducible across machines |
-| The build-up runs on a purpose-built "diorama", not on the `Terrain3D` node | `Terrain3D` rebuilds its whole clipmap mesh on any `TerrainConfiguration` edit (see `CLAUDE.md`), which rules out animating a noise parameter per frame, and it owns its `RenderingServer` material, which rules out adding diagram-only uniforms. The diorama is clipmap-shaped geometry (centre block + rings) built in GDScript with its own shader |
-| The diorama's shader **splices** the production shader rather than copying or `#include`-ing it | `diorama.gd` concatenates everything `terrain.gdshader` declares before its `void vertex()` (uniforms, varyings, noise/climate functions) with `diorama_body.gdshaderinc`. So the heights on screen are the plugin's own heights and the animated parameters are the plugin's own parameters, with no copy that can drift and no refactor of the shipped, benchmarked shader. `#include` was not an option: `TerrainRenderer` feeds the shader to `RenderingServer::shader_set_code`, which does not run the preprocessor |
-| Wireframe is drawn in-shader from barycentric coordinates, not `Viewport.debug_draw` | `DEBUG_DRAW_WIREFRAME` cannot be coloured, faded, dimmed per clipmap level, or pulsed on the beat — all of which the build-up depends on. Unindexed geometry carries barycentrics in `COLOR`, and the third axis is always the vertex opposite the quad diagonal, so the shared diagonal can be drawn fainter than the quad edges |
+| The build-up runs on the real `Terrain3D` node (**T12**, supersedes the diorama) | The diorama it replaced was a parallel implementation — its own clipmap geometry in GDScript, its own `unshaded` shader spliced out of the production one, its own CPU-built biome texture arrays — and it looked like it: fake lambert instead of shadows, textures configured differently from the demo scene. The two reasons it existed are both gone: `Terrain3D.refresh_parameters()` pushes an animated parameter with no rebuild, and the diagram uniforms live in the production shader's own tooling block |
+| Wireframe is drawn in-shader from the mesh's own UV grid, not `Viewport.debug_draw` and not barycentrics | `DEBUG_DRAW_WIREFRAME` cannot be coloured, faded or pulsed on the beat. Barycentrics needed unindexed geometry of the trailer's own; `TerrainGenerator` lays out every mesh (block, ring fixup, trim) so that `UV * resolution` is the cell coordinate, which puts the lines on the real mesh's real quad edges with no vertex attribute and no geometry change — and makes each clipmap level show its own cell size for free. Lines are measured in pixels and fade out as their spacing closes on `debug_wire_min_spacing`, without which a high `mesh_resolution` seen from far off fills in to a solid wash |
 | Every on-screen value is a pure function of shot time; no state accumulates between frames | Any moment can be previewed alone with `--start=<sec> --frames=<n>` without rendering what precedes it, and `--write-movie` is reproducible across machines. This is what made tuning the look practical at all |
-| The diorama sits at a hand-picked world position, not the origin | Temperature and moisture are noise fields with wavelengths about one diorama wide, so most of the world falls inside a single climate band and renders as one biome. `demo/trailer/tools/pick_diorama_center.gd` scores candidate patches on real samples for biome balance and relief |
+| The clipmap is focused on a hand-picked world position, not the origin | Temperature and moisture are noise fields with wavelengths about one patch wide, so most of the world falls inside a single climate band and renders as one biome. `demo/trailer/tools/pick_patch_center.gd` scores candidate patches on real samples for biome balance and relief |
 | Every authored number lives in `trailer_timeline.json`, edited live by an in-scene panel | Tuning a trailer is a look-at-it-and-adjust loop, and editing constants in GDScript between renders is the slowest possible version of it. The rig keeps the choreography (which parameter a chapter ramps, in what order); the file keeps the values. Moving them out was verified to change nothing on screen |
 | `demo/project.godot` sets a 1920x1080 viewport | `--write-movie` fixes its recording size before the scene loads, from `display/window/size/viewport_*` alone — neither `--resolution` nor a runtime resize moves it (both change the viewport while the movie keeps recording at the project size). `demo/benchmark` passes `--resolution 1920x1080` to every run it spawns, so its measurements already ran at this size and do not move |
-| Erosion shot = `GPUParticles3D` + one real `TerrainConfiguration` swap, not per-frame mesh animation | The renderer isn't built for per-frame config edits — `changed` triggers a full `rebuild_mesh()` (see `CLAUDE.md`) |
+| A configuration value is animated by writing it with `changed` blocked, then `refresh_parameters()` | The signal is the right response to an editor edit and far too much for a value moving every frame: `Terrain3D` answers it with a full `rebuild_mesh()`. `Object.set_block_signals()` around the writes plus a uniform re-push gets the value on screen without touching geometry. The two values that genuinely change the mesh — `mesh_resolution` and `clipmap_levels` — do get a real `rebuild()`, but only on a beat |
 | Clip timing is driven by real audio cues, not guessed timestamps | Track is "Bliss" by Klsr, trimmed to ~1:07 with a bridge at that point separating the track's two halves — lines up with the storyboard's own pivot into the cinematic reveal. Cuts landing on the track's marked hits means the eventual edit needs minimal manual nudging |
-| The one real plugin change is a `debug_view` shader uniform + bound setter | Only the splatmap/normal-map "diagram" cuts need fragment-internal values (biome blend weights, `normal_ws`) that GDScript can't otherwise reach. Everything else needs no C++/shader work |
+| The plugin changes are a tooling block in `terrain.gdshader` and a live-refresh path in `TerrainRenderer` | The overlay has to attach to the real displaced surface, so it can only live in the shader that displaces it. Every uniform in that block is neutral at its default and the whole block sits behind one uniform-coherent branch, so a normal render is byte-identical to before it existed — verified. On the C++ side, `refresh_parameters()` re-pushes the configuration without rebuilding, and `set_shader_parameter()` gives tooling a channel to the uniforms that survives a rebuild, so neither needs a `TerrainConfiguration` field |
 
 ## How to pick up a task
 
@@ -167,9 +176,11 @@ viewport being captured.
       temperature then moisture, dimming out into the track's 44–50s silence), `biomes` (50.085s,
       the four biomes light up one per hit over a Whittaker chart, slope/cliff overlay at 60.825s,
       flash into the bridge).
-      Files: `demo/trailer/diorama.gd` + `diorama_body.gdshaderinc` (geometry, spliced shader,
-      the diagram views), `trailer_rig.gd` (timeline, cue envelopes, cameras),
-      `whittaker_overlay.gd` (the 2D chart), `tools/pick_diorama_center.gd` (patch selection).
+      **Superseded by T12**, which kept the six chapters and the cue timing and threw the diorama
+      away: `diorama.gd` and `diorama_body.gdshaderinc` no longer exist, and the chapters now drive
+      the real `Terrain3D`. The result notes below are the history of the diorama, kept for the
+      traps in them; the current files are `trailer_rig.gd` (timeline, cue envelopes, cameras),
+      `whittaker_overlay.gd` (the 2D chart) and `tools/pick_patch_center.gd` (patch selection).
       *Verify:* every chapter renders as intended, on its cue, with no shader or script errors.
       > Result: the wireframe is drawn in-shader from barycentrics rather than with
       > `debug_draw`, and all displacement comes from the production shader's own noise, spliced
@@ -188,6 +199,47 @@ viewport being captured.
       > rather than wireframe.
       > End-to-end: `--shot=build` runs its full 3836 frames (63.936s at 60fps) and
       > `--shot=cinematic` its preview window, both quitting cleanly with exit code 0.
+      > Bug found later (during T6 tuning): the `normals`→`lit clay` wipe and every view after it
+      > showed a fine dark speckle across shaded slopes, worst in shadow. Cause: `d_cell`, the
+      > vertex-normal finite-difference step in `diorama_body.gdshaderinc`, was one fixed value
+      > (`p_size / p_resolution * 0.35`, clamped to 12) shared by every ring, deliberately finer
+      > than the mesh's own vertex spacing so "the shaded and normal views still show the detail
+      > the noise actually has." That reasoning was backwards: sampling the normal at a higher
+      > frequency than the mesh resolves makes adjacent vertices catch different, uncorrelated
+      > phases of the noise, and Gouraud interpolation turns that into per-fragment speckle instead
+      > of detail — the production shader avoids exactly this by setting its own differencing step
+      > to `vertex_spacing = lod_scale / resolution` (`terrain.gdshader`'s `vertex()`). `d_cell` is
+      > now an `instance uniform`, set per level in `diorama.gd`'s `_add_level()` to that level's
+      > true `size / resolution`, the same fix. Verified by rendering the `normals` chapter's lit
+      > moment (38.5s) and the `biomes` chapter (61.5s) with `wire_opacity` forced to 0 for a clean
+      > look, before and after (`git stash` on just the two changed files): the speckle is gone from
+      > the lit-clay lighting, the biome-colored view (only mildly shading-modulated to begin with)
+      > is otherwise unaffected, and the full `--shot=build` run still completes with no errors.
+      > Follow-up: the `d_cell` fix only quieted the lit-clay speckle, it did not remove it, and the
+      > `biomes` view was still a flat per-biome colour rather than the real terrain textures. Both
+      > are now fixed together. `diorama.gd`'s `_build_shader()` now splices two pieces of
+      > `terrain.gdshader` instead of one: the noise/climate half before `void vertex()` (as
+      > before) *and* the triplanar texturing helpers between the production `vertex()` and
+      > `fragment()` (`axis_uv`, `triplanar_weights`, `triplanar_array`, ...), found by brace-
+      > matching past the production `vertex()` body rather than a hardcoded offset. `diorama_body
+      > .gdshaderinc`'s `diorama_biome_color()` (view 6) now calls `triplanar_array()` against real
+      > `biome_albedo_textures`/`rock_albedo_textures`, built by a new `_build_texture_array()` in
+      > `diorama.gd` from each `TerrainBiomeLayer`/`TerrainSlopeLayer`'s own `albedo_texture`
+      > (falling back to a flat placeholder in that layer's diagram colour if a texture is missing
+      > or its image can't be read back on the CPU). Turning textures on immediately reintroduced
+      > the speckle, worse than before and no longer fixable by `d_cell`: the real cause was that
+      > `_build_texture_array()` built its `Texture2DArray` straight from each image with no mip
+      > chain, unlike `TerrainRenderer::_prepare_layer_image()` (`src/core/terrain_renderer.cpp`),
+      > which calls `image->generate_mipmaps()` before handing images to
+      > `texture_2d_layered_create()`. Without mips, `triplanar_array()`'s `textureGrad()` has only
+      > the base level to sample regardless of how minified the surface is — which a fixed-resolution
+      > mesh viewed at an angle does constantly — and that is what was actually aliasing into grain,
+      > not the normal. `_build_texture_array()` now calls `img.generate_mipmaps()` on every image
+      > (including the flat placeholders) before `create_from_images()`. Verified the same way as
+      > above (`wire_opacity` forced to 0, `biomes` chapter, 61.5s): before the mipmap fix the
+      > textured rock/snow slopes were a dense, sparkling grain (confirmed independent of `d_cell` —
+      > widening it 4x changed nothing); after, they read as smooth, shaded rock and snow texture,
+      > and the full `--shot=build` run still completes with no shader errors or warnings.
 
 - [~] **T4 — Shot: erosion particles. Dropped from the storyboard.**
       The build-up has no travelling shot left to rain onto, and its "parameter arrives on a hit,
@@ -198,11 +250,13 @@ viewport being captured.
 - [x] **T5 — Shot: biome/normal debug-view cuts. Absorbed into T3.**
       These are now the `normals`, `climate` and `biomes` chapters of the build-up, wiped in on
       their cues instead of hard-cut, over the diorama rather than the `Terrain3D` node.
-      > Note: that makes **T1's `debug_view` uniform unused by the trailer**. The diorama's shader
-      > computes its own diagram views, because it needs values T1 does not expose (per-biome
-      > weights for the one-at-a-time reveal, temperature and moisture as separate fields) and
-      > needs them on geometry `debug_view` cannot reach. `debug_view` is still a working,
-      > documented plugin feature and T6 may yet use it; it is simply no longer load-bearing here.
+      > Note: for as long as the diorama existed this made **T1's `debug_view` uniform unused by
+      > the trailer** — the diorama computed its own views, because it needed values T1 did not
+      > expose and needed them on geometry `debug_view` could not reach. T12 inverted that: the
+      > missing views (temperature, moisture, clay, blank) were added to `debug_view` itself
+      > alongside the wireframe and the wipe, and the trailer now has no shader code of its own at
+      > all. The one-at-a-time biome reveal turned out not to need per-biome weights either — the
+      > shader's existing `biome_layer_count` does it, and does it as real classification.
 
 - [ ] **T6 — Shot: cinematic final.**
       Depends on T0 for its start time (the ~1:07 bridge cue). Enable SDFGI on the scene's
@@ -214,6 +268,23 @@ viewport being captured.
       been checked for running cleanly, never for how it looks.
       *Verify:* recorded clip is fully shaded/textured with SDFGI visibly contributing (bounce
       light change when panning past geometry), starting exactly at the bridge cue.
+      > Partial progress: the placeholder's ~45-degree, ~1900-unit-distance aerial held most of
+      > the frame several clipmap levels out from the camera, which reads as flat and mottled next
+      > to the demo scene's own close-up (that camera sits tens of units from the ground, deep
+      > inside LOD0/LOD1). `_apply_cinematic()` now still opens on the diagram's exact last framing
+      > for the cut, then eases (`cinematic.ease_duration`) into `cinematic.reveal` — a close, low
+      > orbit (`distance` 480, `height` 300, `pitch` -20°) around the diorama centre, sized off a
+      > real `get_height_at()` survey of the patch so the ring clears every sampled peak, then
+      > drifts via `yaw_rate` so the shot moves instead of freezing for 80+ seconds. `_apply_camera`
+      > and the transform math it ended in were split into a shared `_set_camera_from_state()` so
+      > both the build-up and the reveal move the camera the same way — verified pixel-identical to
+      > `HEAD` on a `build` still (`--shot=build --start=25.6 --frames=1`), and the full
+      > `--shot=cinematic` run (4880 frames) completes headlessly with no errors and no
+      > camera/terrain clipping across the eased-in orbit.
+      > Still open: a chosen endpoint (the shot still runs to the track's raw end, 145.276s, per
+      > T2's placeholder) and a full played-through look pass — this pass only fixed the
+      > LOD/distance complaint, it did not re-pick the shot's cut point or dial `reveal` by eye
+      > against the music the way `--controls` dials the build-up.
 
 - [x] **T8 — Live control layer (`trailer_timeline.json` + `--controls`).**
       `trailer_rig.gd` holds no authored numbers any more: every time, camera, colour and effect
@@ -322,6 +393,73 @@ viewport being captured.
       > `get_playback_position()` only moves per mixed buffer, so the clock adds
       > `AudioServer.get_time_since_last_mix()` and subtracts the output latency, without which the
       > playhead visibly stair-steps against a smoothly moving image.
+
+- [x] **T12 — Rebuild the trailer as a front end over the plugin.**
+      Supersedes T3's diorama and T5's note about `debug_view` being unused. The build-up was a
+      parallel implementation of the renderer — clipmap-shaped geometry built in GDScript, a
+      spliced `unshaded` shader with its own fake lambert, biome textures rebuilt into its own
+      CPU `Texture2DArray` — and it read as one: no real shadows, and textures configured
+      differently from the demo scene. It is gone. `demo/trailer/diorama.gd` and
+      `diorama_body.gdshaderinc` are deleted; `trailer.tscn` instances `demo/terrain_server.tscn`
+      whole as the scenario, and the trailer drives the real `Terrain3D` through three channels
+      and nothing else (see the intro). `tools/pick_diorama_center.gd` is renamed
+      `pick_patch_center.gd`.
+      Plugin side, two changes, both additive:
+      `demo/addons/terrain_server/shaders/terrain.gdshader` grows T1's `debug_view` into a
+      tooling block — views 4/5 (temperature, moisture), 6 (clay: flat albedo under real
+      lighting), 7 (blank), a second view plus a world-space wipe between the two, a wireframe off
+      the mesh's own UV cell grid with a pixel-spacing density fade and a major grid, a Chebyshev
+      reveal radius that `discard`s before the parallax raymarch, an emission gain and a vignette.
+      `src/core/terrain_renderer.*` and `src/nodes/terrain3d.*` gain `refresh_parameters()` (the
+      `rebuild_mesh()` uniform block factored into a shared `_push_parameters()`, so the live path
+      cannot drift from the rebuild path — and it re-sets the custom AABB, without which a live
+      `height_scale` ramp grows the surface straight out of a stale one and the terrain culls) and
+      `set_shader_parameter()`/`get_shader_parameter()`/`clear_shader_parameters()`, which
+      remember what they push and re-apply it after a rebuild replaces every material.
+      Chapter semantics are now plugin state throughout: `grid` steps `clipmap_levels` 1→6 on its
+      ring cues with a real `rebuild()` behind each, `noise` steps `noise_octaves` at
+      `height_scale` 0, `relief` ramps `height_scale` and steps `mesh_resolution` 64→256,
+      `normals`/`climate` wipe between debug views, and `biomes` steps the shader's own
+      `biome_layer_count` 1→4 so each hit widens the set of layers the Whittaker blend may choose
+      from, then wipes the flat ids through to the textured render and opens the parallax fade
+      window. `whittaker_overlay.gd` mirrors `debug_id_color()` and `fragment()`'s own weights, so
+      a chart dot is the colour and the layer the terrain behind it shows.
+      *Verify:* the plugin's normal output must not move, and every chapter must render.
+      > Result: **byte-identical.** A normal render (`debug_view` 0, defaults) of the terrain from
+      > a fixed camera matches `HEAD` exactly, checked separately for each half of the change — the
+      > new shader against `HEAD`'s with the same binary, then `HEAD`'s `src/` rebuilt against the
+      > same shader. Worth keeping for the next A/B: `demo/terrain_server.tscn` is **not** a valid
+      > oracle, because its falling `RigidBody3D` test sphere makes the frame differ run to run
+      > even with nothing changed at all (confirmed: two runs of the same build, different MD5s).
+      > A scene holding only the demo's environment, its light and a `Terrain3D` on a fixed focus
+      > is deterministic, and that is what the comparison used.
+      > Every chapter was then rendered and looked at (14 stills across the window). Four things
+      > the port surfaced: the scenario's own `Camera3D` enters the tree first and stays the
+      > viewport's current camera, and hiding it changes nothing — `make_current()` on the
+      > trailer's camera is the only fix; a `Node.PROCESS_MODE_DISABLED` on the rig to freeze its
+      > clock is inherited by `Terrain3D` and stops it ever placing its clipmap levels, so
+      > `set_process(false)` is what a still-capture harness wants; the height view has to be
+      > re-evaluated per fragment rather than interpolated from a varying, or it is only as sharp
+      > as `mesh_resolution` and vanishes entirely at `height_scale` 0; and swapping the demo's sky
+      > for black takes the sky's fill light with it, which turns every shadow into a blotchy black
+      > hole — a dim neutral `ambient_light_color` puts the fill back, and the tonemap is
+      > deliberately inherited rather than forced to linear so the textured beats grade the way the
+      > demo scene does.
+      > One latent bug fixed on the way: `pom_fade_start == pom_fade_end` (which is how the trailer
+      > switches parallax off) hits `smoothstep` with `edge0 >= edge1`, undefined in GLSL. The
+      > shader now clamps the span.
+      > Dropped with the diorama, all of them diorama-only effects with no plugin state behind
+      > them: the beat ripple (`ripple_*`) and the skirt walls (`skirt_*`) needed vertex
+      > displacement uniforms of their own; `shade_amount` was the fake lambert's strength, and
+      > real lighting replaces it; per-level `ring_intensity` went with the per-instance uniform;
+      > and the one-biome-at-a-time *slope/cliff* reveal is gone, because the rock threshold in
+      > effect is a per-layer array the renderer derives from the biome and slope layers, not a
+      > scalar a chapter can ramp.
+      > **The authored values are a starting point, not a tuned look.** The real clipmap spans
+      > ±4096 against the diorama's ±3072 half-patch, and its level 0 is only 256 units against
+      > the diorama's 1536, so every camera distance, dolly rate and fill had to be re-picked
+      > rather than carried over. They were set by eye on stills; the window has not been played
+      > through against the music. Dial it with `--controls`.
 
 - [ ] **T7 — Recording convention.**
       Document the exact `--write-movie` invocation per shot (1920x1080 @ 60fps) in a short

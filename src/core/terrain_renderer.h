@@ -11,6 +11,8 @@
 #include <godot_cpp/classes/rendering_server.hpp>
 #include <godot_cpp/classes/texture2d.hpp>
 #include <godot_cpp/variant/color.hpp>
+#include <godot_cpp/variant/dictionary.hpp>
+#include <godot_cpp/variant/string_name.hpp>
 #include <godot_cpp/variant/typed_array.hpp>
 #include <godot_cpp/variant/vector2.hpp>
 #include <vector>
@@ -29,7 +31,12 @@ private:
 	godot::RID _mesh_trim_rids[4];
 	godot::RID _internal_shader_rid;
 	bool _shader_reload_pending = false;
-	int _debug_view = 0;
+	// Mesh resolution the current clipmap levels were built at, so refresh_parameters() can push
+	// the `resolution` uniform without being handed it again.
+	int _mesh_resolution = 0;
+	// Shader uniforms set directly rather than derived from the configuration, kept so they can be
+	// re-applied after a rebuild replaces every material. Tooling only -- see set_shader_parameter.
+	godot::Dictionary _shader_overrides;
 	godot::Node3D *_parent_node = nullptr;
 
 	godot::Ref<TerrainConfiguration> _config;
@@ -72,6 +79,8 @@ private:
 
 	void _free_mesh_instances();
 
+	void _push_parameters(bool p_rebuild_texture_arrays);
+
 	std::vector<uint64_t> _compute_biome_texture_signature(const godot::TypedArray<TerrainBiomeLayer> &p_layers) const;
 	void _rebuild_biome_texture_arrays_if_dirty(const godot::TypedArray<TerrainBiomeLayer> &p_layers);
 	int _build_biome_texture_arrays(const godot::TypedArray<TerrainBiomeLayer> &p_layers);
@@ -104,8 +113,13 @@ public:
 	void set_configuration(const godot::Ref<TerrainConfiguration> &p_config);
 
 	void rebuild_mesh(float p_size, int p_resolution);
+	void refresh_parameters();
 	void request_shader_reload();
 	void update_focus_position(godot::Vector3 p_focus_pos);
+
+	void set_shader_parameter(const godot::StringName &p_name, const godot::Variant &p_value);
+	godot::Variant get_shader_parameter(const godot::StringName &p_name) const;
+	void clear_shader_parameters();
 
 	void set_debug_view(int p_debug_view);
 	int get_debug_view() const;

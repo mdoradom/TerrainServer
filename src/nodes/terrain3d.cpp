@@ -43,6 +43,10 @@ void Terrain3D::_bind_methods() {
 	ClassDB::bind_method(D_METHOD("get_editor_preview_physics"), &Terrain3D::get_editor_preview_physics);
 	ClassDB::bind_method(D_METHOD("reload_shader"), &Terrain3D::reload_shader);
 	ClassDB::bind_method(D_METHOD("rebuild"), &Terrain3D::rebuild);
+	ClassDB::bind_method(D_METHOD("refresh_parameters"), &Terrain3D::refresh_parameters);
+	ClassDB::bind_method(D_METHOD("set_shader_parameter", "name", "value"), &Terrain3D::set_shader_parameter);
+	ClassDB::bind_method(D_METHOD("get_shader_parameter", "name"), &Terrain3D::get_shader_parameter);
+	ClassDB::bind_method(D_METHOD("clear_shader_parameters"), &Terrain3D::clear_shader_parameters);
 	ClassDB::bind_method(D_METHOD("set_debug_view", "debug_view"), &Terrain3D::set_debug_view);
 	ClassDB::bind_method(D_METHOD("get_debug_view"), &Terrain3D::get_debug_view);
 	ClassDB::bind_method(D_METHOD("_on_config_changed"), &Terrain3D::_on_config_changed);
@@ -407,6 +411,32 @@ void Terrain3D::reload_shader() {
 
 void Terrain3D::rebuild() {
 	_on_config_changed();
+}
+
+// Re-pushes the configuration's values to the existing clipmap materials without rebuilding any
+// geometry or texture array, for callers editing a parameter every frame. Anything that changes
+// the mesh itself -- mesh_resolution, terrain_size, clipmap_levels -- still needs rebuild(), and
+// so does a change to the biome or slope layers, whose textures are uploaded on a rebuild.
+void Terrain3D::refresh_parameters() {
+	if (_renderer.is_valid()) {
+		_renderer->refresh_parameters();
+	}
+}
+
+void Terrain3D::set_shader_parameter(const StringName &p_name, const Variant &p_value) {
+	if (_renderer.is_valid()) {
+		_renderer->set_shader_parameter(p_name, p_value);
+	}
+}
+
+Variant Terrain3D::get_shader_parameter(const StringName &p_name) const {
+	return _renderer.is_valid() ? _renderer->get_shader_parameter(p_name) : Variant();
+}
+
+void Terrain3D::clear_shader_parameters() {
+	if (_renderer.is_valid()) {
+		_renderer->clear_shader_parameters();
+	}
 }
 
 void Terrain3D::set_debug_view(const int p_debug_view) {

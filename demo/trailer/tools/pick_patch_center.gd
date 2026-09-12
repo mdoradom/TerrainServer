@@ -1,13 +1,14 @@
 extends SceneTree
 
-# Picks the world position the trailer's diorama should sit on (trailer_rig.gd's DIORAMA_CENTER).
+# Picks the world position the trailer's clipmap should be focused on (trailer_timeline.json's
+# `patch.center`).
 #
 # The terrain is infinite and homogeneous in feel but not in content: temperature and moisture are
-# their own noise fields (wavelengths on the order of a single diorama), so most spots land inside
+# their own noise fields (wavelengths on the order of a single patch), so most spots land inside
 # one climate band and render as one biome. The biome beat needs a patch that straddles several.
 # This scores candidate centres on real samples and prints the best ones.
 #
-#   godot --path demo --headless --script res://trailer/tools/pick_diorama_center.gd
+#   godot --path demo --headless --script res://trailer/tools/pick_patch_center.gd
 #
 # Terrain3D is used outside the scene tree on purpose: its climate/height sampling is the CPU port
 # in TerrainNoise, which only needs the configuration, so no rendering or physics has to start.

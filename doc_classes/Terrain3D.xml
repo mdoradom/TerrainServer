@@ -26,6 +26,12 @@
 				Clears an override set by [method set_editor_focus_override], returning the node to normal focus resolution.
 			</description>
 		</method>
+		<method name="clear_shader_parameters">
+			<return type="void" />
+			<description>
+				Forgets every uniform set with [method set_shader_parameter]. The materials keep the last value pushed until the next [method rebuild] re-derives them from the configuration.
+			</description>
+		</method>
 		<method name="get_biome_at" qualifiers="const">
 			<return type="TerrainBiomeLayer" />
 			<param index="0" name="world_xz" type="Vector2" />
@@ -93,6 +99,12 @@
 				Returns the number of heightmap samples along one side of the collision grid.
 			</description>
 		</method>
+		<method name="get_debug_view" qualifiers="const">
+			<return type="int" />
+			<description>
+				Returns the debug view set by [method set_debug_view], or [code]0[/code] if none has been set.
+			</description>
+		</method>
 		<method name="get_focus_position" qualifiers="const">
 			<return type="Vector3" />
 			<description>
@@ -122,6 +134,13 @@
 				Returns the normalized distance across a clipmap ring at which geometry begins morphing toward the next coarser level, hiding the transition. This is a fixed constant ([code]0.33[/code]), exposed for the editor gizmos and for debug visualisations.
 			</description>
 		</method>
+		<method name="get_shader_parameter" qualifiers="const">
+			<return type="Variant" />
+			<param index="0" name="name" type="StringName" />
+			<description>
+				Returns the value last set for [param name] by [method set_shader_parameter], or [code]null[/code] if that uniform has never been set directly. Reads back what was pushed, not what the configuration derived.
+			</description>
+		</method>
 		<method name="get_temperature_at" qualifiers="const">
 			<return type="float" />
 			<param index="0" name="world_xz" type="Vector2" />
@@ -149,11 +168,25 @@
 				Does not re-read the shader from disk; use [method reload_shader] for that.
 			</description>
 		</method>
+		<method name="refresh_parameters">
+			<return type="void" />
+			<description>
+				Re-pushes the [member configuration]'s values to the clipmap materials without rebuilding any geometry or texture array, for a caller animating a parameter every frame.
+				Editing a [TerrainConfiguration] normally emits its [code]changed[/code] signal and triggers a full [method rebuild], which is far more than a moving value needs. Block the signal around the writes ([method Object.set_block_signals]) and call this instead. Note that this covers the values the shader reads: anything that changes the mesh itself ([member TerrainConfiguration.mesh_resolution], [member TerrainConfiguration.terrain_size], [member TerrainConfiguration.clipmap_levels]) or the uploaded textures (the biome and slope layers) still needs [method rebuild].
+			</description>
+		</method>
 		<method name="reload_shader">
 			<return type="void" />
 			<description>
 				Re-reads [code]terrain.gdshader[/code] from [code]res://[/code] and rebuilds the terrain with it.
 				The shader is loaded from disk at runtime rather than compiled into the extension, but the loaded shader is otherwise reused across configuration changes, so [method rebuild] alone will [i]not[/i] pick up a shader edit, and this will. Also available as [b]Tools &gt; Reload Terrain Shader[/b] and from the terrain dock.
+			</description>
+		</method>
+		<method name="set_debug_view">
+			<return type="void" />
+			<param index="0" name="debug_view" type="int" />
+			<description>
+				Selects one of the terrain shader's debug visualisations: [code]0[/code] the normal shaded render, [code]1[/code] the height field as grayscale, [code]2[/code] biome id as a flat colour, [code]3[/code] the world normal as RGB, [code]4[/code] temperature, [code]5[/code] moisture, [code]6[/code] clay (flat albedo under real lighting), [code]7[/code] blank. Shorthand for [method set_shader_parameter] on [code]debug_view[/code]; the shader declares further uniforms alongside it for a wireframe, a reveal radius and a wipe between two views.
 			</description>
 		</method>
 		<method name="set_editor_focus_override">
@@ -162,6 +195,15 @@
 			<description>
 				Forces the focus point to [param world_position], overriding the viewport camera but not [member focus_path].
 				Intended for the editor plugin, which calls this every frame with the 3D viewport's fly camera position so the terrain follows you around the editor. Call [method clear_editor_focus_override] to release it.
+			</description>
+		</method>
+		<method name="set_shader_parameter">
+			<return type="void" />
+			<param index="0" name="name" type="StringName" />
+			<param index="1" name="value" type="Variant" />
+			<description>
+				Sets a terrain shader uniform directly, outside the [member configuration]. Intended for tooling — the debug views and the showreel trailer's diagram overlay — so those need no configuration field of their own.
+				The value is remembered and re-applied after every [method rebuild], and wins over the configuration-derived value if it shadows one. Clear it with [method clear_shader_parameters].
 			</description>
 		</method>
 	</methods>

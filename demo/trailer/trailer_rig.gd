@@ -1,21 +1,39 @@
 extends Node3D
 
-# Shared scaffold for the showreel trailer clips (see TODO_TRAILER.md).
+# Front end for the showreel trailer clips (see TODO_TRAILER.md).
 #
-# The "build" shot is a static-camera diagram sequence: a wireframe diorama of the real terrain
-# floating in black, assembling itself to the track's beats -- grid, then noise, then displacement,
-# then each noise parameter, then normals, climate and biomes -- and the "cinematic" shot is the
-# photorealistic payoff on the other side of the bridge cue.
+# This script renders nothing itself. The picture is the plugin: `demo/terrain_server.tscn` is
+# instanced whole as the scenario, so the terrain on screen is a real `Terrain3D` with the demo's
+# own `TerrainConfiguration`, environment and light -- the mesh, the biome blend, the textures, the
+# parallax and the shadows are all exactly what the plugin produces in that scene, with no
+# trailer-side copy of any of it.
 #
-# Everything on screen is a pure function of the shot time: no state accumulates between frames, so
-# any moment can be previewed on its own with --start=<sec> --frames=<n> without rendering what
-# comes before it, and --write-movie renders the identical result on any machine.
+# What the trailer contributes is choreography, and it reaches the plugin through three channels
+# and nothing else:
+#
+#   * `TerrainConfiguration` values, animated per frame and pushed with
+#     `Terrain3D.refresh_parameters()` (no rebuild) -- height_scale, octaves, ridge, warp,
+#     continent, redistribution. The build-up's "parameter arrives on a hit" beats are the real
+#     parameters moving.
+#   * `Terrain3D.rebuild()`, on beats only, for the values that change the mesh itself --
+#     `clipmap_levels` and `mesh_resolution`. That is the expanding-clipmap beat: the real
+#     parameter growing, not an animation of it.
+#   * `Terrain3D.set_shader_parameter()`, for the diagram overlay uniforms `terrain.gdshader`
+#     declares for tooling (the debug views, the wireframe, the reveal, the wipe) and for the
+#     handful of production uniforms the reveals step directly, such as `biome_layer_count`.
+#
+# The two shots are split by the track's bridge cue: `build` is the diagram build-up in black,
+# `cinematic` is the same terrain in the demo scene's own environment on the other side of the cut.
+#
+# Everything on screen is a pure function of the shot time: no state accumulates between frames
+# (bar the geometry cache, which only ever reflects the current moment's values), so any moment can
+# be previewed on its own with --start=<sec> --frames=<n>, and --write-movie renders the identical
+# result on any machine.
 #
 # This script holds no authored numbers. Every time, camera, colour and effect value lives in
 # trailer_timeline.json, which `--controls` lets you edit live and save back. What stays here is
-# the choreography itself: which parameter a chapter ramps, and in what order.
+# the choreography itself: which parameter a chapter moves, and in what order.
 
-const CONFIG_PATH := "res://addons/terrain_server/assets/terrains/demo_terrain_configuration.tres"
 const CUES_PATH := "res://trailer/audio_cues.json"
 const PEAKS_PATH := "res://trailer/audio_peaks.json"
 const TIMELINE_PATH := "res://trailer/trailer_timeline.json"
@@ -26,11 +44,20 @@ const KIND_ONSET := 0
 const KIND_STRONG := 1
 const KIND_BRIDGE := 2
 
-# Visual layers: the diorama draws on layer 2, the real Terrain3D on layer 1, and the camera's cull
-# mask picks one. Terrain3D owns its RenderingServer instances directly and has no `visible`, so a
-# cull mask is the only way to cut between the two without tearing the terrain down and back up.
-const LAYER_TERRAIN := 1
-const LAYER_DIORAMA := 2
+# terrain.gdshader's debug views. Only the shaded one is named here, because it is the only one
+# this script picks itself -- every other view is authored per chapter in trailer_timeline.json,
+# whose header lists them: 1 height, 2 biome id, 3 normals, 4 temperature, 5 moisture, 6 clay,
+# 7 blank.
+const VIEW_SHADED := 0
+
+# Configuration properties the chapters ramp, and the scale each one starts from before its own
+# beat has arrived. A value of 1.0 means "starts at the config's own value" (nothing to ramp);
+# these are the ones that start somewhere else and arrive later.
+const RAMPED_PROPERTIES := [
+	"height_scale", "noise_octaves", "noise_ridge_amount", "noise_warp_amount",
+	"noise_continent_influence", "noise_continent_elevation", "noise_relief_floor",
+	"noise_redistribution", "pom_fade_start", "pom_fade_end",
+]
 
 # Preview-only, and built only on the --controls path, which already refuses to run during a
 # recording -- so the music can never reach a rendered clip. See trailer_music.gd.
@@ -46,7 +73,12 @@ var _controls_active := false
 var _music_requested := true
 var _music: AudioStreamPlayer
 
+# A copy of the demo scene's configuration, so animating it per frame cannot touch the shared
+# resource on disk. Shallow: the biome and slope layers are the demo's own, textures included.
 var _config: TerrainConfiguration
+# The demo scene's authored values -- the targets every ramp animates towards.
+var _full := {}
+
 var _cue_times := PackedFloat32Array()
 var _cue_amplitudes := PackedFloat32Array()
 var _cue_kinds := PackedByteArray()
@@ -70,12 +102,27 @@ var _shot_end := 0.0
 var _shot_duration_frames := 0
 var _finished := false
 
-var _full_noise := {}
+# The (levels, resolution) pair the clipmap was last rebuilt at, so a frame that asks for the pair
+# it already has does not rebuild. Not accumulated state: it is always whatever the current
+# moment's values are, so seeking anywhere reaches the same geometry.
+var _built_levels := -1
+var _built_resolution := -1
 
-@onready var _terrain: Terrain3D = $Terrain3D
+# The diagram's patch, taken from the real clipmap rather than authored: the centre it is focused
+# on and the half-width of its outermost level.
+var _center := Vector2.ZERO
+var _extent := 1.0
+
+var _demo_environment: Environment
+var _diagram_environment: Environment
+var _light_basis := Basis()
+
+@onready var _scenario: Node3D = $Scenario
+@onready var _terrain: Terrain3D = $Scenario/Terrain3D
+@onready var _world_environment: WorldEnvironment = $Scenario/WorldEnvironment
+@onready var _light: DirectionalLight3D = $Scenario/DirectionalLight3D
+@onready var _focus: Node3D = $Focus
 @onready var _camera: Camera3D = $Camera3D
-@onready var _world_environment: WorldEnvironment = $WorldEnvironment
-@onready var _diorama: Node3D = $Diorama
 @onready var _whittaker: Control = $Overlay/Whittaker
 @onready var _controls: CanvasLayer = $Controls
 
@@ -91,23 +138,9 @@ func _ready() -> void:
 		_abort("unknown shot '%s'; known shots are %s" % [_shot, ", ".join(shots.keys())])
 		return
 
-	_config = load(CONFIG_PATH)
-	if _config == null:
-		_abort("could not load %s" % CONFIG_PATH)
+	if not _setup_scenario():
 		return
 
-	# The config's own values are the targets every parameter ramp animates towards.
-	_full_noise = {
-		"octaves": _config.noise_octaves,
-		"ridge_amount": _config.noise_ridge_amount,
-		"warp_amount": _config.noise_warp_amount,
-		"continent_influence": _config.noise_continent_influence,
-		"continent_elevation": _config.noise_continent_elevation,
-		"relief_floor": _config.noise_relief_floor,
-		"redistribution": _config.noise_redistribution,
-	}
-
-	_terrain.configuration = _config
 	_load_cues()
 	_load_peaks()
 
@@ -118,25 +151,76 @@ func _ready() -> void:
 	if _preview_frames > 0:
 		_shot_duration_frames = _preview_frames
 
-	var diorama_cfg: Dictionary = timeline["diorama"]
-	var center := _to_vector3(diorama_cfg["center"])
-	_diorama.global_position = center
-	if not _diorama.setup(_config, float(diorama_cfg["size"]), int(diorama_cfg["resolution"]),
-			int(diorama_cfg["ring_levels"])):
-		_abort("diorama setup failed")
-		return
-
-	_whittaker.setup(_config, _terrain, _diorama.biome_colors(), _diorama.biome_names(),
-			Vector2(center.x, center.z), float(diorama_cfg["size"]) * 0.5)
+	_whittaker.setup(_config, _terrain, _center, _extent)
 	_setup_shot()
 	_setup_controls()
 
 	_time = _shot_start + _preview_start
 	_apply_time(_time)
 
-	print("[trailer] shot=%s window=%.3fs-%.3fs start=%.3fs frames=%d viewport=%s controls=%s" % [
-			_shot, _shot_start, _shot_end, _time, _shot_duration_frames,
+	print("[trailer] shot=%s window=%.3fs-%.3fs start=%.3fs frames=%d centre=%s extent=%.0f viewport=%s controls=%s" % [
+			_shot, _shot_start, _shot_end, _time, _shot_duration_frames, str(_center), _extent,
 			str(get_viewport().size), str(_controls_active)])
+
+
+# Takes over the instanced demo scene: its camera and its physics test rig have no place in a
+# trailer frame, its Terrain3D is re-pointed at a fixed focus so the clipmap stays centred on the
+# diagram's patch instead of following a camera, and its configuration is replaced with a copy this
+# script may safely animate.
+func _setup_scenario() -> bool:
+	# These three are the trailer's whole dependency on the demo scene's shape. Named rather than
+	# searched for by type, so renaming one there fails here with a sentence instead of a null
+	# dereference twenty lines later.
+	for named in [["Terrain3D", _terrain], ["WorldEnvironment", _world_environment],
+			["DirectionalLight3D", _light]]:
+		if named[1] == null:
+			_abort("the instanced scenario has no %s; trailer.tscn expects demo/terrain_server.tscn" % named[0])
+			return false
+
+	# The demo scene is a working test scene: it carries its own camera and a physics test rig
+	# (a sphere dropped on the terrain), neither of which belongs in a trailer frame. Everything
+	# that is not the terrain, the light or the environment is taken out of the shot rather than
+	# deleted, so the demo scene itself needs no trailer-shaped edits.
+	for child in _scenario.get_children():
+		if child == _terrain or child == _world_environment or child == _light:
+			continue
+		if child is Node3D:
+			child.visible = false
+		child.process_mode = Node.PROCESS_MODE_DISABLED
+
+	# The scenario enters the tree first, so its own Camera3D is already the viewport's current one
+	# and hiding it does not change that -- `visible` has no bearing on which camera renders. Taking
+	# the current slot explicitly is the only thing that puts the trailer's camera on screen.
+	_camera.make_current()
+
+	var source: TerrainConfiguration = _terrain.configuration
+	if source == null:
+		_abort("the scenario's Terrain3D has no configuration")
+		return false
+
+	for property in RAMPED_PROPERTIES:
+		_full[property] = source.get(property)
+	_full["clipmap_levels"] = source.clipmap_levels
+	_full["mesh_resolution"] = source.mesh_resolution
+
+	_config = source.duplicate()
+	_terrain.configuration = _config
+
+	var patch: Dictionary = timeline["patch"]
+	_focus.global_position = _to_vector3(patch["center"])
+	_terrain.focus_path = _terrain.get_path_to(_focus)
+
+	# The patch the diagram is measured against comes from the plugin's own numbers, not from
+	# authored ones: the focus the clipmap snaps to, and the half-width of its outermost level.
+	_terrain.rebuild()
+	_center = Vector2(_focus.global_position.x, _focus.global_position.z)
+	_extent = _level_extent(maxi(_terrain.get_clipmap_level_count() - 1, 0))
+
+	_demo_environment = _world_environment.environment
+	_diagram_environment = _build_diagram_environment(_demo_environment)
+	_light_basis = _light.global_transform.basis
+
+	return true
 
 
 func _process(delta: float) -> void:
@@ -279,12 +363,14 @@ func get_peaks_fps() -> float:
 	return _peaks_fps
 
 
-# Throws away every unsaved edit by re-reading the file the panel writes. The diorama's own
-# uniforms are all re-pushed from the timeline every frame, so re-applying the current moment is
-# all it takes for the revert to show.
+# Throws away every unsaved edit by re-reading the file the panel writes. Every value is re-pushed
+# from the timeline each frame, so re-applying the current moment is all it takes for the revert to
+# show -- except the geometry pair, whose cache is dropped so a reverted resolution rebuilds.
 func reload_timeline() -> bool:
 	if not _load_timeline():
 		return false
+	_built_levels = -1
+	_built_resolution = -1
 	refresh()
 	return true
 
@@ -311,42 +397,47 @@ func save_timeline() -> bool:
 
 # --- Shot setup -----------------------------------------------------------------------------
 
-# One-time per-shot look. The scene's Environment is a local sub-resource, so mutating it here only
-# affects the running process, never the saved scene.
 func _setup_shot() -> void:
-	if _shot == "build":
-		_camera.cull_mask = LAYER_DIORAMA
-		_whittaker.visible = true
-	else:
-		_camera.cull_mask = LAYER_TERRAIN
-		_diorama.visible = false
-		_whittaker.visible = false
+	_whittaker.visible = _shot == "build"
 	_setup_environment()
 
 
-func _setup_environment() -> void:
-	var environment := _world_environment.environment
-	if _shot != "build":
-		environment.sdfgi_enabled = true
-		return
-
-	var look: Dictionary = timeline["look"]
+# The diagram's environment, derived from the demo scene's rather than authored from scratch, so
+# only the things the diagram actually needs to differ do: black instead of sky, and no fog or SSAO
+# competing with the flat views. The tonemap in particular is deliberately left alone -- the
+# build-up's last beats are the plugin's real textures under real light, and they have to grade the
+# same way the demo scene does or the bridge cut lands on a different-looking image.
+func _build_diagram_environment(p_source: Environment) -> Environment:
+	var environment: Environment = p_source.duplicate()
 	environment.background_mode = Environment.BG_COLOR
 	environment.background_color = Color.BLACK
 	environment.ambient_light_source = Environment.AMBIENT_SOURCE_COLOR
-	environment.ambient_light_color = Color.BLACK
 	environment.fog_enabled = false
 	environment.ssao_enabled = false
-	# Linear tonemapping keeps the diagram's flat colours exactly as authored, and lets the
-	# wireframe's above-1.0 emission blow out to white-hot cores inside the glow.
-	environment.tonemap_mode = Environment.TONE_MAPPER_LINEAR
 	environment.glow_enabled = true
-	environment.glow_intensity = float(look["glow_intensity"])
-	environment.glow_strength = float(look["glow_strength"])
-	environment.glow_bloom = float(look["glow_bloom"])
-	environment.glow_hdr_threshold = float(look["glow_hdr_threshold"])
-	environment.set("glow_levels/4", 1.0)
-	environment.set("glow_levels/5", 0.5)
+	return environment
+
+
+func _setup_environment() -> void:
+	if _shot != "build":
+		_world_environment.environment = _demo_environment
+		return
+
+	var look: Dictionary = timeline["look"]
+	# Swapping the demo's sky for black takes the sky's fill light with it, and the lit views
+	# (clay, and the textured render at the end of the build-up) then drop to pure black wherever
+	# the key light does not reach -- which reads as blotchy holes in the shadow rather than as
+	# shade. A dim neutral ambient puts the fill back without putting a sky back, and stays neutral
+	# so the textured beats are not tinted away from what the demo scene shows.
+	_diagram_environment.ambient_light_color = _to_srgb_color(look["ambient_color"])
+	_diagram_environment.ambient_light_energy = float(look["ambient_energy"])
+	_diagram_environment.glow_intensity = float(look["glow_intensity"])
+	_diagram_environment.glow_strength = float(look["glow_strength"])
+	_diagram_environment.glow_bloom = float(look["glow_bloom"])
+	_diagram_environment.glow_hdr_threshold = float(look["glow_hdr_threshold"])
+	_diagram_environment.set("glow_levels/4", 1.0)
+	_diagram_environment.set("glow_levels/5", 0.5)
+	_world_environment.environment = _diagram_environment
 
 
 func _setup_controls() -> void:
@@ -391,188 +482,238 @@ func _apply_time(t: float) -> void:
 		_apply_cinematic(t)
 
 
+# --- Plugin channels ------------------------------------------------------------------------
+
+# Pushes animated TerrainConfiguration values without a rebuild. The configuration's `changed`
+# signal is blocked around the writes: Terrain3D answers it with a full rebuild_mesh(), which is
+# the right response to an editor edit and far too much for a value moving every frame.
+func _apply_config(p_values: Dictionary) -> void:
+	_config.set_block_signals(true)
+	for property in p_values:
+		_config.set(property, p_values[property])
+	_config.set_block_signals(false)
+	_terrain.refresh_parameters()
+
+
+# The two configuration values that change the mesh rather than just its shape, applied by an
+# actual rebuild -- and only when they move, which is on a beat, never per frame.
+func _apply_geometry(p_levels: int, p_resolution: int) -> void:
+	if p_levels == _built_levels and p_resolution == _built_resolution:
+		return
+
+	_built_levels = p_levels
+	_built_resolution = p_resolution
+
+	_config.set_block_signals(true)
+	_config.clipmap_levels = p_levels
+	_config.mesh_resolution = p_resolution
+	_config.set_block_signals(false)
+	_terrain.rebuild()
+
+
+func _apply_overlay(p_values: Dictionary) -> void:
+	for name in p_values:
+		_terrain.set_shader_parameter(name, p_values[name])
+
+
 # --- Build shot -----------------------------------------------------------------------------
 
 func _apply_build(t: float) -> void:
 	var look: Dictionary = timeline["look"]
 	var effects: Dictionary = timeline["effects"]
 	var chapter: Dictionary = timeline["chapters"][get_chapter_index(t)]
-	var size := float(timeline["diorama"]["size"])
-	var shade_amount := float(look["shade_amount"])
 
 	var pulse := _pulse_at(t)
 	_apply_camera(chapter, t, pulse)
-
-	_diorama.set_param("d_pulse", pulse)
-	var ripple := _ripple_at(t)
-	_diorama.set_param("d_ripple_radius", ripple.x)
-	_diorama.set_param("d_ripple_strength", ripple.y)
+	_apply_light(t)
 
 	# Defaults every chapter starts from, then overrides below. Keeping them here (rather than
 	# letting values persist) is what makes any single frame renderable on its own.
-	var reveal_radius := size * 0.5
-	var rings_visible := false
-	var octaves: int = _full_noise["octaves"]
-	var height_mix := 1.0
-	var skirt_mix := 1.0
-	var view_a := int(chapter.get("view_a", 6))
-	var view_b := int(chapter.get("view_b", 6))
-	var sweep := 0.0
-	var sweep_dir := _to_vector2(chapter.get("sweep_dir", [1.0, 0.0]))
-	var fill_intensity := float(chapter.get("fill_intensity", 1.0))
-	var shade := float(chapter.get("shade", shade_amount))
+	var levels := int(_full["clipmap_levels"])
+	var resolution := int(chapter.get("mesh_resolution", _full["mesh_resolution"]))
+	var reveal_radius := -1.0
+	var height_scale := float(_full["height_scale"])
+	var octaves := int(_full["noise_octaves"])
+	var shaping := 1.0
+	var parallax := 1.0
+	var biome_count := _config.biome_layers.size()
+	var view_a := int(chapter.get("view_a", VIEW_SHADED))
+	var view_b := int(chapter.get("view_b", view_a))
+	var wipe := 0.0
+	var wipe_dir := _to_vector2(chapter.get("wipe_dir", [1.0, 0.0]))
+	var fill := float(chapter.get("fill", 1.0))
 	var wire_intensity := float(chapter.get("wire_intensity", look["wire_intensity"]))
 	var wire_opacity := float(chapter.get("wire_opacity", look["wire_opacity"]))
-	var noise_mix := 1.0
-	var biome_reveals := PackedFloat32Array()
-	var slope_reveal := 0.0
-	var whittaker_fade := 0.0
+	var chart_fade := 0.0
 
 	match chapter["name"]:
 		"grid":
-			# The grid draws outward from a single point at the first hit, then each clipmap ring
-			# snaps in around it -- the clipmap's own structure, before there is any terrain.
+			# The clipmap draws itself: level 0 outward from its centre at the first hit, then one
+			# ring per hit, each one a real clipmap_levels step with the mesh rebuilt behind it.
+			# There is no terrain yet -- height_scale is still zero, so this is the flat lattice.
+			var rings := _step_count(t, chapter["ring_times"], 0)
+			levels = 1 + rings
 			reveal_radius = _ease_out(_ramp(t, float(chapter["first_hit"]),
-					float(chapter["level0_duration"]))) * size * 0.5
-			var ring_times: Array = chapter["ring_times"]
-			for i in ring_times.size():
-				var ring_radius := size * 0.5 * pow(2.0, float(i + 1))
-				reveal_radius = maxf(reveal_radius, _ease_out(_ramp(t, float(ring_times[i]),
-						float(chapter["ring_duration"]))) * ring_radius)
-			rings_visible = true
-			height_mix = 0.0
-			skirt_mix = 0.0
+					float(chapter["level0_duration"]))) * _level_extent(0)
+			for i in rings:
+				reveal_radius = maxf(reveal_radius, _ease_out(_ramp(t, float(chapter["ring_times"][i]),
+						float(chapter["ring_duration"]))) * _level_extent(i + 1))
+			height_scale = 0.0
 			octaves = int(chapter["octaves"])
+			shaping = 0.0
+			parallax = 0.0
 
 		"noise":
-			# Flat still: this beat is about the noise field itself, not the relief, so the fill
-			# leads and the grid steps back.
-			height_mix = 0.0
-			skirt_mix = 0.0
-			octaves = _step_count(t, chapter["octave_times"])
-			sweep = _ease_in_out(_ramp(t, float(chapter["start"]), float(chapter["sweep_duration"])))
-			noise_mix = 0.0
+			# Flat still: this beat is about the noise field itself, not the relief, so the height
+			# view wipes in over the lattice and gains an octave per hit.
+			height_scale = 0.0
+			octaves = _step_count(t, chapter["octave_times"], 1)
+			shaping = 0.0
+			parallax = 0.0
+			wipe = _ease_in_out(_ramp(t, float(chapter["start"]), float(chapter["wipe_duration"])))
 
 		"relief":
-			# The texture stands up into terrain, then the shaping parameters arrive one per hit.
-			height_mix = _back_out(_ramp(t, float(chapter["start"]), float(chapter["lift_duration"])))
-			skirt_mix = _ease_out(_ramp(t, float(chapter["skirt_start"]), float(chapter["skirt_duration"])))
-			shade = shade_amount * _ramp(t, float(chapter["start"]) + float(chapter["shade_delay"]),
-					float(chapter["shade_duration"]))
+			# The field stands up into terrain, then the shaping parameters arrive one per hit.
+			height_scale *= _back_out(_ramp(t, float(chapter["start"]), float(chapter["lift_duration"])))
+			parallax = 0.0
+			resolution = _step_resolution(chapter, t, resolution)
 
 		"normals":
-			sweep = _ease_in_out(_ramp(t, float(chapter["start"]), float(chapter["sweep_duration"])))
+			# What the shader derives from that surface: the world normal, then the same normal
+			# carrying real light instead of a colour ramp.
+			wipe = _ease_in_out(_ramp(t, float(chapter["start"]), float(chapter["wipe_duration"])))
+			parallax = 0.0
 			if t >= float(chapter["lit_time"]):
 				view_a = int(chapter["lit_view_a"])
 				view_b = int(chapter["lit_view_b"])
-				sweep = _ease_in_out(_ramp(t, float(chapter["lit_time"]), float(chapter["lit_duration"])))
-				sweep_dir = _to_vector2(chapter["lit_sweep_dir"])
-				shade = shade_amount * float(chapter["lit_shade_scale"])
+				wipe = _ease_in_out(_ramp(t, float(chapter["lit_time"]), float(chapter["lit_duration"])))
+				wipe_dir = _to_vector2(chapter["lit_wipe_dir"])
 
 		"climate":
-			sweep = _ease_in_out(_ramp(t, float(chapter["start"]), float(chapter["sweep_duration"])))
+			wipe = _ease_in_out(_ramp(t, float(chapter["start"]), float(chapter["wipe_duration"])))
+			parallax = 0.0
 			if t >= float(chapter["moisture_time"]):
 				view_a = int(chapter["moisture_view_a"])
 				view_b = int(chapter["moisture_view_b"])
-				sweep = _ease_in_out(_ramp(t, float(chapter["moisture_time"]),
-						float(chapter["sweep_duration"])))
-				sweep_dir = _to_vector2(chapter["moisture_sweep_dir"])
+				wipe = _ease_in_out(_ramp(t, float(chapter["moisture_time"]),
+						float(chapter["wipe_duration"])))
+				wipe_dir = _to_vector2(chapter["moisture_wipe_dir"])
 			# Into the track's silence the whole diagram dims down to almost nothing, so the biome
 			# hit lands on a near-black frame.
 			var breath := _ease_in_out(_ramp(t, float(chapter["breath_start"]),
 					float(chapter["breath_duration"])))
-			fill_intensity = lerpf(fill_intensity, float(chapter["fill_intensity_breath"]), breath)
+			fill = lerpf(fill, float(chapter["fill_breath"]), breath)
 			wire_intensity = lerpf(wire_intensity, float(look["wire_intensity_dim"]), breath)
-			shade = lerpf(shade, 0.0, breath)
 
 		"biomes":
 			# Snap back out of the breath, overshooting bright on the hit itself.
-			fill_intensity += float(chapter["fill_snap"]) * exp(
+			fill += float(chapter["fill_snap"]) * exp(
 					-maxf(t - float(chapter["start"]), 0.0) / float(chapter["fill_snap_decay"]))
-			for i in _diorama.biome_colors().size():
-				biome_reveals.append(_ease_out(_ramp(t, _biome_reveal_time(chapter, i),
-						float(chapter["reveal_duration"]))))
-			slope_reveal = _ease_out(_ramp(t, float(chapter["slope_time"]), float(chapter["slope_duration"])))
-			whittaker_fade = _ease_out(_ramp(t, float(chapter["start"]),
-					float(chapter["whittaker_fade_duration"])))
+			# The biomes arrive one per hit as real classification, not as a colour overlay:
+			# biome_layer_count is the shader's own uniform, so each step widens the set of layers
+			# the Whittaker blend is allowed to choose from.
+			biome_count = _step_count(t, chapter["biome_reveal_times"], 1)
+			wipe = _ease_in_out(_ramp(t, float(chapter["start"]), float(chapter["wipe_duration"])))
+			# Then the flat biome ids wipe through to the textured render they stand for, and the
+			# parallax those textures carry fades in behind it -- the last thing the diagram hands
+			# over to the plugin's own output before the bridge cuts to it outright.
+			if t >= float(chapter["texture_time"]):
+				view_a = int(chapter["texture_view_a"])
+				view_b = int(chapter["texture_view_b"])
+				wipe = _ease_in_out(_ramp(t, float(chapter["texture_time"]),
+						float(chapter["texture_duration"])))
+				wipe_dir = _to_vector2(chapter["texture_wipe_dir"])
+				# The wireframe goes with the diagram it belongs to: once the render it was
+				# describing is on screen, the lines have nothing left to say.
+				wire_opacity *= 1.0 - _ease_in_out(_ramp(t, float(chapter["texture_time"]),
+						float(chapter["texture_duration"])))
+			parallax = _ease_out(_ramp(t, float(chapter["parallax_time"]),
+					float(chapter["parallax_duration"])))
+			chart_fade = _ease_out(_ramp(t, float(chapter["start"]),
+					float(chapter["chart_fade_duration"])))
 			# One last flash carries the cut into the bridge.
 			var bridge := float(timeline["bridge"])
 			var flash_duration := float(effects["bridge_flash_duration"])
 			var flash := _ramp(t, bridge - flash_duration, flash_duration)
 			wire_intensity += float(effects["bridge_flash_wire"]) * flash * flash
-			fill_intensity += float(effects["bridge_flash_fill"]) * flash * flash
+			fill += float(effects["bridge_flash_fill"]) * flash * flash
 
-	if biome_reveals.is_empty():
-		for i in _diorama.biome_colors().size():
-			biome_reveals.append(0.0)
+	_apply_geometry(levels, resolution)
 
-	var wire_color := _to_color(look["wire_color"])
+	var config_values := {
+		"height_scale": height_scale,
+		"noise_octaves": octaves,
+		"noise_ridge_amount": float(_full["noise_ridge_amount"]) * _shaping_at(t, "ridge") * shaping,
+		"noise_warp_amount": float(_full["noise_warp_amount"]) * _shaping_at(t, "warp") * shaping,
+		"noise_continent_influence": float(_full["noise_continent_influence"]) * _shaping_at(t, "continent") * shaping,
+		"noise_continent_elevation": float(_full["noise_continent_elevation"]) * _shaping_at(t, "continent") * shaping,
+		# Both of these are 1.0 when absent rather than 0.0: 1.0 is the neutral value the shader
+		# multiplies or exponentiates by, so the ramp runs from there to the config's own value.
+		"noise_relief_floor": lerpf(1.0, float(_full["noise_relief_floor"]), _shaping_at(t, "continent") * shaping),
+		"noise_redistribution": lerpf(1.0, float(_full["noise_redistribution"]), _shaping_at(t, "redistribution") * shaping),
+		# Parallax is switched off by collapsing its fade window to nothing rather than by a
+		# separate flag: pom_fade_end at zero puts every fragment past the fade, so the raymarch is
+		# skipped outright, and the ramp opens the window back up to the config's own distances.
+		"pom_fade_start": float(_full["pom_fade_start"]) * parallax,
+		"pom_fade_end": float(_full["pom_fade_end"]) * parallax,
+	}
+	_apply_config(config_values)
 
-	# The ripple lifts the grid on the beat while it is still flat; once there is real relief the
-	# same displacement only reads as a stray ring rolling across the mountains.
-	_diorama.set_param("d_ripple_lift", float(effects["ripple_lift"]) * (1.0 - clampf(height_mix, 0.0, 1.0)))
-	_diorama.set_param("d_ripple_width", float(effects["ripple_width"]))
-	_diorama.set_param("d_pulse_gain", float(effects["pulse_gain"]))
-	_diorama.set_param("d_reveal_radius", reveal_radius)
-	_diorama.set_param("d_reveal_edge", float(look["reveal_edge"]))
-	_diorama.set_param("d_height_mix", height_mix)
-	_diorama.set_param("d_skirt_mix", skirt_mix)
-	_diorama.set_param("d_skirt_depth", float(look["skirt_depth"]))
-	_diorama.set_param("d_view_a", view_a)
-	_diorama.set_param("d_view_b", view_b)
-	_diorama.set_param("d_sweep", sweep)
-	_diorama.set_param("d_sweep_dir", sweep_dir)
-	_diorama.set_param("d_fill_intensity", fill_intensity * float(look["fill_gain"]))
-	_diorama.set_param("d_shade_amount", shade)
-	_diorama.set_param("d_wire_intensity", wire_intensity)
-	_diorama.set_param("d_wire_width", float(look["wire_width"]))
-	_diorama.set_param("d_wire_opacity", wire_opacity)
-	_diorama.set_param("d_diagonal_intensity", float(look["diagonal_intensity"]))
-	_diorama.set_param("d_sweep_glow_width", float(look.get("sweep_glow_width", 26.0)))
-	_diorama.set_param("d_vignette", float(look.get("vignette", 0.0)))
-	_diorama.set_param("d_wire_color", Vector3(wire_color.r, wire_color.g, wire_color.b))
-	_diorama.set_param("d_biome_reveal", biome_reveals)
-	_diorama.set_param("d_rock_reveal", slope_reveal)
-	_diorama.set_param("d_light_dir", _light_direction(t))
-	_diorama.set_param("octaves", octaves)
+	_apply_overlay({
+		"debug_view": view_a,
+		"debug_view_b": view_b,
+		"debug_wipe": wipe,
+		"debug_wipe_dir": wipe_dir,
+		"debug_wipe_glow": float(look["wipe_glow"]),
+		"debug_fill": fill * float(look["fill_gain"]),
+		"debug_center": _center,
+		"debug_extent": _extent,
+		"debug_reveal_radius": reveal_radius,
+		"debug_reveal_edge": float(look["reveal_edge"]),
+		"debug_wire_opacity": wire_opacity,
+		"debug_wire_color": _to_linear_vector3(look["wire_color"]),
+		"debug_wire_intensity": wire_intensity * (1.0 + float(effects["pulse_gain"]) * pulse),
+		"debug_wire_width": float(look["wire_width"]),
+		"debug_wire_diagonal": float(look["wire_diagonal"]),
+		"debug_wire_min_spacing": float(look["wire_min_spacing"]),
+		"debug_wire_major": int(look["wire_major"]),
+		"debug_vignette": float(look["vignette"]),
+		"biome_layer_count": biome_count,
+	})
 
-	_apply_noise_parameters(t, noise_mix)
-
-	_diorama.set_ring_levels_visible(rings_visible)
-	var ring_intensity: Array = look["ring_intensity"]
-	for i in _diorama.level_count():
-		_diorama.set_level_intensity(i, float(ring_intensity[i]) if i < ring_intensity.size() else 0.3)
-
-	_whittaker.set_state(whittaker_fade, biome_reveals, slope_reveal)
+	_whittaker.set_state(chart_fade, biome_count)
 
 
-# The shaping parameters ramp in one per hit during the relief chapter, and stay at the config's own
-# values afterwards. p_mix scales the whole set to zero for chapters that predate the relief.
-func _apply_noise_parameters(t: float, p_mix: float) -> void:
+# How far one of the relief chapter's shaping parameters has arrived at time t. They ramp in one
+# per hit and stay at the config's own value afterwards.
+func _shaping_at(t: float, p_key: String) -> float:
 	var relief := _chapter_named("relief")
 	if relief.is_empty():
-		return
+		return 1.0
+	return _ease_out(_ramp(t, float(relief["%s_time" % p_key]), float(relief["%s_duration" % p_key])))
 
-	var ridge: float = _full_noise["ridge_amount"] * _ease_out(_ramp(t,
-			float(relief["ridge_time"]), float(relief["ridge_duration"])))
-	var warp: float = _full_noise["warp_amount"] * _ease_out(_ramp(t,
-			float(relief["warp_time"]), float(relief["warp_duration"])))
-	var continent := _ease_out(_ramp(t, float(relief["continent_time"]), float(relief["continent_duration"])))
-	var redistribution := lerpf(1.0, _full_noise["redistribution"], _ease_out(_ramp(t,
-			float(relief["redistribution_time"]), float(relief["redistribution_duration"]))))
 
-	_diorama.set_param("ridge_amount", ridge * p_mix)
-	_diorama.set_param("warp_amount", warp * p_mix)
-	_diorama.set_param("continent_influence", _full_noise["continent_influence"] * continent * p_mix)
-	_diorama.set_param("continent_elevation", _full_noise["continent_elevation"] * continent * p_mix)
-	_diorama.set_param("relief_floor", lerpf(1.0, _full_noise["relief_floor"], continent * p_mix))
-	_diorama.set_param("redistribution", lerpf(1.0, redistribution, p_mix))
+# The half-width of clipmap level p_level, from the plugin's own numbers rather than authored.
+func _level_extent(p_level: int) -> float:
+	return _config.terrain_size * pow(2.0, float(p_level)) * 0.5
+
+
+# mesh_resolution steps up through the relief chapter, so the surface visibly gains the detail the
+# noise already has -- another real plugin parameter rather than an effect standing in for one.
+func _step_resolution(p_chapter: Dictionary, t: float, p_default: int) -> int:
+	if not p_chapter.has("resolution_times"):
+		return p_default
+	var steps: Array = p_chapter["resolution_times"]
+	var start := int(p_chapter["resolution_start"])
+	var reached := _step_count(t, steps, 0)
+	var resolution := start * int(pow(2.0, float(reached)))
+	return mini(resolution, p_default)
 
 
 # The framing a chapter asks for at time t, before any blend with its predecessor: the authored
 # camera, the cut's settle-in, and the slow drift that keeps a locked-off shot from reading as a
-# freeze-frame. All four rates are per second and default to zero, so a chapter that sets none is
-# exactly as static as it was.
+# freeze. All four rates are per second and default to zero, so a chapter that sets none is exactly
+# as static as it was.
 func _camera_state(p_chapter: Dictionary, t: float) -> Dictionary:
 	var effects: Dictionary = timeline["effects"]
 	var camera: Dictionary = p_chapter["camera"]
@@ -590,7 +731,6 @@ func _camera_state(p_chapter: Dictionary, t: float) -> Dictionary:
 
 
 func _apply_camera(p_chapter: Dictionary, t: float, p_pulse: float) -> void:
-	var effects: Dictionary = timeline["effects"]
 	var state := _camera_state(p_chapter, t)
 
 	# A chapter can ease out of the previous chapter's framing instead of cutting to its own.
@@ -606,40 +746,86 @@ func _apply_camera(p_chapter: Dictionary, t: float, p_pulse: float) -> void:
 		for key in state:
 			state[key] = lerpf(float(previous[key]), float(state[key]), blend)
 
-	var yaw := deg_to_rad(float(state["yaw"]))
-	var pitch := deg_to_rad(float(state["pitch"]))
-	var distance := float(state["distance"])
+	_set_camera_from_state(state, p_pulse)
 
-	var target := _to_vector3(timeline["diorama"]["center"]) + Vector3(0.0, float(state["height"]), 0.0)
+
+# Turns a {yaw, pitch, distance, height, fov} state (in the same shape _camera_state returns) into
+# the camera's actual transform, orbiting the patch centre. Shared by the build-up chapters and the
+# cinematic reveal so both move the camera the same way.
+func _set_camera_from_state(p_state: Dictionary, p_pulse: float) -> void:
+	var effects: Dictionary = timeline["effects"]
+	var yaw := deg_to_rad(float(p_state["yaw"]))
+	var pitch := deg_to_rad(float(p_state["pitch"]))
+	var distance := float(p_state["distance"])
+
+	var target := Vector3(_center.x, float(p_state["height"]), _center.y)
 	var offset := Vector3(sin(yaw) * cos(pitch), -sin(pitch), cos(yaw) * cos(pitch)) * distance
 
 	_camera.global_position = target + offset
 	_camera.look_at(target, Vector3.UP)
-	_camera.fov = float(state["fov"]) * (1.0 - float(effects["fov_punch"]) * p_pulse)
-	_camera.far = maxf(_camera.far, distance * 3.0)
+	_camera.fov = float(p_state["fov"]) * (1.0 - float(effects["fov_punch"]) * p_pulse)
+	_camera.far = maxf(_extent * 6.0, distance * 3.0)
+
+
+# The demo scene's own key light, swung slowly around its authored direction so relief keeps
+# reading on an otherwise motionless frame. An offset on the scene's basis rather than a direction
+# of our own: retuning the light in the demo scene retunes the trailer with it.
+func _apply_light(t: float) -> void:
+	var effects: Dictionary = timeline["effects"]
+	var angle := deg_to_rad(float(effects["light_yaw_offset"]) +
+			maxf(t - float(effects["light_start"]), 0.0) * float(effects["light_yaw_rate"]))
+	_light.global_transform = Transform3D(Basis(Vector3.UP, angle) * _light_basis,
+			_light.global_transform.origin)
 
 
 # --- Cinematic shot -------------------------------------------------------------------------
 
-# Placeholder until T6: holds the biome chapter's framing on the real, fully shaded terrain, so the
-# bridge cut reads as the same world switching from diagram to render, then eases in.
+# The bridge cut holds the build-up's last framing for continuity -- the terrain the diagram was
+# describing is suddenly the same thing in the demo scene's own light and sky -- then eases into
+# "reveal", a close, low orbit sized to sit inside the clipmap's innermost rings (the same LOD0/LOD1
+# distance the demo scene's own camera sits at) rather than the diagram's aerial, which puts most of
+# the frame several clipmap levels out. yaw keeps drifting afterwards so the shot is a slow reveal,
+# not a freeze.
 func _apply_cinematic(t: float) -> void:
-	var chapters: Array = timeline["chapters"]
-	var chapter: Dictionary = (chapters[chapters.size() - 1] as Dictionary).duplicate(true)
 	var cinematic: Dictionary = timeline["cinematic"]
 	var bridge := float(timeline["bridge"])
 
-	chapter["start"] = bridge
-	var camera: Dictionary = chapter["camera"]
-	# The build-up's drift rates are sized for a beat that lasts seconds. The cinematic runs for over
-	# a minute off the same chapter, so they are dropped rather than compounding the whole way: this
-	# shot authors its own move (T6), it does not inherit the diagram's.
-	for key in ["yaw_rate", "pitch_rate", "distance_rate", "height_rate", "blend_in"]:
-		camera.erase(key)
-	camera["distance"] = lerpf(float(camera["distance"]),
-			float(camera["distance"]) * float(cinematic["distance_factor"]),
-			_ease_in_out(_ramp(t, bridge, float(cinematic["ease_duration"]))))
-	_apply_camera(chapter, t, 0.0)
+	# Full plugin render: the demo scene's configuration, untouched, and no overlay at all.
+	_apply_geometry(int(_full["clipmap_levels"]), int(_full["mesh_resolution"]))
+	var config_values := {}
+	for property in RAMPED_PROPERTIES:
+		config_values[property] = _full[property]
+	_apply_config(config_values)
+	_apply_overlay({
+		"debug_view": VIEW_SHADED,
+		"debug_view_b": VIEW_SHADED,
+		"debug_wipe": 0.0,
+		"debug_fill": 1.0,
+		"debug_reveal_radius": -1.0,
+		"debug_wire_opacity": 0.0,
+		"debug_vignette": 0.0,
+		"biome_layer_count": _config.biome_layers.size(),
+	})
+	_apply_light(t)
+
+	var start_state := _camera_state(_chapter_named("biomes"), bridge)
+
+	var reveal: Dictionary = cinematic["reveal"]
+	var elapsed := maxf(t - bridge, 0.0)
+	var reveal_state := {
+		"yaw": float(reveal["yaw"]) + float(reveal.get("yaw_rate", 0.0)) * elapsed,
+		"pitch": float(reveal["pitch"]),
+		"distance": float(reveal["distance"]),
+		"height": float(reveal["height"]),
+		"fov": float(reveal.get("fov", start_state["fov"])),
+	}
+
+	var blend := _ease_in_out(_ramp(t, bridge, float(cinematic["ease_duration"])))
+	var state := {}
+	for key in start_state:
+		state[key] = lerpf(float(start_state[key]), float(reveal_state[key]), blend)
+
+	_set_camera_from_state(state, 0.0)
 
 
 # --- Cue envelopes --------------------------------------------------------------------------
@@ -664,27 +850,6 @@ func _pulse_at(t: float) -> float:
 	return clampf(pulse, 0.0, 1.0)
 
 
-# A ring expanding out of the centre on each "strong" cue, lifting and lighting the wireframe as it
-# passes. Returns (radius, strength).
-func _ripple_at(t: float) -> Vector2:
-	var effects: Dictionary = timeline["effects"]
-	for i in range(_strong_times.size() - 1, -1, -1):
-		var age := t - _strong_times[i]
-		if age < 0.0:
-			continue
-		return Vector2(age * float(effects["ripple_speed"]), exp(-age / float(effects["ripple_decay"])))
-	return Vector2(-1.0, 0.0)
-
-
-# The key light swings slowly through the lit/climate/biome chapters, so relief keeps reading on an
-# otherwise motionless frame.
-func _light_direction(t: float) -> Vector3:
-	var effects: Dictionary = timeline["effects"]
-	var angle := deg_to_rad(float(effects["light_base_angle"])) + \
-			maxf(t - float(effects["light_start"]), 0.0) * float(effects["light_rate"])
-	return Vector3(sin(angle) * 0.75, 0.62, cos(angle) * 0.75)
-
-
 # --- Helpers --------------------------------------------------------------------------------
 
 func _chapter_named(p_name: String) -> Dictionary:
@@ -694,20 +859,14 @@ func _chapter_named(p_name: String) -> Dictionary:
 	return {}
 
 
-func _biome_reveal_time(p_chapter: Dictionary, p_index: int) -> float:
-	var times: Array = p_chapter["biome_reveal_times"]
-	if p_index < times.size():
-		return float(times[p_index])
-	# An edited config with more biomes than the track has marked hits for still reveals them all.
-	return float(times[times.size() - 1]) + float(p_index - times.size() + 1)
-
-
-func _step_count(t: float, p_times: Array) -> int:
+# How many of p_times have passed at t, floored at p_minimum. Used wherever a beat list steps a
+# discrete count -- octaves, clipmap levels, mesh resolution, biome layers.
+func _step_count(t: float, p_times: Array, p_minimum: int) -> int:
 	var count := 0
 	for time in p_times:
 		if t >= float(time):
 			count += 1
-	return maxi(count, 1)
+	return maxi(count, p_minimum)
 
 
 func _ramp(t: float, p_start: float, p_duration: float) -> float:
@@ -739,9 +898,16 @@ func _to_vector3(p_value: Variant) -> Vector3:
 	return Vector3(float(a[0]), float(a[1]), float(a[2]))
 
 
-func _to_color(p_value: Variant) -> Color:
+func _to_srgb_color(p_value: Variant) -> Color:
 	var a: Array = p_value
 	return Color(float(a[0]), float(a[1]), float(a[2]))
+
+
+# Colours are authored in sRGB, the way a colour picker shows them, but a shader uniform set
+# through RenderingServer is taken as-is -- so the conversion has to happen here.
+func _to_linear_vector3(p_value: Variant) -> Vector3:
+	var color := _to_srgb_color(p_value).srgb_to_linear()
+	return Vector3(color.r, color.g, color.b)
 
 
 func _parse_args() -> void:
@@ -770,7 +936,7 @@ func _load_timeline() -> bool:
 		return false
 
 	timeline = parsed
-	for key in ["shots", "diorama", "look", "effects", "chapters", "bridge"]:
+	for key in ["shots", "patch", "look", "effects", "chapters", "cinematic", "bridge"]:
 		if not timeline.has(key):
 			_abort("%s is missing the '%s' section" % [TIMELINE_PATH, key])
 			return false

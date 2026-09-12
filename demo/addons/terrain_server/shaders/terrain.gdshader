@@ -75,9 +75,52 @@ uniform float pom_fade_start = 40.0;
 uniform float pom_fade_end = 120.0;
 uniform float triplanar_sharpness = 4.0;
 
-// Debug visualization (trailer/tooling only): 0 = normal shading, 1 = raw noise grayscale,
-// 2 = biome id as flat color (splatmap look), 3 = normal_ws visualized as RGB.
+// ---------------------------------------------------------------------------------------------
+// Diagram overlay (tooling only -- the editor's debug views and the showreel trailer).
+//
+// Every uniform below is neutral at its default, so a material that never touches them renders
+// exactly as it did before this block existed: both views are the shaded render, there is no
+// wipe, and the wireframe and the reveal are off. The whole block sits behind one
+// uniform-coherent branch at the end of fragment(), so it costs nothing while it is off.
+//
+// Views: 0 = the shaded render, 1 = the height field as grayscale, 2 = biome id as a flat color
+// (splatmap look), 3 = the world normal as RGB, 4 = temperature, 5 = moisture, 6 = clay (flat
+// albedo, real lighting), 7 = blank (unlit black -- what the wireframe is drawn on).
 uniform int debug_view = 0;
+uniform int debug_view_b = 0;
+// Wipes debug_view across to debug_view_b along debug_wipe_dir: 0 = all A, 1 = all B.
+uniform float debug_wipe = 0.0;
+uniform vec2 debug_wipe_dir = vec2(1.0, 0.0);
+uniform float debug_wipe_glow = 1.0;
+// Scales the whole diagram, so a chapter can dim down to black without touching the wireframe.
+uniform float debug_fill = 1.0;
+
+// The patch the reveal and the wipe are measured against, in world XZ.
+uniform vec2 debug_center = vec2(0.0);
+uniform float debug_extent = 1024.0;
+
+// Chebyshev radius around debug_center outside which fragments are dropped, so the terrain can
+// draw itself outward from its centre. Negative disables it.
+uniform float debug_reveal_radius = -1.0;
+uniform float debug_reveal_edge = 0.0;
+
+// Wireframe, measured on the clipmap mesh's own UV grid, so the lines are the real quad edges and
+// every clipmap level shows its own cell size. Widths are in pixels, and a grid fades out once
+// its on-screen spacing closes on debug_wire_min_spacing -- without that, a high mesh_resolution
+// seen from a distance fills in to a solid wash instead of reading as a grid.
+uniform float debug_wire_opacity = 0.0;
+// Linear, not sRGB: the trailer sets it through RenderingServer::material_set_param, where a
+// source_color hint would not convert anything anyway.
+uniform vec3 debug_wire_color = vec3(0.075, 0.64, 1.0);
+uniform float debug_wire_intensity = 1.0;
+uniform float debug_wire_width = 1.0;
+uniform float debug_wire_diagonal = 0.0;
+uniform float debug_wire_min_spacing = 7.0;
+// Every nth cell line also drawn as a coarser grid, which survives at distances where the fine
+// one has already faded. 1 or less turns it off.
+uniform int debug_wire_major = 8;
+
+uniform float debug_vignette = 0.0;
 
 varying vec2 v_world_xz;
 varying vec3 v_normal_ws;
@@ -184,7 +227,11 @@ float province_mask(vec2 world_xz) {
 	return mix(1.0, smoothstep(0.5 - contrast, 0.5 + contrast, c), continent_influence);
 }
 
-float height_from_mask(vec2 world_xz, float mask) {
+// The relief in normalized units, before height_scale is applied. Split out of
+// height_from_mask so a caller can keep the unscaled field: multiplying by height_scale is the
+// last thing that happens to a height, so doing it later costs nothing and leaves the shape
+// available while height_scale itself is being animated.
+float height_norm_from_mask(vec2 world_xz, float mask) {
 	vec2 p = world_xz;
 	float warp = warp_amount * mask;
 	if (warp > 0.0) {
@@ -201,7 +248,15 @@ float height_from_mask(vec2 world_xz, float mask) {
 	}
 
 	float h_norm = continent_elevation * (mask - continent_sea_level) + relief * mix(relief_floor, 1.0, mask);
-	return clamp(h_norm, -1.5, 1.5) * height_scale;
+	return clamp(h_norm, -1.5, 1.5);
+}
+
+float height_from_mask(vec2 world_xz, float mask) {
+	return height_norm_from_mask(world_xz, mask) * height_scale;
+}
+
+float get_height_norm_at(vec2 world_xz) {
+	return height_norm_from_mask(world_xz, province_mask(world_xz));
 }
 
 float get_height_at(vec2 world_xz) {
@@ -280,6 +335,7 @@ const float WHITTAKER_TEMP_SOFTNESS_EPSILON = 0.01; // deg C
 const float WHITTAKER_MOIST_SOFTNESS_EPSILON = 0.0005; // normalized [0,1]
 const float WHITTAKER_WEIGHT_FLOOR = 0.0001;
 const float POM_MIN_DEPTH = 0.00001;
+const float POM_FADE_MIN_SPAN = 0.001;
 const int POM_REFINE_STEPS = 3;
 const float POM_GRAZING_CLAMP = 0.1;
 const float POM_SECANT_EPSILON = 1e-6;
@@ -329,9 +385,124 @@ vec3 whiteout(vec3 p_t, vec3 p_n, int p_axis) {
 }
 
 // Hue-only HSV->RGB (saturation = value = 1), used to give each biome id a distinct flat color.
+// The trailer's Whittaker chart mirrors this formula so its dots match the terrain on screen.
 vec3 debug_id_color(int p_id) {
 	float hue = fract(float(p_id) * 0.61803398875);
 	return clamp(abs(mod(hue * 6.0 + vec3(0.0, 4.0, 2.0), 6.0) - 3.0) - 1.0, 0.0, 1.0);
+}
+
+const vec3 DEBUG_CLAY_ALBEDO = vec3(0.72, 0.70, 0.68);
+const float DEBUG_GRID_EPSILON = 1e-8;
+
+vec3 debug_ramp(vec3 p_a, vec3 p_b, vec3 p_c, vec3 p_d, float p_t) {
+	float t = clamp(p_t, 0.0, 1.0) * 3.0;
+	if (t < 1.0) {
+		return mix(p_a, p_b, t);
+	}
+	if (t < 2.0) {
+		return mix(p_b, p_c, t - 1.0);
+	}
+	return mix(p_c, p_d, t - 2.0);
+}
+
+// Distance in pixels from this fragment to the nearest line of a grid spaced p_stride cells
+// apart, plus that grid's own on-screen spacing (also in pixels) so the caller can fade it out
+// before it turns into a solid fill. p_dcdx/p_dcdy are the screen-space derivatives of the cell
+// coordinate: taking them from the smooth coordinate rather than from fract() of it is what
+// keeps the lines an even width instead of flaring at every cell boundary.
+void debug_grid_distance(vec2 p_cell, vec2 p_dcdx, vec2 p_dcdy, float p_stride,
+		out float r_pixels, out float r_spacing) {
+	vec2 c = p_cell / p_stride;
+	vec2 w = (abs(p_dcdx) + abs(p_dcdy)) / p_stride;
+	vec2 d = (0.5 - abs(fract(c) - 0.5)) / max(w, vec2(DEBUG_GRID_EPSILON));
+	r_pixels = min(d.x, d.y);
+	r_spacing = 1.0 / max(max(w.x, w.y), DEBUG_GRID_EPSILON);
+}
+
+// 1 inside a p_width-pixel line, ramping to 0 across the pixel just outside it.
+float debug_line_coverage(float p_pixels, float p_width) {
+	return clamp(p_width * 0.5 + 0.5 - p_pixels, 0.0, 1.0);
+}
+
+float debug_spacing_fade(float p_spacing) {
+	return smoothstep(debug_wire_min_spacing * 0.5, debug_wire_min_spacing, p_spacing);
+}
+
+// The clipmap mesh's own quad edges. p_cell is UV * resolution, which TerrainGenerator lays out
+// so that integer values land exactly on vertex rows on the block, ring-fixup and trim meshes
+// alike -- so these are the real edges of the real mesh, at whatever cell size this level has.
+float debug_wireframe(vec2 p_cell) {
+	vec2 dcdx = dFdx(p_cell);
+	vec2 dcdy = dFdy(p_cell);
+
+	float fine_pixels;
+	float fine_spacing;
+	debug_grid_distance(p_cell, dcdx, dcdy, 1.0, fine_pixels, fine_spacing);
+	float fine_fade = debug_spacing_fade(fine_spacing);
+	float wire = debug_line_coverage(fine_pixels, debug_wire_width) * fine_fade;
+
+	if (debug_wire_major > 1) {
+		float major_pixels;
+		float major_spacing;
+		debug_grid_distance(p_cell, dcdx, dcdy, float(debug_wire_major), major_pixels, major_spacing);
+		wire = max(wire, debug_line_coverage(major_pixels, debug_wire_width) *
+				debug_spacing_fade(major_spacing));
+	}
+
+	if (debug_wire_diagonal > 0.0) {
+		// Each quad's diagonal flips with (x + z) parity, exactly as TerrainGenerator's add_quad
+		// emits it: even parity splits tl-br (f.x == f.y), odd splits tr-bl (f.x + f.y == 1).
+		vec2 f = fract(p_cell);
+		ivec2 q = ivec2(floor(p_cell));
+		bool even = ((q.x + q.y) & 1) == 0;
+		float flip = even ? -1.0 : 1.0;
+		float signed_distance = f.x + flip * f.y - (even ? 0.0 : 1.0);
+		float gradient = abs(dcdx.x + flip * dcdx.y) + abs(dcdy.x + flip * dcdy.y);
+		float diagonal_pixels = abs(signed_distance) / max(gradient, DEBUG_GRID_EPSILON);
+		wire = max(wire, debug_line_coverage(diagonal_pixels, debug_wire_width) *
+				debug_wire_diagonal * fine_fade);
+	}
+
+	return wire;
+}
+
+// Splits one debug view into the (albedo, emission, unlit) triple that produces it. An unlit
+// diagram view is a zero albedo plus an emission colour, so scene lighting cannot modulate it --
+// and r_unlit also drops SPECULAR, without which the sky still reflects off the surface and a
+// "blank" view comes back dark grey rather than black. A lit view is an albedo with no emission,
+// and keeps the real roughness, AO and normal computed above.
+void debug_view_sample(int p_view, vec3 p_albedo, vec3 p_normal_ws, int p_biome_id,
+		out vec3 r_albedo, out vec3 r_emission, out float r_unlit) {
+	r_albedo = vec3(0.0);
+	r_emission = vec3(0.0);
+	r_unlit = 1.0;
+
+	if (p_view == 0) {
+		r_albedo = p_albedo;
+		r_unlit = 0.0;
+	} else if (p_view == 1) {
+		// Re-evaluated per fragment rather than interpolated from the vertices. It costs a full
+		// height evaluation per pixel, which only a debug view can afford, but it buys two things
+		// the mesh cannot give: the field stays sharp at any mesh_resolution, and it is still
+		// there to look at when height_scale is zero and the surface is flat.
+		r_emission = vec3(clamp(get_height_norm_at(v_world_xz) * 0.5 + 0.5, 0.0, 1.0));
+	} else if (p_view == 2) {
+		r_emission = debug_id_color(p_biome_id);
+	} else if (p_view == 3) {
+		r_emission = p_normal_ws * 0.5 + 0.5;
+	} else if (p_view == 4) {
+		float t = clamp((temperature_at(v_world_xz, v_height) - TEMPERATURE_MIN_C) /
+				(TEMPERATURE_MAX_C - TEMPERATURE_MIN_C), 0.0, 1.0);
+		r_emission = debug_ramp(vec3(0.05, 0.16, 0.62), vec3(0.16, 0.68, 0.86),
+				vec3(0.96, 0.86, 0.42), vec3(0.86, 0.18, 0.10), t);
+	} else if (p_view == 5) {
+		r_emission = debug_ramp(vec3(0.62, 0.44, 0.20), vec3(0.78, 0.72, 0.34),
+				vec3(0.28, 0.72, 0.52), vec3(0.08, 0.34, 0.86), moisture_at(v_world_xz));
+	} else if (p_view == 6) {
+		r_albedo = DEBUG_CLAY_ALBEDO;
+		r_unlit = 0.0;
+	}
+	// 7 (blank) leaves albedo and emission at zero, which is the black the wireframe draws on.
 }
 
 vec4 triplanar_array(sampler2DArray p_tex, int p_layer, vec3 p_pos, vec3 p_ddx, vec3 p_ddy, float p_scale, vec3 p_w) {
@@ -401,6 +572,15 @@ float blended_height(vec3 p_pos, vec3 p_w, ivec2 p_layers, vec2 p_scales, vec3 p
 
 void fragment()
 {
+	// Dropped first, before the parallax raymarch and the biome blend, so the part of the terrain
+	// that has not been revealed yet costs nothing to leave out.
+	if (debug_reveal_radius >= 0.0) {
+		vec2 reveal_rel = v_world_xz - debug_center;
+		if (max(abs(reveal_rel.x), abs(reveal_rel.y)) > debug_reveal_radius) {
+			discard;
+		}
+	}
+
 	vec3 geo_normal_ws = normalize(v_normal_ws);
 	vec3 base_pos = vec3(v_world_xz.x, v_height, v_world_xz.y);
 
@@ -496,7 +676,11 @@ void fragment()
 
 	vec3 world_offset = vec3(0.0);
 
-	float pom_fade = 1.0 - smoothstep(pom_fade_start, pom_fade_end, length(VERTEX));
+	// max(): GLSL leaves smoothstep undefined for edge0 >= edge1, so a configuration with
+	// pom_fade_end at or below pom_fade_start -- which is how the parallax is switched off
+	// outright -- would otherwise raymarch against a garbage fade rather than skipping.
+	float pom_fade = 1.0 - smoothstep(pom_fade_start,
+			max(pom_fade_end, pom_fade_start + POM_FADE_MIN_SPAN), length(VERTEX));
 
 	if (pom_depth > POM_MIN_DEPTH && pom_fade > 0.0) {
 		vec3 view_ws = mat3(INV_VIEW_MATRIX) * normalize(-VERTEX);
@@ -620,18 +804,69 @@ void fragment()
 		normal_ws = mix(normal_ws, rock_normal, rock_alpha);
 	}
 
-	if (debug_view != 0) {
-		vec3 debug_color = vec3(0.0);
-		if (debug_view == 1) {
-			debug_color = vec3(clamp(v_height / max(height_scale, 0.0001) * 0.5 + 0.5, 0.0, 1.0));
-		} else if (debug_view == 2) {
-			debug_color = debug_id_color(pom_layers.x);
-		} else if (debug_view == 3) {
-			debug_color = normal_ws * 0.5 + 0.5;
-		}
-		ALBEDO = vec3(0.0);
-		EMISSION = debug_color;
-	}
-
 	NORMAL = normalize((VIEW_MATRIX * vec4(normal_ws, 0.0)).xyz);
+
+	// Diagram overlay. One uniform-coherent branch, so nothing below runs in a normal render.
+	if (debug_view != 0 || debug_view_b != 0 || debug_wire_opacity > 0.0) {
+		vec3 albedo;
+		vec3 emission;
+		float unlit;
+		debug_view_sample(debug_view, ALBEDO, normal_ws, pom_layers.x, albedo, emission, unlit);
+
+		if (debug_view_b != debug_view) {
+			vec3 albedo_b;
+			vec3 emission_b;
+			float unlit_b;
+			debug_view_sample(debug_view_b, ALBEDO, normal_ws, pom_layers.x, albedo_b, emission_b, unlit_b);
+
+			// A line sweeping across the patch rather than a crossfade, so one view reads as
+			// replacing the other instead of the two being visible at once.
+			vec2 dir = normalize(debug_wipe_dir + vec2(DEBUG_GRID_EPSILON, 0.0));
+			float along = dot(v_world_xz - debug_center, dir);
+			float front = mix(-debug_extent, debug_extent, clamp(debug_wipe, 0.0, 1.0));
+			float band = max(debug_wipe_glow, DEBUG_GRID_EPSILON);
+			float wiped = clamp((front - along) / band + 0.5, 0.0, 1.0);
+
+			albedo = mix(albedo, albedo_b, wiped);
+			emission = mix(emission, emission_b, wiped);
+			unlit = mix(unlit, unlit_b, wiped);
+
+			// A bright seam rides the front of the wipe.
+			float seam = 1.0 - clamp(abs(along - front) / band, 0.0, 1.0);
+			emission += debug_wire_color * debug_wire_intensity * seam * seam;
+		}
+
+		// Emission only. The flat views are all emission, so this is the knob that grades them,
+		// while a lit view's albedo is left exactly as the biome blend produced it -- which keeps
+		// debug_view 0 identical to the normal render at any debug_fill.
+		emission *= debug_fill;
+
+		if (debug_wire_opacity > 0.0) {
+			float wire = debug_wireframe(UV * resolution) * debug_wire_opacity;
+			// The line masks the surface under it rather than adding to it, so it stays readable
+			// over a bright fill as well as over black.
+			albedo *= 1.0 - wire;
+			emission += debug_wire_color * debug_wire_intensity * wire;
+
+			if (debug_reveal_radius >= 0.0 && debug_reveal_edge > 0.0) {
+				vec2 rel = v_world_xz - debug_center;
+				float inside = debug_reveal_radius - max(abs(rel.x), abs(rel.y));
+				emission += debug_wire_color * debug_wire_intensity * debug_wire_opacity *
+						(1.0 - clamp(inside / debug_reveal_edge, 0.0, 1.0));
+			}
+		}
+
+		if (debug_vignette > 0.0) {
+			float falloff = 1.0 - debug_vignette *
+					smoothstep(0.35, 1.0, length(SCREEN_UV - vec2(0.5)) * 1.41421356);
+			albedo *= falloff;
+			emission *= falloff;
+		}
+
+		ALBEDO = albedo;
+		EMISSION = emission;
+		SPECULAR = 0.5 * (1.0 - unlit);
+		ROUGHNESS = mix(ROUGHNESS, 1.0, unlit);
+		AO = mix(AO, 1.0, unlit);
+	}
 }
