@@ -1,8 +1,9 @@
-[gd_scene load_steps=7 format=3]
+[gd_scene load_steps=8 format=3]
 
 [ext_resource type="Script" path="res://trailer/trailer_rig.gd" id="1_trailer"]
 [ext_resource type="Script" path="res://trailer/diorama.gd" id="2_diorama"]
 [ext_resource type="Script" path="res://trailer/whittaker_overlay.gd" id="3_whittaker"]
+[ext_resource type="Script" path="res://trailer/trailer_controls.gd" id="4_controls"]
 
 [sub_resource type="ProceduralSkyMaterial" id="ProceduralSkyMaterial_trailer"]
 sky_horizon_color = Color(0.66224277, 0.6717428, 0.6867428, 1)
@@ -49,3 +50,6 @@ offset_right = 430.0
 offset_bottom = 430.0
 mouse_filter = 2
 script = ExtResource("3_whittaker")
+
+[node name="Controls" type="CanvasLayer" parent="."]
+script = ExtResource("4_controls")

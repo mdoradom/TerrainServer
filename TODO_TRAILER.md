@@ -31,6 +31,7 @@ the generation pipeline staged so it reads at a glance and lands on the music.
 | Wireframe is drawn in-shader from barycentric coordinates, not `Viewport.debug_draw` | `DEBUG_DRAW_WIREFRAME` cannot be coloured, faded, dimmed per clipmap level, or pulsed on the beat — all of which the build-up depends on. Unindexed geometry carries barycentrics in `COLOR`, and the third axis is always the vertex opposite the quad diagonal, so the shared diagonal can be drawn fainter than the quad edges |
 | Every on-screen value is a pure function of shot time; no state accumulates between frames | Any moment can be previewed alone with `--start=<sec> --frames=<n>` without rendering what precedes it, and `--write-movie` is reproducible across machines. This is what made tuning the look practical at all |
 | The diorama sits at a hand-picked world position, not the origin | Temperature and moisture are noise fields with wavelengths about one diorama wide, so most of the world falls inside a single climate band and renders as one biome. `demo/trailer/tools/pick_diorama_center.gd` scores candidate patches on real samples for biome balance and relief |
+| Every authored number lives in `trailer_timeline.json`, edited live by an in-scene panel | Tuning a trailer is a look-at-it-and-adjust loop, and editing constants in GDScript between renders is the slowest possible version of it. The rig keeps the choreography (which parameter a chapter ramps, in what order); the file keeps the values. Moving them out was verified to change nothing on screen |
 | `demo/project.godot` sets a 1920x1080 viewport | `--write-movie` fixes its recording size before the scene loads, from `display/window/size/viewport_*` alone — neither `--resolution` nor a runtime resize moves it (both change the viewport while the movie keeps recording at the project size). `demo/benchmark` passes `--resolution 1920x1080` to every run it spawns, so its measurements already ran at this size and do not move |
 | Erosion shot = `GPUParticles3D` + one real `TerrainConfiguration` swap, not per-frame mesh animation | The renderer isn't built for per-frame config edits — `changed` triggers a full `rebuild_mesh()` (see `CLAUDE.md`) |
 | Clip timing is driven by real audio cues, not guessed timestamps | Track is "Bliss" by Klsr, trimmed to ~1:07 with a bridge at that point separating the track's two halves — lines up with the storyboard's own pivot into the cinematic reveal. Cuts landing on the track's marked hits means the eventual edit needs minimal manual nudging |
@@ -56,6 +57,16 @@ clang-format -i <files>                      # before committing C++ changes (T1
 
 Open `demo/project.godot` in Godot and run `demo/trailer/trailer.tscn` (once it exists) with
 `--shot=<name>` to preview a shot before ever recording it.
+
+```sh
+# tune it by eye: scrub, jump cue to cue, drag sliders, Save writes trailer_timeline.json
+godot --path demo res://trailer/trailer.tscn -- --shot=build --controls
+# preview one beat without rendering what precedes it
+godot --path demo res://trailer/trailer.tscn -- --shot=build --start=50 --frames=840
+```
+
+`--controls` is refused during a `--write-movie` recording, since the panel draws into the very
+viewport being captured.
 
 > [!WARNING]
 > **Stale binary trap.** `*.so` is gitignored, so `demo/addons/terrain_server/bin/` survives
@@ -203,6 +214,29 @@ Open `demo/project.godot` in Godot and run `demo/trailer/trailer.tscn` (once it 
       been checked for running cleanly, never for how it looks.
       *Verify:* recorded clip is fully shaded/textured with SDFGI visibly contributing (bounce
       light change when panning past geometry), starting exactly at the bridge cue.
+
+- [x] **T8 — Live control layer (`trailer_timeline.json` + `--controls`).**
+      `trailer_rig.gd` holds no authored numbers any more: every time, camera, colour and effect
+      value lives in `demo/trailer/trailer_timeline.json`, and `demo/trailer/trailer_controls.gd`
+      is an in-scene panel that scrubs the shot, steps frames, jumps cue to cue and chapter to
+      chapter, edits those values on live sliders and writes the file back with Save — so what you
+      dial in by eye is exactly what the next recording renders. Sliders are declared as paths into
+      the timeline dictionary, and the per-chapter rows follow the playhead, showing only the keys
+      the chapter on screen actually defines.
+      *Verify:* externalising the values must not change the render, and the panel must never
+      reach a recorded frame.
+      > Result: pixel-identical — six beats (7.2s, 12.5s, 25.6s, 33.0s, 43.0s, 61.5s) rendered
+      > before and after the refactor have matching MD5s, so moving every value into a data file
+      > changed nothing on screen. The panel itself was smoke-tested by grabbing the X display of a
+      > `--controls` run: transport, per-chapter camera/content rows and the global LOOK/EFFECTS
+      > sections all draw, with no script errors.
+      > Two bugs found on the way, both worth remembering: `get_window()` collided with
+      > `Node.get_window()` and broke the whole script's parse; and the recording guard tested
+      > `OS.get_cmdline_args()` for `--write-movie`, which can never match, because Godot strips
+      > its own flags from that array (it reports only `["--script", ...]`) — so the first version
+      > of the guard would have quietly let the panel into a recording. It now uses
+      > `Engine.get_write_movie_path()`, verified: `--write-movie` together with `--controls`
+      > prints "--controls ignored", records at 1920x1080 and exits 0.
 
 - [ ] **T7 — Recording convention.**
       Document the exact `--write-movie` invocation per shot (1920x1080 @ 60fps) in a short
