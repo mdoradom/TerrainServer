@@ -84,8 +84,12 @@ uniform float triplanar_sharpness = 4.0;
 // uniform-coherent branch at the end of fragment(), so it costs nothing while it is off.
 //
 // Views: 0 = the shaded render, 1 = the height field as grayscale, 2 = biome id as a flat color
-// (splatmap look), 3 = the world normal as RGB, 4 = temperature, 5 = moisture, 6 = clay (flat
+// (splatmap look), 3 = the geometric normal as RGB, 4 = temperature, 5 = moisture, 6 = clay (flat
 // albedo, real lighting), 7 = blank (unlit black -- what the wireframe is drawn on).
+//
+// Only view 0 shows the textured surface. Every other view describes the terrain the height field
+// defines, so they all shade (or display) the geometric normal, with no biome or rock normal map,
+// roughness or AO in the way.
 //
 // One wipe front carries two things: a change of view, and a biome arriving (debug_biome_count).
 // Both are optional and independent, and the front only exists while one of them is in play.
@@ -400,7 +404,10 @@ vec3 debug_id_color(int p_id) {
 	return clamp(abs(mod(hue * 6.0 + vec3(0.0, 4.0, 2.0), 6.0) - 3.0) - 1.0, 0.0, 1.0);
 }
 
-const vec3 DEBUG_CLAY_ALBEDO = vec3(0.72, 0.70, 0.68);
+// Near-white and strictly neutral: the clay view exists to show shape, so anything tinted reads
+// as a material choice instead. 1.0 would clip against the key light rather than shade.
+const vec3 DEBUG_CLAY_ALBEDO = vec3(0.85);
+const float DEBUG_FLAT_ROUGHNESS = 0.85;
 const float DEBUG_GRID_EPSILON = 1e-8;
 
 // How far past the wipe front this fragment lies: 0 entirely behind it (the A side), 1 entirely
@@ -495,20 +502,28 @@ float debug_wireframe(vec2 p_cell) {
 	return wire;
 }
 
-// Splits one debug view into the (albedo, emission, unlit) triple that produces it. An unlit
-// diagram view is a zero albedo plus an emission colour, so scene lighting cannot modulate it --
-// and r_unlit also drops SPECULAR, without which the sky still reflects off the surface and a
-// "blank" view comes back dark grey rather than black. A lit view is an albedo with no emission,
-// and keeps the real roughness, AO and normal computed above.
-void debug_view_sample(int p_view, vec3 p_albedo, vec3 p_normal_ws, int p_biome_id,
-		out vec3 r_albedo, out vec3 r_emission, out float r_unlit) {
+// Splits one debug view into the (albedo, emission, unlit, flat) tuple that produces it.
+//
+// An unlit diagram view is a zero albedo plus an emission colour, so scene lighting cannot
+// modulate it -- and r_unlit also drops SPECULAR, without which the sky still reflects off the
+// surface and a "blank" view comes back dark grey rather than black.
+//
+// r_flat says to shade the geometry and nothing else: the geometric normal instead of the
+// biome/rock normal maps, a neutral roughness, no AO. Only view 0 wants the textured surface, so
+// every other view sets it -- and for the clay view that is the whole point. Overriding ALBEDO
+// alone leaves the rock layer's normal map lighting up through it, which shows as rock and snow
+// texture on what is supposed to be a bare shape.
+void debug_view_sample(int p_view, vec3 p_albedo, vec3 p_geo_normal_ws, int p_biome_id,
+		out vec3 r_albedo, out vec3 r_emission, out float r_unlit, out float r_flat) {
 	r_albedo = vec3(0.0);
 	r_emission = vec3(0.0);
 	r_unlit = 1.0;
+	r_flat = 1.0;
 
 	if (p_view == 0) {
 		r_albedo = p_albedo;
 		r_unlit = 0.0;
+		r_flat = 0.0;
 	} else if (p_view == 1) {
 		// Re-evaluated per fragment rather than interpolated from the vertices. It costs a full
 		// height evaluation per pixel, which only a debug view can afford, but it buys two things
@@ -518,7 +533,10 @@ void debug_view_sample(int p_view, vec3 p_albedo, vec3 p_normal_ws, int p_biome_
 	} else if (p_view == 2) {
 		r_emission = debug_id_color(p_biome_id);
 	} else if (p_view == 3) {
-		r_emission = p_normal_ws * 0.5 + 0.5;
+		// The geometric normal, the one vertex() finite-differences out of the height field -- not
+		// the shading normal, which by this point has the biome and rock normal maps mixed into it
+		// and would show their texture rather than the surface the field describes.
+		r_emission = p_geo_normal_ws * 0.5 + 0.5;
 	} else if (p_view == 4) {
 		float t = clamp((temperature_at(v_world_xz, v_height) - TEMPERATURE_MIN_C) /
 				(TEMPERATURE_MAX_C - TEMPERATURE_MIN_C), 0.0, 1.0);
@@ -850,7 +868,8 @@ void fragment()
 		vec3 albedo;
 		vec3 emission;
 		float unlit;
-		debug_view_sample(debug_view, ALBEDO, normal_ws, pom_layers.x, albedo, emission, unlit);
+		float flat_surface;
+		debug_view_sample(debug_view, ALBEDO, geo_normal_ws, pom_layers.x, albedo, emission, unlit, flat_surface);
 
 		// A line sweeping across the patch rather than a crossfade, so what is behind it reads as
 		// replacing what is ahead of it instead of the two being visible at once. The front is
@@ -864,11 +883,13 @@ void fragment()
 				vec3 albedo_b;
 				vec3 emission_b;
 				float unlit_b;
-				debug_view_sample(debug_view_b, ALBEDO, normal_ws, pom_layers.x, albedo_b, emission_b, unlit_b);
+				float flat_b;
+				debug_view_sample(debug_view_b, ALBEDO, geo_normal_ws, pom_layers.x, albedo_b, emission_b, unlit_b, flat_b);
 
 				albedo = mix(albedo, albedo_b, wiped);
 				emission = mix(emission, emission_b, wiped);
 				unlit = mix(unlit, unlit_b, wiped);
+				flat_surface = mix(flat_surface, flat_b, wiped);
 			}
 
 			emission += debug_wire_color * debug_wire_intensity * seam * seam;
@@ -904,7 +925,10 @@ void fragment()
 		ALBEDO = albedo;
 		EMISSION = emission;
 		SPECULAR = 0.5 * (1.0 - unlit);
-		ROUGHNESS = mix(ROUGHNESS, 1.0, unlit);
-		AO = mix(AO, 1.0, unlit);
+		// flat_surface is set by every view but the shaded one, and is always at least as large as
+		// unlit, so this covers the unlit views' roughness and AO too.
+		NORMAL = normalize((VIEW_MATRIX * vec4(mix(normal_ws, geo_normal_ws, flat_surface), 0.0)).xyz);
+		ROUGHNESS = mix(ROUGHNESS, DEBUG_FLAT_ROUGHNESS, flat_surface);
+		AO = mix(AO, 1.0, flat_surface);
 	}
 }

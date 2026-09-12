@@ -494,6 +494,18 @@ viewport being captured.
       > far edge. Pacing is the durations' job — they were lengthened to suit the longer travel.
       > `reveal_duration` is 0.78s because the last two biome cues are 1.10s and 0.81s apart; a
       > longer reveal is cut off by the next front.
+      > Also fixed here, spotted in the `normals` chapter: the clay view had the rock layer showing
+      > through it. Overriding `ALBEDO` is not enough — the biome and rock *normal maps*, roughness
+      > and AO were all still in effect, so a view meant to show bare shape was lit as rock and snow
+      > texture. `debug_view_sample()` now also returns a `flat` flag, set by every view except the
+      > shaded one, which swaps in the geometric normal and a neutral roughness with no AO. The clay
+      > albedo went neutral near-white (0.85) with it, since the point of the pass is shape, not a
+      > material. The normals view had the same leak for the same reason and needed the same cure:
+      > it was displaying `normal_ws`, the final shading normal, which by that point has the biome
+      > and rock normal maps mixed into it. It now displays the geometric normal `vertex()`
+      > finite-differences out of the height field, which is both the honest answer for a debug view
+      > and what makes the chapter's two halves the same surface — the normal field, then that field
+      > lit. The rule for the whole block is now simply: only view 0 shows the textured surface.
 
 - [ ] **T7 — Recording convention.**
       Document the exact `--write-movie` invocation per shot (1920x1080 @ 60fps) in a short
