@@ -121,8 +121,8 @@
 				"yaw_rate": -0.5
 			},
 			"fill": 1.0,
-			"lit_duration": 1.8,
-			"lit_time": 36.943,
+			"lit_duration": 1.4,
+			"lit_time": 32.485,
 			"lit_view_a": 3.0,
 			"lit_view_b": 6.0,
 			"lit_wipe_dir": [
@@ -137,7 +137,7 @@
 				0.0,
 				1.0
 			],
-			"wipe_duration": 2.0,
+			"wipe_duration": 1.4,
 			"wipe_end": 16384.0,
 			"wipe_start": -16384.0,
 			"wipe_width": 110.0,
@@ -169,7 +169,7 @@
 				-1.0
 			],
 			"name": "climate",
-			"start": 42.388,
+			"start": 36.5,
 			"view_a": 6.0,
 			"view_b": 4.0,
 			"wipe_dir": [
@@ -253,7 +253,7 @@
 		"cut_settle": 0.022,
 		"cut_settle_duration": 2.5,
 		"fov_punch": 0.0,
-		"light_start": 36.943,
+		"light_start": 32.485,
 		"light_yaw_offset": 0.0,
 		"light_yaw_rate": 0.18,
 		"pulse_decay": 0.11,
