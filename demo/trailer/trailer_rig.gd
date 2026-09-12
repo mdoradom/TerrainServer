@@ -44,6 +44,8 @@ var _config: TerrainConfiguration
 var _cue_times := PackedFloat32Array()
 var _cue_amplitudes := PackedFloat32Array()
 var _cue_kinds := PackedByteArray()
+# Detected onset strength per cue, normalised across the track to [0,1].
+var _cue_strengths := PackedFloat32Array()
 var _strong_times := PackedFloat32Array()
 
 # Waveform envelope for the editor's ruler. Display-only: nothing in the choreography reads it.
@@ -479,6 +481,8 @@ func _apply_build(t: float) -> void:
 	_diorama.set_param("d_wire_width", float(look["wire_width"]))
 	_diorama.set_param("d_wire_opacity", float(look["wire_opacity"]))
 	_diorama.set_param("d_diagonal_intensity", float(look["diagonal_intensity"]))
+	_diorama.set_param("d_sweep_glow_width", float(look.get("sweep_glow_width", 26.0)))
+	_diorama.set_param("d_vignette", float(look.get("vignette", 0.0)))
 	_diorama.set_param("d_wire_color", Vector3(wire_color.r, wire_color.g, wire_color.b))
 	_diorama.set_param("d_biome_reveal", biome_reveals)
 	_diorama.set_param("d_rock_reveal", slope_reveal)
@@ -518,21 +522,53 @@ func _apply_noise_parameters(t: float, p_mix: float) -> void:
 	_diorama.set_param("redistribution", lerpf(1.0, redistribution, p_mix))
 
 
-func _apply_camera(p_chapter: Dictionary, t: float, p_pulse: float) -> void:
+# The framing a chapter asks for at time t, before any blend with its predecessor: the authored
+# camera, the cut's settle-in, and the slow drift that keeps a locked-off shot from reading as a
+# freeze-frame. All four rates are per second and default to zero, so a chapter that sets none is
+# exactly as static as it was.
+func _camera_state(p_chapter: Dictionary, t: float) -> Dictionary:
 	var effects: Dictionary = timeline["effects"]
 	var camera: Dictionary = p_chapter["camera"]
+	var elapsed := maxf(t - float(p_chapter["start"]), 0.0)
 
 	var settle := _ease_out(_ramp(t, float(p_chapter["start"]), float(effects["cut_settle_duration"])))
-	var distance := float(camera["distance"]) * (1.0 - float(effects["cut_settle"]) * settle)
-	var yaw := deg_to_rad(float(camera["yaw"]))
-	var pitch := deg_to_rad(float(camera["pitch"]))
+	return {
+		"yaw": float(camera["yaw"]) + float(camera.get("yaw_rate", 0.0)) * elapsed,
+		"pitch": float(camera["pitch"]) + float(camera.get("pitch_rate", 0.0)) * elapsed,
+		"distance": (float(camera["distance"]) + float(camera.get("distance_rate", 0.0)) * elapsed)
+				* (1.0 - float(effects["cut_settle"]) * settle),
+		"fov": float(camera["fov"]),
+		"height": float(camera["height"]) + float(camera.get("height_rate", 0.0)) * elapsed,
+	}
 
-	var target := _to_vector3(timeline["diorama"]["center"]) + Vector3(0.0, float(camera["height"]), 0.0)
+
+func _apply_camera(p_chapter: Dictionary, t: float, p_pulse: float) -> void:
+	var effects: Dictionary = timeline["effects"]
+	var state := _camera_state(p_chapter, t)
+
+	# A chapter can ease out of the previous chapter's framing instead of cutting to its own.
+	# blend_in is 0 everywhere by default -- the storyboard is built on hard cuts -- and exists for
+	# the beats where a cut turns out to be too abrupt once there is music under it.
+	var blend_in := float((p_chapter["camera"] as Dictionary).get("blend_in", 0.0))
+	var index := get_chapter_index(t)
+	if blend_in > 0.0 and index > 0:
+		var blend := _ease_in_out(_ramp(t, float(p_chapter["start"]), blend_in))
+		# The predecessor keeps drifting past its own cut, so the blend starts from where that shot
+		# would have been now, not from where it was abandoned.
+		var previous := _camera_state(timeline["chapters"][index - 1], t)
+		for key in state:
+			state[key] = lerpf(float(previous[key]), float(state[key]), blend)
+
+	var yaw := deg_to_rad(float(state["yaw"]))
+	var pitch := deg_to_rad(float(state["pitch"]))
+	var distance := float(state["distance"])
+
+	var target := _to_vector3(timeline["diorama"]["center"]) + Vector3(0.0, float(state["height"]), 0.0)
 	var offset := Vector3(sin(yaw) * cos(pitch), -sin(pitch), cos(yaw) * cos(pitch)) * distance
 
 	_camera.global_position = target + offset
 	_camera.look_at(target, Vector3.UP)
-	_camera.fov = float(camera["fov"]) * (1.0 - float(effects["fov_punch"]) * p_pulse)
+	_camera.fov = float(state["fov"]) * (1.0 - float(effects["fov_punch"]) * p_pulse)
 	_camera.far = maxf(_camera.far, distance * 3.0)
 
 
@@ -548,6 +584,11 @@ func _apply_cinematic(t: float) -> void:
 
 	chapter["start"] = bridge
 	var camera: Dictionary = chapter["camera"]
+	# The build-up's drift rates are sized for a beat that lasts seconds. The cinematic runs for over
+	# a minute off the same chapter, so they are dropped rather than compounding the whole way: this
+	# shot authors its own move (T6), it does not inherit the diagram's.
+	for key in ["yaw_rate", "pitch_rate", "distance_rate", "height_rate", "blend_in"]:
+		camera.erase(key)
 	camera["distance"] = lerpf(float(camera["distance"]),
 			float(camera["distance"]) * float(cinematic["distance_factor"]),
 			_ease_in_out(_ramp(t, bridge, float(cinematic["ease_duration"]))))
@@ -559,13 +600,20 @@ func _apply_cinematic(t: float) -> void:
 # A short exponential decay off the most recent cue, driving wire brightness and the FOV punch:
 # the diagram visibly reacts on every hit instead of only on the ones that change a parameter.
 func _pulse_at(t: float) -> float:
-	var decay := float(timeline["effects"]["pulse_decay"])
+	var effects: Dictionary = timeline["effects"]
+	var decay := float(effects["pulse_decay"])
+	# 0 keeps the original two-level response (every strong cue punches alike); 1 scales each hit by
+	# how hard the detector actually heard it, so a run of onsets breathes instead of strobing flat.
+	var weight := clampf(float(effects.get("pulse_strength_weight", 0.0)), 0.0, 1.0)
 	var pulse := 0.0
 	for i in _cue_times.size():
 		var age := t - _cue_times[i]
 		if age < 0.0:
 			break
-		pulse = maxf(pulse, _cue_amplitudes[i] * exp(-age / decay))
+		var amplitude := _cue_amplitudes[i]
+		if weight > 0.0 and i < _cue_strengths.size():
+			amplitude = lerpf(amplitude, amplitude * _cue_strengths[i], weight)
+		pulse = maxf(pulse, amplitude * exp(-age / decay))
 	return clampf(pulse, 0.0, 1.0)
 
 
@@ -692,14 +740,28 @@ func _load_cues() -> void:
 		return
 
 	var onset_amplitude := float(timeline["effects"]["pulse_onset_amplitude"])
+	var raw_strengths := PackedFloat32Array()
 	for cue in parsed["cues"]:
 		var time := float(cue["time_sec"])
 		var kind := str(cue["kind"])
 		_cue_times.append(time)
 		_cue_amplitudes.append(onset_amplitude if kind == "onset" else 1.0)
 		_cue_kinds.append(KIND_ONSET if kind == "onset" else (KIND_BRIDGE if kind == "bridge" else KIND_STRONG))
+		raw_strengths.append(float(cue.get("strength", 1.0)))
 		if kind != "onset":
 			_strong_times.append(time)
+
+	# The detector's strengths are an arbitrary scale whose floor sits well above zero (this track
+	# runs about 2.4 to 5.3), so they are stretched across the observed range rather than used raw:
+	# otherwise "weighting by strength" would barely separate the softest hit from the hardest.
+	var lowest := INF
+	var highest := -INF
+	for strength in raw_strengths:
+		lowest = minf(lowest, strength)
+		highest = maxf(highest, strength)
+	var span := maxf(highest - lowest, 0.0001)
+	for strength in raw_strengths:
+		_cue_strengths.append(clampf((strength - lowest) / span, 0.0, 1.0))
 
 
 # The waveform the editor's ruler draws. Optional: a missing file just means the ruler shows cue

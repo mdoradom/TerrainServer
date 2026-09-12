@@ -53,6 +53,7 @@ uniform int d_view_b = 0;
 uniform float d_sweep = 0.0;
 uniform vec2 d_sweep_dir = vec2(1.0, 0.0);
 uniform float d_sweep_glow_width = 26.0;
+uniform float d_vignette = 0.0;
 uniform float d_fill_intensity = 1.0;
 uniform float d_shade_amount = 0.0;
 uniform vec3 d_light_dir = vec3(-0.5, 0.7, -0.5);
@@ -253,6 +254,14 @@ void fragment() {
 			exp(-abs(s - boundary) / max(d_sweep_glow_width, 0.001));
 
 	color += d_wire_color * (edge_glow * 1.1 + sweep_glow * 1.2 + ripple * 0.5);
+
+	// Screen-space radial falloff. The diagram sits in black, so this reads as the frame closing in
+	// around level 0 rather than as a darkened edge, and it keeps the outer clipmap rings from
+	// competing with the centre. 0 disables it outright.
+	if (d_vignette > 0.0) {
+		vec2 offset = SCREEN_UV - vec2(0.5);
+		color *= 1.0 - d_vignette * clamp(dot(offset, offset) * 2.0, 0.0, 1.0);
+	}
 
 	ALBEDO = color * d_level_intensity;
 }

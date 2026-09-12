@@ -59,12 +59,18 @@ const LOOK_ROWS := [
 	["Glow strength", ["look", "glow_strength"], 0.0, 2.0, 0.01],
 	["Glow bloom", ["look", "glow_bloom"], 0.0, 1.0, 0.01],
 	["Glow threshold", ["look", "glow_hdr_threshold"], 0.0, 4.0, 0.01],
+	["Sweep glow", ["look", "sweep_glow_width"], 1.0, 120.0, 0.5],
+	["Vignette", ["look", "vignette"], 0.0, 1.0, 0.01],
+	["Wire red", ["look", "wire_color", 0], 0.0, 1.0, 0.01],
+	["Wire green", ["look", "wire_color", 1], 0.0, 1.0, 0.01],
+	["Wire blue", ["look", "wire_color", 2], 0.0, 1.0, 0.01],
 ]
 
 const EFFECT_ROWS := [
 	["Pulse decay", ["effects", "pulse_decay"], 0.01, 1.0, 0.005],
 	["Pulse gain", ["effects", "pulse_gain"], 0.0, 8.0, 0.05],
 	["Onset amplitude", ["effects", "pulse_onset_amplitude"], 0.0, 1.0, 0.01],
+	["Pulse by strength", ["effects", "pulse_strength_weight"], 0.0, 1.0, 0.01],
 	["Ripple speed", ["effects", "ripple_speed"], 0.0, 4000.0, 10.0],
 	["Ripple decay", ["effects", "ripple_decay"], 0.05, 2.0, 0.01],
 	["Ripple lift", ["effects", "ripple_lift"], 0.0, 120.0, 0.5],
@@ -86,6 +92,11 @@ const CAMERA_ROWS := [
 	["Distance", ["chapter", "camera", "distance"], 300.0, 6000.0, 10.0],
 	["FOV", ["chapter", "camera", "fov"], 10.0, 90.0, 0.5],
 	["Target height", ["chapter", "camera", "height"], -200.0, 800.0, 5.0],
+	["Yaw drift/s", ["chapter", "camera", "yaw_rate"], -12.0, 12.0, 0.05],
+	["Pitch drift/s", ["chapter", "camera", "pitch_rate"], -6.0, 6.0, 0.05],
+	["Dolly/s", ["chapter", "camera", "distance_rate"], -150.0, 150.0, 0.5],
+	["Rise/s", ["chapter", "camera", "height_rate"], -60.0, 60.0, 0.5],
+	["Blend in", ["chapter", "camera", "blend_in"], 0.0, 6.0, 0.05],
 	["Cut at", ["chapter", "start"], 0.0, 145.0, 0.001, TIME],
 ]
 
@@ -435,9 +446,9 @@ func _set_row_value(p_row: Dictionary, p_value: float, p_commit: bool) -> void:
 func _commit(p_row: Dictionary, p_value: float) -> void:
 	var path: Array = p_row["path"]
 	var target := _resolve(path)
-	var container: Dictionary = target["container"]
-	var key: String = target["key"]
-	var old := float(container[key]) if container.has(key) else 0.0
+	var container: Variant = target["container"]
+	var key: Variant = target["key"]
+	var old := _read_path(path)
 	if is_equal_approx(old, p_value):
 		return
 
@@ -453,7 +464,7 @@ func _commit(p_row: Dictionary, p_value: float) -> void:
 		_ruler.refresh_lanes()
 
 
-func _push_undo(p_container: Dictionary, p_key: String, p_old: float, p_new: float) -> void:
+func _push_undo(p_container: Variant, p_key: Variant, p_old: float, p_new: float) -> void:
 	var stamp := Time.get_ticks_msec()
 	if not _undo.is_empty():
 		var last: Dictionary = _undo[_undo.size() - 1]
@@ -475,7 +486,7 @@ func _undo_last() -> void:
 		_flash_status("nothing to undo")
 		return
 	var entry: Dictionary = _undo.pop_back()
-	(entry["container"] as Dictionary)[entry["key"]] = entry["old"]
+	entry["container"][entry["key"]] = entry["old"]
 	_redo.append(entry)
 	_after_bulk_change()
 
@@ -485,7 +496,7 @@ func _redo_last() -> void:
 		_flash_status("nothing to redo")
 		return
 	var entry: Dictionary = _redo.pop_back()
-	(entry["container"] as Dictionary)[entry["key"]] = entry["new"]
+	entry["container"][entry["key"]] = entry["new"]
 	_undo.append(entry)
 	_after_bulk_change()
 
@@ -533,12 +544,20 @@ func _read_path(p_path: Array) -> float:
 	return _read_from(_timeline, p_path)
 
 
+# Paths bottom out in either a dictionary key or an array index -- look.wire_color is three floats
+# in a list -- so the container's type decides how "is this key present" is even asked.
 func _read_from(p_root: Dictionary, p_path: Array) -> float:
 	var target := _resolve_in(p_root, p_path)
-	var container: Dictionary = target["container"]
-	if not container.has(target["key"]):
+	var container: Variant = target["container"]
+	var key: Variant = target["key"]
+	if container is Array:
+		var array: Array = container
+		var index := int(key)
+		return float(array[index]) if index >= 0 and index < array.size() else 0.0
+	var dictionary: Dictionary = container
+	if not dictionary.has(key):
 		return 0.0
-	return float(container[target["key"]])
+	return float(dictionary[key])
 
 
 # --- Transport ------------------------------------------------------------------------------

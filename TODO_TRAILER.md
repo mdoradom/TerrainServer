@@ -275,6 +275,28 @@ viewport being captured.
       > sliding an authored moment off the very beat it exists to land on. Every TIME row now steps
       > in milliseconds.
 
+- [x] **T10 — Effects pass: camera drift, cut blending, strength-weighted pulse, vignette.**
+      Four things the build-up had no way to express, all authored in `trailer_timeline.json` and all
+      on live sliders. A per-chapter camera drift (`yaw_rate`, `pitch_rate`, `distance_rate`,
+      `height_rate`, per second) so a locked-off beat breathes instead of reading as a freeze-frame.
+      `blend_in`, which eases a chapter out of its predecessor's framing instead of cutting to its
+      own — 0 everywhere, since the storyboard is built on hard cuts, but there for the beats where
+      one turns out too abrupt with music under it. `pulse_strength_weight`, which scales each hit's
+      reaction by the onset strength the detector actually measured rather than the flat
+      strong/onset amplitude, so a run of quiet onsets breathes instead of strobing alike; the
+      detector's scale bottoms out well above zero (this track runs ~2.4 to 5.3), so the strengths
+      are stretched across the observed range before use. And `vignette`, a screen-space falloff in
+      the diorama shader that stops the outer clipmap rings competing with level 0.
+      *Verify:* every new key must be neutral by default and leave the render byte-identical, and
+      only then be dialled in.
+      > Result: done in those two steps. With every key at its neutral value the four stills came
+      > back with MD5s identical to T9's, so the knobs alone changed nothing on screen; the values
+      > were then authored (drift on all six chapters, `vignette` 0.32, `pulse_strength_weight` 0.5)
+      > and checked by eye against the same frames.
+      > `_apply_cinematic()` erases the drift keys from the chapter it clones. The build-up's rates
+      > are sized for beats lasting seconds, and the cinematic reuses the biomes chapter for over a
+      > minute — inherited, its -8/s dolly would have pulled the camera 650 units in by the end.
+
 - [ ] **T7 — Recording convention.**
       Document the exact `--write-movie` invocation per shot (1920x1080 @ 60fps) in a short
       section at the bottom of this file, once T3–T6 exist to be recorded.

@@ -26,7 +26,9 @@
 		"glow_intensity": 0.45,
 		"glow_strength": 0.85,
 		"glow_bloom": 0.0,
-		"glow_hdr_threshold": 1.15
+		"glow_hdr_threshold": 1.15,
+		"sweep_glow_width": 26.0,
+		"vignette": 0.32
 	},
 	"effects": {
 		"pulse_decay": 0.11,
@@ -44,7 +46,8 @@
 		"light_start": 36.943,
 		"bridge_flash_duration": 0.34,
 		"bridge_flash_wire": 4.0,
-		"bridge_flash_fill": 1.2
+		"bridge_flash_fill": 1.2,
+		"pulse_strength_weight": 0.5
 	},
 	"cinematic": {
 		"ease_duration": 24.0,
@@ -54,7 +57,8 @@
 		{
 			"name": "grid",
 			"start": 0.0,
-			"camera": {"yaw": 35.0, "pitch": -44.0, "distance": 3400.0, "fov": 42.0, "height": 0.0},
+			"camera": {"yaw": 35.0, "pitch": -44.0, "distance": 3400.0, "fov": 42.0, "height": 0.0,
+					"yaw_rate": 0.55, "pitch_rate": 0.0, "distance_rate": -6.0, "height_rate": 0.0, "blend_in": 0.0},
 			"first_hit": 0.035,
 			"level0_duration": 4.6,
 			"ring_times": [6.316, 8.173],
@@ -68,7 +72,8 @@
 		{
 			"name": "noise",
 			"start": 9.451,
-			"camera": {"yaw": 35.0, "pitch": -46.0, "distance": 1780.0, "fov": 42.0, "height": 0.0},
+			"camera": {"yaw": 35.0, "pitch": -46.0, "distance": 1780.0, "fov": 42.0, "height": 0.0,
+					"yaw_rate": -0.45, "pitch_rate": 0.0, "distance_rate": -4.0, "height_rate": 0.0, "blend_in": 0.0},
 			"sweep_duration": 1.4,
 			"sweep_dir": [1.0, 0.0],
 			"octave_times": [9.451, 10.6, 11.656, 13.758, 15.023, 17.31],
@@ -81,7 +86,8 @@
 		{
 			"name": "relief",
 			"start": 20.619,
-			"camera": {"yaw": -28.0, "pitch": -40.0, "distance": 1980.0, "fov": 44.0, "height": 130.0},
+			"camera": {"yaw": -28.0, "pitch": -40.0, "distance": 1980.0, "fov": 44.0, "height": 130.0,
+					"yaw_rate": 0.65, "pitch_rate": 0.0, "distance_rate": -7.0, "height_rate": 1.5, "blend_in": 0.0},
 			"lift_duration": 1.6,
 			"skirt_start": 21.2,
 			"skirt_duration": 1.4,
@@ -102,7 +108,8 @@
 		{
 			"name": "normals",
 			"start": 30.906,
-			"camera": {"yaw": 108.0, "pitch": -36.0, "distance": 1820.0, "fov": 46.0, "height": 150.0},
+			"camera": {"yaw": 108.0, "pitch": -36.0, "distance": 1820.0, "fov": 46.0, "height": 150.0,
+					"yaw_rate": -0.5, "pitch_rate": 0.0, "distance_rate": -5.0, "height_rate": 0.0, "blend_in": 0.0},
 			"sweep_duration": 1.2,
 			"sweep_dir": [0.0, 1.0],
 			"view_a": 1,
@@ -120,7 +127,8 @@
 		{
 			"name": "climate",
 			"start": 42.388,
-			"camera": {"yaw": 18.0, "pitch": -54.0, "distance": 2150.0, "fov": 42.0, "height": 120.0},
+			"camera": {"yaw": 18.0, "pitch": -54.0, "distance": 2150.0, "fov": 42.0, "height": 120.0,
+					"yaw_rate": 0.45, "pitch_rate": 0.0, "distance_rate": 0.0, "height_rate": 1.5, "blend_in": 0.0},
 			"sweep_duration": 1.0,
 			"sweep_dir": [1.0, 0.0],
 			"view_a": 3,
@@ -139,7 +147,8 @@
 		{
 			"name": "biomes",
 			"start": 50.085,
-			"camera": {"yaw": -62.0, "pitch": -42.0, "distance": 1980.0, "fov": 44.0, "height": 150.0},
+			"camera": {"yaw": -62.0, "pitch": -42.0, "distance": 1980.0, "fov": 44.0, "height": 150.0,
+					"yaw_rate": -0.6, "pitch_rate": 0.0, "distance_rate": -8.0, "height_rate": 0.0, "blend_in": 0.0},
 			"view_a": 6,
 			"view_b": 6,
 			"biome_reveal_times": [50.085, 53.534, 54.637, 55.449],
