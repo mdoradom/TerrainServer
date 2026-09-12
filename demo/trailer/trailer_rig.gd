@@ -72,6 +72,12 @@ const NOISE_SHAPING_STEPS := ["ridge", "warp", "continent", "redistribution"]
 # them ever landing on the same place. See _seed_offset().
 const GOLDEN_ANGLE := 2.3999632297
 
+# How hard the noise chapter's build decelerates into its hold: the exponent the remaining time is
+# raised to over the last `settle_duration`, so 1.0 is no ritardando at all and lower is a heavier
+# one. 0.5 roughly triples the final gap. Fixed here rather than authored because it is the shape
+# of the curve, not a value to dial -- `settle_duration` is the knob.
+const NOISE_SETTLE_EXPONENT := 0.5
+
 # Preview-only, and built only on the --controls path, which already refuses to run during a
 # recording -- so the music can never reach a rendered clip. See trailer_music.gd.
 const MUSIC_SCRIPT := preload("res://trailer/trailer_music.gd")
@@ -187,12 +193,20 @@ func _ready() -> void:
 		var times := _step_times(noise)
 		var per_cycle := maxi(int(_full["noise_octaves"]), 1) + NOISE_SHAPING_STEPS.size()
 		var span := _chapter_end(noise) - float(noise["start"])
-		print("[trailer] noise: %.3fs-%.3fs, %d beats at >=%.2fs x%d = %d steps (%.1f/s), %d per cycle (%d octaves + %s), %d cycles, %d steps holding" % [
+		var cycles := maxi(_noise_usable_steps(noise, times) / per_cycle, 1)
+		var used := mini(cycles * per_cycle, times.size())
+		var complete := times[used - 1]
+		# The last gap as the ritardando leaves it, which is the number to watch when tuning it.
+		var settle := float(noise.get("settle_duration", 0.0))
+		var settled := _noise_settle(times, used, settle)
+		var last_gap := settled[used - 1] - settled[used - 2] if used >= 2 else 0.0
+		print("[trailer] noise: %.3fs-%.3fs, %d beats at >=%.2fs x%d = %d steps (%.1f/s), %d per cycle (%d octaves + %s)" % [
 				float(noise["start"]), _chapter_end(noise), beats.size(),
 				float(noise.get("step_min_gap", 0.0)), maxi(int(noise.get("step_subdivisions", 1)), 1),
 				times.size(), float(times.size()) / maxf(span, 0.001), per_cycle,
-				int(_full["noise_octaves"]), ", ".join(NOISE_SHAPING_STEPS),
-				maxi(times.size() / per_cycle, 1), times.size() % per_cycle])
+				int(_full["noise_octaves"]), ", ".join(NOISE_SHAPING_STEPS)])
+		print("[trailer] noise: %d cycles, complete at %.3fs, settling over %.2fs to a %.2fs last step, holding %.2fs into the cut" % [
+				cycles, complete, settle, last_gap, _chapter_end(noise) - complete])
 
 
 # Takes over the instanced demo scene: its camera and its physics test rig have no place in a
@@ -824,8 +838,10 @@ func _noise_build_at(p_chapter: Dictionary, t: float) -> Dictionary:
 		return _noise_state(1, 0, 0.0, Vector2.ZERO)
 
 	var per_cycle := full_octaves + full_shaping
-	var cycles := maxi(times.size() / per_cycle, 1)
+	var cycles := maxi(_noise_usable_steps(p_chapter, times) / per_cycle, 1)
 	var steps := mini(cycles * per_cycle, times.size())
+
+	times = _noise_settle(times, steps, float(p_chapter.get("settle_duration", 0.0)))
 
 	var reached := 0
 	for i in steps:
@@ -837,6 +853,54 @@ func _noise_build_at(p_chapter: Dictionary, t: float) -> Dictionary:
 	return _noise_state(mini(step + 1, full_octaves), maxi(step + 1 - full_octaves, 0),
 			_ease_out(_ramp(t, times[index], float(p_chapter.get("shaping_duration", 0.0)))),
 			_seed_offset(p_chapter, index / per_cycle, cycles))
+
+
+# Ritardando into the hold: over the last `settle_duration` of the build, the steps are re-spaced so
+# every gap is a little longer than the one before it and the rate eases down to nothing, instead of
+# running flat out and then stopping mid-stride.
+#
+# The completion does not move -- the window is re-spaced against the last step outside it, and both
+# ends stay where they were -- so the hold is exactly as long as it was. What pays for the stretched
+# gaps at the end is the start of the window running a little tighter than the beat under it: with
+# both ends pinned, slowing down anywhere means speeding up somewhere, and the near-silent tail of a
+# chapter is the right place to borrow it from.
+#
+# The steps inside the window are *placed* rather than warped from where they were, because the
+# natural spacing has its own jitter (the beats they subdivide are 0.45s to 0.88s apart) and warping
+# carries that jitter through: the gaps came out non-monotonic, which reads as stumbling rather than
+# slowing. Placed, the curve is the only thing left in them.
+func _noise_settle(p_times: PackedFloat32Array, p_steps: int, p_settle: float) -> PackedFloat32Array:
+	if p_settle <= 0.0 or p_steps <= 2:
+		return p_times
+
+	var times := p_times
+	var complete := times[p_steps - 1]
+	var inside := 0
+	while inside < p_steps - 2 and complete - times[p_steps - 2 - inside] < p_settle:
+		inside += 1
+	if inside == 0:
+		return times
+
+	var span := complete - times[p_steps - 2 - inside]
+	for k in inside:
+		times[p_steps - 2 - k] = complete - span * pow(float(k + 1) / float(inside + 1),
+				NOISE_SETTLE_EXPONENT)
+	return times
+
+
+# How many of a chapter's steps the build is allowed to use: the ones that land before its last
+# `hold_duration`, so the cycle that completes the field does so with that much of the chapter still
+# to run and the finished heightmap simply sits there until the cut lifts it. Whole cycles only, so
+# the real hold is `hold_duration` or a little more -- up to one cycle more, since dropping the last
+# incomplete cycle is the only way to end early. The rig prints what it actually came to.
+func _noise_usable_steps(p_chapter: Dictionary, p_times: PackedFloat32Array) -> int:
+	var limit := _chapter_end(p_chapter) - float(p_chapter.get("hold_duration", 0.0))
+	var usable := 0
+	for time in p_times:
+		if time >= limit:
+			break
+		usable += 1
+	return usable
 
 
 # One moment of the build, as `_apply_build()` wants it. p_shaped is how many of

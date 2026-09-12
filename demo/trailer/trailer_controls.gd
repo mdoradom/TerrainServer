@@ -117,6 +117,8 @@ const CONTENT_ROWS := [
 	["Octaves", ["chapter", "octaves"], 1.0, 12.0, 1.0],
 	["Beat gap", ["chapter", "step_min_gap"], 0.1, 3.0, 0.01],
 	["Step split", ["chapter", "step_subdivisions"], 1.0, 16.0, 1.0],
+	["Settle", ["chapter", "settle_duration"], 0.0, 4.0, 0.05],
+	["Hold before cut", ["chapter", "hold_duration"], 0.0, 6.0, 0.05],
 	["Shaping time", ["chapter", "shaping_duration"], 0.0, 1.0, 0.01],
 	["Seed distance", ["chapter", "seed_distance"], 0.0, 40000.0, 500.0],
 	["Lift time", ["chapter", "lift_duration"], 0.1, 6.0, 0.05],

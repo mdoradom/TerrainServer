@@ -544,6 +544,18 @@ viewport being captured — `trailer_rig.gd` tests `Engine.get_write_movie_path(
       to a cell each and the mesh shifts under a camera that moved by the exact offset. Only whole
       cycles run, and the last one is always the authored patch, so the field the relief chapter
       lifts is the one that was just finished.
+      The chapter also stops building early: `hold_duration` reserves the end of it, so the last
+      field to complete is left sitting there — nothing stepping, nothing re-seeding — until the
+      relief cut lifts *that* heightmap. Whole cycles are the only unit available to end on, so the
+      real hold is `hold_duration` or up to one cycle more, and the rig prints what it came to.
+      It does not stop mid-stride either. `_noise_settle()` re-spaces the steps over the last
+      `settle_duration` so each gap is longer than the one before it, easing the rate down into the
+      hold. Both ends of the window are pinned — the completion cannot move without moving the hold
+      with it — so the stretched gaps at the end are paid for by the start of the window running
+      tighter than the beat under it, which is the right place to borrow from in a chapter that is
+      about to go still. The steps inside the window are *placed* on the curve rather than warped
+      from where they were: warping carries the natural spacing's own jitter through (the beats they
+      subdivide are 0.45s to 0.88s apart), and non-monotonic gaps read as stumbling, not slowing.
       A re-seed has no transition: the field is global, so there is nothing to wipe an old one out
       against, and it simply changes outright on the beat. Only the chapter's own entry still wipes
       anything in.
@@ -554,8 +566,18 @@ viewport being captured — `trailer_rig.gd` tests `Engine.get_write_movie_path(
       > (6.8–13.3 a second, mean 9.3)** — stepping on the beats alone was 2.2 a second and read as
       > far slower than the track. 10 steps a cycle (6 octaves + 4 shaping terms) makes that 14
       > complete cycles of about 1.07s each, with 4 steps left holding the finished field into the
-      > relief cut (it completes at 24.476s + its 0.1s ramp, against a 24.950s cut). The rig prints
-      > the whole schedule and its rate at startup, so a re-paced chapter says what it became.
+      > relief cut. With `hold_duration` 1.2 that lands on **13 complete cycles, the last field
+      > finished at 23.365s and holding 1.59s** into the 24.950s cut: measured frame by frame, the
+      > build's last movement is at 23.383s and the 86 frames from 23.5s to the cut differ by a mean
+      > 0.02 of a level — a frozen field under nothing but the camera's own drift — and then the cut
+      > lifts that same heightmap, the lowland band in it plainly the one that was just built.
+      > The ritardando's own profile, `settle_duration` 1.0: the last eight gaps run 0.067, 0.072,
+      > 0.078, 0.086, 0.098, 0.116, 0.151, 0.365 against a 0.126s natural spacing, and the same
+      > deceleration was then measured off the rendered frames (0.067, 0.067, 0.067, 0.2, 0.117,
+      > 0.15, 0.367 — the 0.2 is two scheduled steps with an octave too faint to register between
+      > them). The
+      > rig prints the whole schedule, its rate and the hold it came to at startup, so a re-paced
+      > chapter says what it became.
       > Each shaping step reads distinctly at the chapter's framing, which is the point of putting
       > them here: ridge turns the grey fBm into ridgelines, warp bends them, continent sweeps a
       > lowland mass across the frame, redistribution re-curves the contrast. The octave steps do
