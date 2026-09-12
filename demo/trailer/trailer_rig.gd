@@ -422,6 +422,7 @@ func _apply_build(t: float) -> void:
 	var fill_intensity := float(chapter.get("fill_intensity", 1.0))
 	var shade := float(chapter.get("shade", shade_amount))
 	var wire_intensity := float(chapter.get("wire_intensity", look["wire_intensity"]))
+	var wire_opacity := float(chapter.get("wire_opacity", look["wire_opacity"]))
 	var noise_mix := 1.0
 	var biome_reveals := PackedFloat32Array()
 	var slope_reveal := 0.0
@@ -525,7 +526,7 @@ func _apply_build(t: float) -> void:
 	_diorama.set_param("d_shade_amount", shade)
 	_diorama.set_param("d_wire_intensity", wire_intensity)
 	_diorama.set_param("d_wire_width", float(look["wire_width"]))
-	_diorama.set_param("d_wire_opacity", float(look["wire_opacity"]))
+	_diorama.set_param("d_wire_opacity", wire_opacity)
 	_diorama.set_param("d_diagonal_intensity", float(look["diagonal_intensity"]))
 	_diorama.set_param("d_sweep_glow_width", float(look.get("sweep_glow_width", 26.0)))
 	_diorama.set_param("d_vignette", float(look.get("vignette", 0.0)))

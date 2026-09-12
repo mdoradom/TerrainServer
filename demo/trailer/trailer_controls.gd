@@ -106,6 +106,7 @@ const CONTENT_ROWS := [
 	["View B", ["chapter", "view_b"], 0.0, 6.0, 1.0],
 	["Fill", ["chapter", "fill_intensity"], 0.0, 4.0, 0.01],
 	["Wire", ["chapter", "wire_intensity"], 0.0, 4.0, 0.01],
+	["Wire opacity", ["chapter", "wire_opacity"], 0.0, 1.0, 0.01],
 	["Shade", ["chapter", "shade"], 0.0, 2.0, 0.01],
 	["Sweep time", ["chapter", "sweep_duration"], 0.05, 6.0, 0.05],
 	["Level 0 draw", ["chapter", "level0_duration"], 0.1, 12.0, 0.1],

@@ -67,6 +67,7 @@
 			"view_a": 0,
 			"view_b": 0,
 			"fill_intensity": 1.0,
+			"wire_opacity": 1.0,
 			"shade": 0.0
 		},
 		{
@@ -81,6 +82,7 @@
 			"view_b": 1,
 			"fill_intensity": 1.8,
 			"wire_intensity": 0.85,
+			"wire_opacity": 1.0,
 			"shade": 0.0
 		},
 		{
@@ -103,7 +105,8 @@
 			"redistribution_duration": 0.8,
 			"view_a": 1,
 			"view_b": 1,
-			"fill_intensity": 1.6
+			"fill_intensity": 1.6,
+			"wire_opacity": 1.0
 		},
 		{
 			"name": "normals",
@@ -122,6 +125,7 @@
 			"lit_shade_scale": 1.6,
 			"fill_intensity": 1.6,
 			"wire_intensity": 0.85,
+			"wire_opacity": 1.0,
 			"shade": 0.0
 		},
 		{
@@ -142,6 +146,7 @@
 			"fill_intensity": 1.7,
 			"fill_intensity_breath": 0.1,
 			"wire_intensity": 0.8,
+			"wire_opacity": 1.0,
 			"shade": 0.25
 		},
 		{
@@ -159,7 +164,8 @@
 			"fill_intensity": 1.7,
 			"fill_snap": 0.9,
 			"fill_snap_decay": 0.3,
-			"wire_intensity": 0.75
+			"wire_intensity": 0.75,
+			"wire_opacity": 1.0
 		}
 	]
 }
