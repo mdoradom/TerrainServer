@@ -68,8 +68,9 @@
 			"wipe_end": 3400.0,
 			"wipe_start": -6200.0,
 			"wipe_width": 110.0,
-			"wire_intensity": 0.85,
-			"wire_opacity": 0.0
+			"wire_intensity": 1.15,
+			"wire_opacity": 1.0,
+			"wire_opacity_b": 0.0
 		},
 		{
 			"camera": {

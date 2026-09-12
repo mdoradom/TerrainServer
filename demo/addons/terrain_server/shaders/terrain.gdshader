@@ -91,8 +91,9 @@ uniform float triplanar_sharpness = 4.0;
 // defines, so they all shade (or display) the geometric normal, with no biome or rock normal map,
 // roughness or AO in the way.
 //
-// One wipe front carries two things: a change of view, and a biome arriving (debug_biome_count).
-// Both are optional and independent, and the front only exists while one of them is in play.
+// One wipe front carries three things: a change of view, a biome arriving (debug_biome_count),
+// and the wireframe going out (debug_wire_opacity_b). All are optional and independent, and the
+// front only exists while one of them is in play.
 uniform int debug_view = 0;
 uniform int debug_view_b = 0;
 // Wipes debug_view across to debug_view_b along debug_wipe_dir: 0 = all A, 1 = all B. The front
@@ -140,6 +141,11 @@ uniform float debug_ripple_lift = 0.0;
 // its on-screen spacing closes on debug_wire_min_spacing -- without that, a high mesh_resolution
 // seen from a distance fills in to a solid wash instead of reading as a grid.
 uniform float debug_wire_opacity = 0.0;
+// The wireframe's opacity on the far side of the wipe front, so the lattice can ride the same
+// sweep the views do instead of switching on or off everywhere at once: fragments behind the front
+// fade to this, fragments ahead of it keep debug_wire_opacity. Negative (the default) means "the
+// same on both sides", which is what leaves the front carrying nothing but a view or biome change.
+uniform float debug_wire_opacity_b = -1.0;
 // Linear, not sRGB: the trailer sets it through RenderingServer::material_set_param, where a
 // source_color hint would not convert anything anyway.
 uniform vec3 debug_wire_color = vec3(0.075, 0.64, 1.0);
@@ -918,20 +924,31 @@ void fragment()
 	NORMAL = normalize((VIEW_MATRIX * vec4(normal_ws, 0.0)).xyz);
 
 	// Diagram overlay. One uniform-coherent branch, so nothing below runs in a normal render.
-	if (debug_view != 0 || debug_view_b != 0 || debug_wire_opacity > 0.0) {
+	if (debug_view != 0 || debug_view_b != 0 || debug_wire_opacity > 0.0 || debug_wire_opacity_b > 0.0) {
 		vec3 albedo;
 		vec3 emission;
 		float unlit;
 		float flat_surface;
 		debug_view_sample(debug_view, ALBEDO, geo_normal_ws, pom_layers.x, albedo, emission, unlit, flat_surface);
 
+		// Negative means the wireframe does not take part in the wipe at all, which is what keeps
+		// a front that carries only a view or biome change identical to before this existed.
+		float wire_opacity = debug_wire_opacity;
+		float wire_opacity_b = debug_wire_opacity_b < 0.0 ? debug_wire_opacity : debug_wire_opacity_b;
+
 		// A line sweeping across the patch rather than a crossfade, so what is behind it reads as
 		// replacing what is ahead of it instead of the two being visible at once. The front is
-		// live whenever it is carrying something -- a change of view, or a biome arriving -- and
-		// the seam rides it either way.
-		if (debug_view_b != debug_view || debug_biome_count != debug_biome_count_b) {
+		// live whenever it is carrying something -- a change of view, a biome arriving, or the
+		// lattice going out -- and the seam rides it either way.
+		if (debug_view_b != debug_view || debug_biome_count != debug_biome_count_b ||
+				wire_opacity_b != debug_wire_opacity) {
 			float seam;
 			float wiped = debug_wipe_at(v_world_xz, seam);
+
+			// The lattice belongs to the side of the front it is describing, so it goes out with
+			// the view it was drawn under rather than cutting to black a chapter at a time: ahead
+			// of the front the grid is still standing, behind it the surface has taken over.
+			wire_opacity = mix(debug_wire_opacity, wire_opacity_b, wiped);
 
 			if (debug_view_b != debug_view) {
 				vec3 albedo_b;
@@ -954,8 +971,8 @@ void fragment()
 		// debug_view 0 identical to the normal render at any debug_fill.
 		emission *= debug_fill;
 
-		if (debug_wire_opacity > 0.0) {
-			float wire = debug_wireframe(UV * resolution) * debug_wire_opacity;
+		if (wire_opacity > 0.0) {
+			float wire = debug_wireframe(UV * resolution) * wire_opacity;
 			// The line masks the surface under it rather than adding to it, so it stays readable
 			// over a bright fill as well as over black.
 			albedo *= 1.0 - wire;
@@ -964,7 +981,7 @@ void fragment()
 			if (debug_reveal_radius >= 0.0 && debug_reveal_edge > 0.0) {
 				vec2 rel = v_world_xz - debug_center;
 				float inside = debug_reveal_radius - max(abs(rel.x), abs(rel.y));
-				emission += debug_wire_color * debug_wire_intensity * debug_wire_opacity *
+				emission += debug_wire_color * debug_wire_intensity * wire_opacity *
 						(1.0 - clamp(inside / debug_reveal_edge, 0.0, 1.0));
 			}
 

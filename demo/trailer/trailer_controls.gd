@@ -116,6 +116,8 @@ const CONTENT_ROWS := [
 	["Fill", ["chapter", "fill"], 0.0, 4.0, 0.01],
 	["Wire", ["chapter", "wire_intensity"], 0.0, 4.0, 0.01],
 	["Wire opacity", ["chapter", "wire_opacity"], 0.0, 1.0, 0.01],
+	# Only shown for a chapter that sweeps its lattice out along the wipe front.
+	["Wire opacity B", ["chapter", "wire_opacity_b"], 0.0, 1.0, 0.01],
 	["Mesh resolution", ["chapter", "mesh_resolution"], 8.0, 512.0, 8.0],
 	["Wipe time", ["chapter", "wipe_duration"], 0.05, 6.0, 0.05],
 	["Wipe start", ["chapter", "wipe_start"], -20000.0, 20000.0, 10.0],

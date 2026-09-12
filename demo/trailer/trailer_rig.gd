@@ -605,6 +605,10 @@ func _apply_build(t: float) -> void:
 	var fill := float(chapter.get("fill", 1.0))
 	var wire_intensity := float(chapter.get("wire_intensity", look["wire_intensity"]))
 	var wire_opacity := float(chapter.get("wire_opacity", look["wire_opacity"]))
+	# The lattice's opacity on the far side of the wipe front. Defaults to the near side's, which
+	# keeps the wireframe out of the wipe entirely; authoring the two apart is what lets the grid
+	# be swept out by the same front that brings a view in instead of cutting at a chapter edge.
+	var wire_opacity_b := float(chapter.get("wire_opacity_b", wire_opacity))
 
 	# The generator's own state at this moment, which is the noise chapter's business wherever we
 	# are on the timeline: it builds the field beat by beat inside each of its cycles, and every
@@ -743,9 +747,12 @@ func _apply_build(t: float) -> void:
 						float(chapter["texture_duration"])))
 				wipe_dir = _to_vector2(chapter["texture_wipe_dir"])
 				# The wireframe goes with the diagram it belongs to: once the render it was
-				# describing is on screen, the lines have nothing left to say.
-				wire_opacity *= 1.0 - _ease_in_out(_ramp(t, float(chapter["texture_time"]),
+				# describing is on screen, the lines have nothing left to say. Both sides of the
+				# front together, so the fade stays a fade rather than turning into a second sweep.
+				var wire_fade := 1.0 - _ease_in_out(_ramp(t, float(chapter["texture_time"]),
 						float(chapter["texture_duration"])))
+				wire_opacity *= wire_fade
+				wire_opacity_b *= wire_fade
 			parallax = _ease_out(_ramp(t, float(chapter["parallax_time"]),
 					float(chapter["parallax_duration"])))
 			# One last flash carries the cut into the bridge.
@@ -793,6 +800,7 @@ func _apply_build(t: float) -> void:
 		"debug_ripple_width": float(effects["ripple_width"]),
 		"debug_ripple_lift": float(effects["ripple_lift"]),
 		"debug_wire_opacity": wire_opacity,
+		"debug_wire_opacity_b": wire_opacity_b,
 		"debug_wire_color": _to_linear_vector3(look["wire_color"]),
 		"debug_wire_intensity": wire_intensity * (1.0 + float(effects["pulse_gain"]) * pulse),
 		"debug_wire_width": float(look["wire_width"]),
@@ -1215,6 +1223,7 @@ func _apply_cinematic(t: float) -> void:
 		"debug_ripple_radius": _ripple_off_array(-1.0),
 		"debug_ripple_strength": _ripple_off_array(0.0),
 		"debug_wire_opacity": 0.0,
+		"debug_wire_opacity_b": 0.0,
 		"debug_vignette": 0.0,
 		"debug_biome_count": -1,
 		"debug_biome_count_b": -1,
