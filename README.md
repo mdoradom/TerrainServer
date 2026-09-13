@@ -2,19 +2,35 @@
 
 ![TerrainServer hero](docs/assets/hero.png)
 
-![Godot Engine](https://img.shields.io/badge/Godot-4.5+-478cbf?logo=godot-engine&logoColor=white)
-![C++](https://img.shields.io/badge/Language-C++17-00599C?logo=c%2B%2B&logoColor=white)
-![License](https://img.shields.io/badge/License-GNU%20GPLv3-blue.svg)
+[![Godot Engine](https://img.shields.io/badge/Godot-4.5+-478cbf?logo=godot-engine&logoColor=white)](https://godotengine.org)
+[![C++](https://img.shields.io/badge/Language-C++17-00599C?logo=c%2B%2B&logoColor=white)](https://isocpp.org)
+[![License](https://img.shields.io/badge/License-GNU%20GPLv3-blue.svg)](LICENSE)
 [![Build](https://github.com/mdoradom/TerrainServer/actions/workflows/build.yml/badge.svg)](https://github.com/mdoradom/TerrainServer/actions/workflows/build.yml)
 
-A GDExtension plugin for Godot 4.5+ that renders an endless procedural terrain as a geometry
-clipmap and keeps a matching heightmap collision body underneath it. Everything is derived from
-noise at runtime; no heightmap asset is stored or streamed. It ships as the `Terrain3D` node
-plus a set of `Resource` classes for shape, biome and slope tuning.
+TerrainServer is an open-source GDExtension plugin for Godot 4.5+, written in C++, that addresses
+the lack of native tools for large-scale procedural terrain generation. It renders an endless
+procedural terrain as a vertex-displaced Geometry Clipmap and keeps a matching heightmap collision
+body underneath it, synchronized bit-for-bit with the rendered surface through an asynchronous
+physics collision grid. Everything is derived from noise at runtime and complemented by Whittaker-based biome classification and dedicated editor
+tooling. The plugin ships as the `Terrain3D` node plus a set of `Resource` classes for shape,
+biome and slope tuning, and has been validated through 304 automated performance benchmarks,
+publicly distributed with complete documentation.
 
-<!-- TODO: replace with a real capture of the demo scene (docs/manual/05-editor-tools.md and
-     the demo scenes are good sources). Tracked as TODO.md task C9. -->
-![Terrain Server rendering a clipmap terrain with biome and slope layers in the Godot editor](docs/images/hero.png)
+> 🎓 **Academic context.** TerrainServer is the subject of the Bachelor's Thesis
+> *"TerrainServer - A Procedural Terrain Generation Plugin for Godot,"* submitted by
+> Mario Dorado Martínez in fulfillment of the requirements for the Bachelor's degree in
+> `Bachelor's Degree in Video Game Design and Development` at `CITM-UPC`. The thesis documents the plugin's architecture, design
+> rationale, and benchmark methodology in full.
+> 
+![Terrain Server rendering a clipmap terrain with multiple biomes in the Godot editor](docs/assets/demo_1.png)
+
+![Terrain Server rendering a clipmap terrain with multiple biomes in the Godot editor from above](docs/assets/demo_2.png)
+
+---
+
+## Trailer
+
+<iframe width="560" height="315" src="https://www.youtube.com/embed/2KfAA36HRqc?si=E8dUnWF_o5bsWygQ" title="YouTube video player" frameborder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share" referrerpolicy="strict-origin-when-cross-origin" allowfullscreen></iframe>
 
 ## Features
 
