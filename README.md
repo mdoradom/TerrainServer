@@ -30,7 +30,9 @@ publicly distributed with complete documentation.
 
 ## Trailer
 
-<iframe width="560" height="315" src="https://www.youtube.com/embed/2KfAA36HRqc?si=E8dUnWF_o5bsWygQ" title="YouTube video player" frameborder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share" referrerpolicy="strict-origin-when-cross-origin" allowfullscreen></iframe>
+[![Trailer link](http://img.youtube.com/vi/2KfAA36HRqc/0.jpg)](http://www.youtube.com/watch?v=2KfAA36HRqc)
+
+
 
 ## Features
 
