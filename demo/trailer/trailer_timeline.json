@@ -98,16 +98,19 @@
 			"fill": 1.0,
 			"lift_duration": 1.5,
 			"name": "relief",
-			"resolution_start": 64.0,
+			"resolution_start": 32.0,
 			"resolution_times": [
-				24.95,
-				29.013
+				24.95
 			],
 			"start": 24.95,
 			"step_min_gap": 1.4,
 			"view_a": 1.0,
 			"view_b": 1.0,
-			"wire_opacity": 0.0
+			"wire_duration": 0.6,
+			"wire_intensity": 0.85,
+			"wire_lead": 0.45,
+			"wire_opacity": 0.25,
+			"wire_pulse": 0.0
 		},
 		{
 			"camera": {
@@ -144,7 +147,9 @@
 			"wipe_start": -6200.0,
 			"wipe_width": 110.0,
 			"wire_intensity": 0.85,
-			"wire_opacity": 0.0
+			"wire_opacity": 0.25,
+			"wire_opacity_b": 0.0,
+			"wire_pulse": 0.0
 		},
 		{
 			"camera": {

@@ -609,6 +609,13 @@ func _apply_build(t: float) -> void:
 	# keeps the wireframe out of the wipe entirely; authoring the two apart is what lets the grid
 	# be swept out by the same front that brings a view in instead of cutting at a chapter edge.
 	var wire_opacity_b := float(chapter.get("wire_opacity_b", wire_opacity))
+	# How much of the cue pulse this chapter's lattice takes, 1 being all of it. The pulse is what
+	# makes the diagram visibly answer every hit in the track, and it is the right response while the
+	# grid is the subject -- but a chapter where the lattice is an annotation over something else
+	# wants it still, not flickering four times brighter on every onset behind the thing it is
+	# annotating. Authored per chapter rather than switched on the pulse itself, which other things
+	# would read if they ever wanted it.
+	var wire_pulse := float(chapter.get("wire_pulse", 1.0))
 
 	# The generator's own state at this moment, which is the noise chapter's business wherever we
 	# are on the timeline: it builds the field beat by beat inside each of its cycles, and every
@@ -682,6 +689,30 @@ func _apply_build(t: float) -> void:
 			height_scale *= _back_out(_ramp(t, float(chapter["start"]), float(chapter["lift_duration"])))
 			parallax = 0.0
 			resolution = _step_resolution(chapter, t, resolution)
+			# And as the terrain finishes standing up, the lattice comes back over it. This is the
+			# one beat where both halves of what the plugin does are on screen saying the same
+			# thing: the grid the trailer opened on, now carrying the height field the noise
+			# chapter spent fifteen seconds building. The second `resolution_times` step then
+			# subdivides that same grid, which is the point made twice.
+			#
+			# The two moves overlap by `wire_lead`: the lattice starts arriving that long before
+			# the lift ends, so the grid is already coming up through the last of the overshoot
+			# rather than waiting for the terrain to be still and then answering it. Measured off
+			# the lift rather than authored as a moment of its own -- it is the lift this is timed
+			# against, so retiming the lift has to carry it along or the overlap silently changes.
+			# It is also the reason this one is not on a cue like the rest of the build-up's beats:
+			# what it is synchronised to is on screen, not in the track.
+			#
+			# A fade over the whole mesh rather than a sweep: a front separates a before from an
+			# after, and there is nothing to separate here -- both halves are already up.
+			var wire_fade := _ease_in_out(_ramp(t, float(chapter["start"])
+					+ float(chapter["lift_duration"]) - float(chapter["wire_lead"]),
+					float(chapter["wire_duration"])))
+			wire_opacity *= wire_fade
+			# Moved with the near side rather than left at the chapter's authored value, so the
+			# two stay equal and the shader keeps off its wipe path while this chapter has no
+			# front for it to take.
+			wire_opacity_b *= wire_fade
 
 		"normals":
 			# What the shader derives from that surface: the world normal, then the same normal
@@ -693,6 +724,12 @@ func _apply_build(t: float) -> void:
 				view_b = int(chapter["lit_view_b"])
 				wipe = _ease_in_out(_ramp(t, float(chapter["lit_time"]), float(chapter["lit_duration"])))
 				wipe_dir = _to_vector2(chapter["lit_wipe_dir"])
+				# The entry wipe has already swept the lattice off the far side by now, but this
+				# opens a new front, and the chapter's authored opacity would put the grid straight
+				# back on the near side of it. The diagram is done with the grid at this point: it
+				# had its say over the relief, and what the normal view has to show is a surface.
+				wire_opacity = 0.0
+				wire_opacity_b = 0.0
 
 		"climate":
 			wipe = _ease_in_out(_ramp(t, float(chapter["start"]), float(chapter["wipe_duration"])))
@@ -810,7 +847,7 @@ func _apply_build(t: float) -> void:
 		"debug_wire_opacity": wire_opacity,
 		"debug_wire_opacity_b": wire_opacity_b,
 		"debug_wire_color": _to_linear_vector3(look["wire_color"]),
-		"debug_wire_intensity": wire_intensity * (1.0 + float(effects["pulse_gain"]) * pulse),
+		"debug_wire_intensity": wire_intensity * (1.0 + float(effects["pulse_gain"]) * pulse * wire_pulse),
 		"debug_wire_width": float(look["wire_width"]),
 		"debug_wire_diagonal": float(look["wire_diagonal"]),
 		"debug_wire_min_spacing": float(look["wire_min_spacing"]),
