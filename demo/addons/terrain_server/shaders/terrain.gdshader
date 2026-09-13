@@ -112,6 +112,18 @@ uniform float debug_wipe_glow = 1.0;
 // in everywhere at once. Negative (the default) leaves biome_layer_count alone.
 uniform int debug_biome_count = -1;
 uniform int debug_biome_count_b = -1;
+
+// What the biome id view paints each id with, one entry per biome layer in the configuration's own
+// order, so the view names what the biome is made of instead of giving it an arbitrary hue -- and
+// the wipe from it to the textured render lands on the same colours it was already showing.
+// Linear, like every other colour uniform here. Godot's shader uniform arrays cannot carry a
+// default value, so the array reads as all-black until something pushes one and the count is what
+// says whether there is a palette to read at all: at its default (0) every id falls back to the
+// generated hue, which is what the editor's own debug view still gets.
+const int DEBUG_ID_COLOR_MAX = 8;
+uniform int debug_id_color_count = 0;
+uniform vec3 debug_id_colors[DEBUG_ID_COLOR_MAX];
+
 // Scales the whole diagram, so a chapter can dim down to black without touching the wireframe.
 uniform float debug_fill = 1.0;
 
@@ -437,8 +449,13 @@ vec3 whiteout(vec3 p_t, vec3 p_n, int p_axis) {
 	return p_axis == 0 ? whiteout_x(p_t, p_n) : (p_axis == 1 ? whiteout_y(p_t, p_n) : whiteout_z(p_t, p_n));
 }
 
-// Hue-only HSV->RGB (saturation = value = 1), used to give each biome id a distinct flat color.
+// The flat color the biome id view stands an id up in: the authored palette where there is one,
+// and otherwise a hue-only HSV->RGB (saturation = value = 1) that asks nothing of the colors but
+// that consecutive ids differ.
 vec3 debug_id_color(int p_id) {
+	if (p_id >= 0 && p_id < min(debug_id_color_count, DEBUG_ID_COLOR_MAX)) {
+		return debug_id_colors[p_id];
+	}
 	float hue = fract(float(p_id) * 0.61803398875);
 	return clamp(abs(mod(hue * 6.0 + vec3(0.0, 4.0, 2.0), 6.0) - 3.0) - 1.0, 0.0, 1.0);
 }

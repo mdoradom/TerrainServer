@@ -724,6 +724,14 @@ func _apply_build(t: float) -> void:
 
 			if step == 1:
 				wipe = _ease_in_out(_ramp(t, float(chapter["start"]), float(chapter["wipe_duration"])))
+				# And the lattice rides in on that same front instead of switching on with the cut.
+				# `climate` ends with no wireframe at all, so a chapter-edge switch laid a cyan haze
+				# over the whole frame a second before the first biome arrived -- at this framing the
+				# grid covers everything, which made it, rather than the beat it was meant to mark,
+				# the brightest thing in the shot. Only this first sweep: from the second reveal on
+				# both sides of the front are the same view and it separates biome counts instead, so
+				# splitting the opacity there would wash the grid in and out on every reveal.
+				wire_opacity = 0.0
 			else:
 				view_a = view_b
 				var reveal := _ramp(t, float(times[step - 1]), float(chapter["reveal_duration"]))
@@ -810,6 +818,9 @@ func _apply_build(t: float) -> void:
 		"debug_vignette": float(look["vignette"]),
 		"debug_biome_count": biome_count_a,
 		"debug_biome_count_b": biome_count_b,
+		"debug_id_colors": _biome_colors(),
+		"debug_id_color_count": mini(timeline["look"].get("biome_colors", []).size(),
+				DEBUG_ID_COLOR_MAX),
 	})
 
 
@@ -1043,6 +1054,25 @@ func _ripples_at(t: float, p_hits: Array, p_decay: float) -> Array:
 		if ripples.size() >= DEBUG_RIPPLE_MAX:
 			break
 	return ripples
+
+
+# The palette the biome id view paints with, in the configuration's own layer order -- snow, rock,
+# grass, dirt for the demo scene -- so the flat view says what each biome is made of instead of
+# handing it an arbitrary hue, and the wipe that ends the build-up lands on the render the colours
+# were already standing in for. The hues are the biome layers' own albedo textures averaged, lifted
+# in value: a flat emission view has no light to bring them up the way the shaded render does.
+#
+# Authored in sRGB like every other colour in the timeline, and padded to the shader's array size
+# the way the ripple slots are -- the count uniform, not the array's length, is what tells the
+# shader there is a palette to read at all. See debug_id_colors in terrain.gdshader.
+const DEBUG_ID_COLOR_MAX := 8
+
+func _biome_colors() -> PackedVector3Array:
+	var colors := PackedVector3Array()
+	for color in timeline["look"].get("biome_colors", []):
+		colors.append(_to_linear_vector3(color))
+	colors.resize(DEBUG_ID_COLOR_MAX)
+	return colors
 
 
 # mesh_resolution steps up through the relief chapter, so the surface visibly gains the detail the
