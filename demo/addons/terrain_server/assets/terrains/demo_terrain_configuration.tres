@@ -8,6 +8,7 @@
 
 [resource]
 height_scale = 256.0
+clipmap_levels = 8
 noise_octaves = 6
 noise_base_frequency = 0.0015
 noise_ridge_amount = 1.0
