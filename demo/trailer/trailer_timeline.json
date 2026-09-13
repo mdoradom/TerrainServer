@@ -98,7 +98,7 @@
 			"fill": 1.0,
 			"lift_duration": 1.5,
 			"name": "relief",
-			"resolution_start": 32.0,
+			"resolution_start": 256.0,
 			"resolution_times": [
 				24.95
 			],
@@ -134,6 +134,7 @@
 				-1.0,
 				0.0
 			],
+			"mesh_resolution": 256.0,
 			"name": "normals",
 			"start": 30.906,
 			"view_a": 1.0,
@@ -173,6 +174,7 @@
 				-1.0
 			],
 			"name": "climate",
+			"mesh_resolution": 256.0,
 			"start": 36.5,
 			"view_a": 6.0,
 			"view_b": 4.0,
@@ -209,6 +211,7 @@
 			"fill": 1.0,
 			"fill_snap": 0.5,
 			"fill_snap_decay": 0.3,
+			"mesh_resolution": 256.0,
 			"name": "biomes",
 			"parallax_duration": 1.5,
 			"parallax_time": 50.085,
